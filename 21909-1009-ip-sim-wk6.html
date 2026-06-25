@@ -79,10 +79,7 @@
   .card h2{font-size:1.05rem;margin-bottom:4px;}
   .card .note{font-size:.8rem;color:var(--muted);margin-bottom:10px;}
   .card label{display:block;font-size:.76rem;color:var(--muted);margin:9px 0 3px;}
-  .ipfield{display:flex;align-items:center;border:1.5px solid var(--line2);border-radius:9px;overflow:hidden;background:var(--bg);}
-  .ipfield .pre{padding:9px 4px 9px 11px;font-family:'Consolas',monospace;font-size:.98rem;color:var(--muted);background:var(--bg);}
-  .ipfield input{flex:1;border:none;outline:none;background:#fff;font-family:'Consolas',monospace;font-size:1.05rem;padding:9px 11px;color:var(--ink);width:100%;}
-  .card input.full{width:100%;font-family:'Consolas',monospace;font-size:.95rem;padding:9px 11px;border:1.5px solid var(--line2);border-radius:9px;background:#fff;color:var(--ink);}
+  .card input.full{width:100%;font-family:'Consolas',monospace;font-size:1rem;padding:10px 11px;border:1.5px solid var(--line2);border-radius:9px;background:#fff;color:var(--ink);}
   .card input[readonly]{background:var(--device-bg);color:#92400E;border-color:var(--device-line);}
   .gwrow{display:flex;gap:6px;align-items:stretch;}
   .gwrow input{flex:1;}
@@ -151,8 +148,8 @@
 <div class="overlay" id="cfgOverlay"><div class="card">
   <h2 id="cfgTitle">⚙️ ตั้งค่า PC</h2>
   <div class="note" id="cfgNote"></div>
-  <label>IP Address (กรอกแค่เลขท้าย)</label>
-  <div class="ipfield"><span class="pre">192.168.1.</span><input id="cfgHost" type="text" inputmode="numeric" placeholder="__" maxlength="3"></div>
+  <label>IP Address (กรอกให้เต็ม)</label>
+  <input class="full" id="cfgIp" type="text" inputmode="decimal" placeholder="192.168.1.__" autocomplete="off">
   <label>Subnet Mask</label>
   <input class="full" id="cfgSub" type="text" value="255.255.255.0" readonly>
   <label>Default Gateway</label>
@@ -179,11 +176,14 @@
 <script>
 const NET="192.168.1", ROUTER_IP="192.168.1.1", MASK="255.255.255.0";
 let studentNo=null, editing=null;
-const pcs={}; [1,2,3,4,5].forEach(n=>pcs[n]={host:"",gw:""});
+const pcs={}; [1,2,3,4,5].forEach(n=>pcs[n]={ip:"",gw:""});
 const prog={ip:false,peer:false,net:false};
-const LS="ip_sim_1009_wk6";
+const LS="ip_sim_1009_wk6_v3";
 
-function ipOf(n){return pcs[n].host!==""?NET+"."+pcs[n].host:"";}
+function parseIp(ip){const t=(ip||"").trim(),a=t.split(".");
+  if(a.length!==4||a.some(x=>x===""||!/^\d+$/.test(x)||+x<0||+x>255))return{bad:1};
+  return{net:a.slice(0,3).join("."),host:+a[3]};}
+function ipOf(n){return pcs[n].ip;}
 
 // ---------- SVG positions ----------
 const PCX={1:58,2:163,3:268,4:373,5:478}, PCY=34, PCW=92, PCH=54;
@@ -215,15 +215,16 @@ function render(){
 // ---------- validate ----------
 function pcState(n){
   const p=pcs[n];
-  if(p.host==="") return {ok:false,err:false,msg:"ยังไม่ตั้ง IP"};
-  if(!/^\d+$/.test(p.host)||+p.host<0||+p.host>255) return {ok:false,err:true,msg:"❌ เลขท้ายต้องเป็นตัวเลข 0–255"};
-  const h=+p.host;
-  if(h===0) return {ok:false,err:true,msg:"❌ ลงท้าย .0 ไม่ได้ (เป็นเลขหมู่บ้าน ไม่ใช่เครื่อง)"};
-  if(h===255) return {ok:false,err:true,msg:"❌ ลงท้าย .255 ไม่ได้ (เป็น broadcast)"};
-  if(h===1) return {ok:false,err:true,msg:"❌ .1 เป็นของ Router ห้ามใช้ซ้ำ"};
-  if(n===1 && h!==studentNo) return {ok:false,err:true,msg:`❌ PC1 ต้องลงท้ายด้วยเลขที่ของเธอ (.${studentNo})`};
-  for(const m of [1,2,3,4,5]){if(m!==n && pcs[m].host!=="" && +pcs[m].host===h)
-    return {ok:false,err:true,msg:`❌ IP Conflict! .${h} ซ้ำกับ PC${m} (เลขที่บ้านชนกัน)`};}
+  if(!p.ip) return {ok:false,err:false,msg:"ยังไม่ตั้ง IP"};
+  const r=parseIp(p.ip);
+  if(r.bad) return {ok:false,err:true,msg:"❌ รูปแบบ IP ผิด ต้องเป็นเลข 4 ชุด 0–255 เช่น 192.168.1.10"};
+  if(r.net!==NET) return {ok:false,err:true,msg:`❌ 3 ชุดแรกต้องเป็น ${NET} — ที่กรอก ${r.net} คนละหมู่บ้านกับ Router`};
+  if(r.host===0) return {ok:false,err:true,msg:"❌ ลงท้าย .0 ไม่ได้ (เป็นเลขหมู่บ้าน ไม่ใช่เครื่อง)"};
+  if(r.host===255) return {ok:false,err:true,msg:"❌ ลงท้าย .255 ไม่ได้ (เป็น broadcast)"};
+  if(r.host===1) return {ok:false,err:true,msg:"❌ .1 เป็นของ Router ห้ามใช้ซ้ำ"};
+  if(n===1 && r.host!==studentNo) return {ok:false,err:true,msg:`❌ PC1 ต้องลงท้ายด้วยเลขที่ของเธอ (.${studentNo})`};
+  for(const m of [1,2,3,4,5]){if(m!==n && pcs[m].ip){const o=parseIp(pcs[m].ip);
+    if(!o.bad && o.net===NET && o.host===r.host) return {ok:false,err:true,msg:`❌ IP Conflict! .${r.host} ซ้ำกับ PC${m} (เลขที่บ้านชนกัน)`};}}
   return {ok:true,err:false,msg:"🟢 IP ถูกกฎ"};
 }
 
@@ -233,7 +234,7 @@ document.getElementById('noOk').addEventListener('click',()=>{
   if(!/^\d+$/.test(v)||+v<2||+v>99){document.getElementById('noErr').textContent="กรอกเลขที่ 2–99 (เลข 1 เป็นของ Router)";return;}
   studentNo=+v; document.getElementById('meNo').textContent=studentNo;
   document.getElementById('noOverlay').classList.remove('show');
-  save(); term(`เริ่ม! แตะ <span class="cmd">PC1</span> ตั้ง IP ลงท้าย <span class="cmd">.${studentNo}</span> ก่อนเลย`,'th');
+  save(); term(`เริ่ม! แตะ <span class="cmd">PC1</span> ตั้ง IP เป็น <span class="cmd">192.168.1.${studentNo}</span> ก่อนเลย`,'th');
 });
 
 // ---------- config ----------
@@ -241,18 +242,18 @@ window.openCfg=function(n){
   editing=n;
   document.getElementById('cfgTitle').textContent=`⚙️ ตั้งค่า PC${n}`;
   document.getElementById('cfgNote').innerHTML = n===1
-    ? `เครื่องของเธอ — เลขท้ายต้องเป็น <b style="color:#B45309">.${studentNo}</b> (เลขที่ของเธอ)`
-    : `กรอกเลขท้าย (2–254) ห้ามซ้ำเครื่องอื่น · ห้าม 0/1/255`;
-  document.getElementById('cfgHost').value=pcs[n].host;
+    ? `เครื่องของเธอ — IP ต้องเป็น <b style="color:#B45309">192.168.1.${studentNo}</b> (ลงท้ายเลขที่ของเธอ)`
+    : `กรอก IP ให้อยู่วง 192.168.1.x · ห้ามซ้ำเครื่องอื่น · ห้าม .0/.1/.255`;
+  document.getElementById('cfgIp').value=pcs[n].ip;
   document.getElementById('cfgGw').value=pcs[n].gw;
   document.getElementById('cfgErr').textContent="";
   document.getElementById('cfgOverlay').classList.add('show');
-  setTimeout(()=>document.getElementById('cfgHost').focus(),50);
+  setTimeout(()=>document.getElementById('cfgIp').focus(),50);
 };
 document.getElementById('gwAuto').addEventListener('click',()=>document.getElementById('cfgGw').value=ROUTER_IP);
 document.getElementById('cfgCancel').addEventListener('click',()=>document.getElementById('cfgOverlay').classList.remove('show'));
 document.getElementById('cfgSave').addEventListener('click',()=>{
-  pcs[editing].host=document.getElementById('cfgHost').value.trim();
+  pcs[editing].ip=document.getElementById('cfgIp').value.trim();
   pcs[editing].gw=document.getElementById('cfgGw').value.trim();
   const st=pcState(editing);
   document.getElementById('cfgErr').textContent=st.err?st.msg:"";
@@ -282,9 +283,6 @@ function run(){
   if(cmd==="ping"){if(!p[1]){term(`   ใช้: ping &lt;IP&gt; เช่น ping 192.168.1.1`,'th');return;}doPing(src,p[1]);return;}
   term(`'${cmd}' ไม่ใช่คำสั่งที่รองรับ — ใช้ได้แค่ <span class="cmd">ping</span> กับ <span class="cmd">ipconfig</span>`,'th');
 }
-function parseIp(ip){const t=(ip||"").trim(),a=t.split(".");
-  if(a.length!==4||a.some(x=>x===""||!/^\d+$/.test(x)||+x<0||+x>255))return{bad:1};
-  return{net:a.slice(0,3).join("."),host:+a[3]};}
 
 function doPing(src,target){
   const s=pcState(src);
@@ -296,24 +294,36 @@ function doPing(src,target){
     return;}
   const t=parseIp(target);
   if(t.bad){term(`Ping request could not find host ${target}.`,'bad');return;}
-  if(t.net!==NET){anim(src,cen(SW),false);term(`Request timed out.`,'bad');term(`   (ปลายทาง ${target} อยู่คนละหมู่บ้าน 3 ชุดแรกไม่ตรง จึงส่งไม่ถึง)`,'th');return;}
+  if(t.net!==NET){anim(src,cen(RT),false);term(`Request timed out.`,'bad');term(`   (ปลายทาง ${target} อยู่คนละหมู่บ้าน 3 ชุดแรกไม่ตรง จึงส่งไม่ถึง)`,'th');return;}
   if(t.host===1){anim(src,cen(RT),true);reply(target,"Router ตอบกลับ — เครื่องเธอถึง Gateway แล้ว");return;}
-  let f=null;for(const m of [1,2,3,4,5]){if(pcs[m].host!==""&&+pcs[m].host===t.host){f=m;break;}}
+  let f=null;for(const m of [1,2,3,4,5]){const o=parseIp(pcs[m].ip);if(!o.bad&&o.net===NET&&o.host===t.host){f=m;break;}}
   if(f){const fs=pcState(f);
-    if(fs.ok&&f!==src){anim(src,pcC(f),true);reply(target,`PC${f} ตอบกลับ — สองเครื่องอยู่วงเดียวกัน คุยกันได้!`);prog.peer=true;updateQuest();
+    if(f===src){anim(src,pcC(f),true);reply(target,"ก็คือเครื่องตัวเองนั่นแหละ ลอง ping เครื่องอื่นดู");}
+    else if(fs.ok){anim(src,pcC(f),true);reply(target,`PC${f} ตอบกลับ — สองเครื่องอยู่วงเดียวกัน คุยกันได้!`);prog.peer=true;updateQuest();
       term(`   📋 จดสมุด: PC${src} ping PC${f} = ได้ เพราะ 3 ชุดแรกตรงกัน (วงเดียวกัน)`,'note');}
-    else if(f===src){anim(src,pcC(f),true);reply(target,"ก็คือเครื่องตัวเองนั่นแหละ ลอง ping เครื่องอื่นดู");}
     else{anim(src,pcC(f),false);term(`Request timed out.`,'bad');term(`   (PC${f} มี IP นี้แต่ตั้งค่าไม่ถูก จึงไม่ตอบ)`,'th');}
   }else{anim(src,cen(SW),false);term(`Request timed out.`,'bad');term(`   (ส่งจดหมายไม่ถึง หาบ้านเลขที่ ${target} ไม่เจอในร้านนี้)`,'th');}
 }
 function reply(target,th){term(`Reply from ${target}: bytes=32 time&lt;1ms TTL=128`,'ok');term(`Reply from ${target}: bytes=32 time&lt;1ms TTL=128`,'ok');term(`   (${th})`,'th');}
 
-// ---------- packet anim ----------
-function anim(src,b,ok){const pk=document.getElementById('packet');if(!pk)return;const a=pcC(src);
-  gsap.killTweensOf(pk);gsap.set(pk,{attr:{cx:a.x,cy:a.y,fill:ok?'#2563EB':'#DC2626'},opacity:1});
-  const tl=gsap.timeline();
-  if(ok)tl.to(pk,{attr:{cx:b.x,cy:b.y},duration:.45,ease:'power1.inOut'}).to(pk,{attr:{cx:a.x,cy:a.y},duration:.45,ease:'power1.inOut'}).to(pk,{opacity:0,duration:.2});
-  else{const mx=a.x+(b.x-a.x)*.45,my=a.y+(b.y-a.y)*.45;tl.to(pk,{attr:{cx:mx,cy:my},duration:.35}).to(pk,{attr:{cy:my+34},opacity:0,duration:.35,ease:'power2.in'});}
+// ---------- packet anim (วิ่งผ่าน Switch เสมอ ตาม topology จริง) ----------
+function anim(src,dest,ok){
+  const pk=document.getElementById('packet'); if(!pk)return;
+  const a=pcC(src), sw=cen(SW);
+  gsap.killTweensOf(pk);
+  gsap.set(pk,{attr:{cx:a.x,cy:a.y,fill:ok?'#2563EB':'#DC2626'},opacity:1});
+  const tl=gsap.timeline(), D=.38;
+  tl.to(pk,{attr:{cx:sw.x,cy:sw.y},duration:D,ease:'power1.inOut'});   // PC → Switch
+  if(ok){
+    tl.to(pk,{attr:{cx:dest.x,cy:dest.y},duration:D,ease:'power1.inOut'})  // Switch → ปลายทาง
+      .to(pk,{attr:{cx:sw.x,cy:sw.y},duration:D,ease:'power1.inOut'})       // กลับ Switch
+      .to(pk,{attr:{cx:a.x,cy:a.y},duration:D,ease:'power1.inOut'})          // กลับ PC ต้นทาง
+      .to(pk,{opacity:0,duration:.15});
+  }else{
+    const mx=sw.x+(dest.x-sw.x)*.5, my=sw.y+(dest.y-sw.y)*.5;
+    tl.to(pk,{attr:{cx:mx,cy:my},duration:.3,ease:'power1.out'})  // Switch → ครึ่งทาง
+      .to(pk,{attr:{cy:my+34},opacity:0,duration:.35,ease:'power2.in'}); // ร่วง (ส่งไม่ถึง)
+  }
 }
 
 // ---------- quest / win ----------
@@ -348,7 +358,7 @@ function load(){try{const d=JSON.parse(localStorage.getItem(LS));if(!d||!d.stude
 
 document.getElementById('resetBtn').addEventListener('click',()=>{
   localStorage.removeItem(LS);studentNo=null;window._won=false;
-  [1,2,3,4,5].forEach(n=>pcs[n]={host:"",gw:""});prog.ip=prog.peer=prog.net=false;
+  [1,2,3,4,5].forEach(n=>pcs[n]={ip:"",gw:""});prog.ip=prog.peer=prog.net=false;
   document.getElementById('meNo').textContent="—";document.getElementById('noInput').value="";document.getElementById('noErr').textContent="";
   out.innerHTML="";document.getElementById('noOverlay').classList.add('show');render();updateQuest();
 });
