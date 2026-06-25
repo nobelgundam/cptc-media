@@ -2,97 +2,98 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Packet Tracer จำลอง — ตั้ง IP ร้านเกม · 21909-1009 ปวช.1 wk6</title>
 <style>
   :root{
-    --bg:#0F172A; --panel:#1E293B; --panel2:#273449; --line:#334155;
-    --ink:#E2E8F0; --muted:#94A3B8;
-    --device:#F59E0B; --device2:#FBBF24; --signal:#38BDF8;
-    --ok:#34D399; --okbg:#064E3B; --bad:#F87171; --badbg:#7F1D1D;
-    --router:#FBBF24; --switch:#A78BFA;
+    --bg:#F1F5F9; --card:#FFFFFF; --line:#E2E8F0; --line2:#CBD5E1;
+    --ink:#0F172A; --muted:#64748B;
+    --device:#F59E0B; --device-bg:#FEF3C7; --device-line:#F59E0B;
+    --end:#94A3B8; --end-bg:#F1F5F9;
+    --signal:#2563EB; --ok:#16A34A; --okbg:#DCFCE7; --bad:#DC2626; --badbg:#FEE2E2;
+    --term-bg:#0B1120; --term-ink:#CBD5E1;
   }
-  *{box-sizing:border-box;margin:0;padding:0;}
-  body{
-    font-family:'Sarabun','IBM Plex Sans Thai','Noto Sans Thai',sans-serif;
-    background:var(--bg); color:var(--ink); line-height:1.5;
-    min-height:100vh; display:flex; flex-direction:column;
-  }
-  header{
-    background:var(--panel); border-bottom:1px solid var(--line);
-    padding:10px 16px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;
-  }
-  header h1{font-size:1.05rem;font-weight:700;}
-  header .sub{font-size:.78rem;color:var(--muted);}
-  header .me{margin-left:auto;font-size:.82rem;background:var(--panel2);border:1px solid var(--line);
-    border-radius:8px;padding:4px 10px;}
-  header .me b{color:var(--device2);}
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  body{font-family:'Sarabun','IBM Plex Sans Thai','Noto Sans Thai',sans-serif;
+    background:var(--bg);color:var(--ink);line-height:1.5;
+    display:flex;flex-direction:column;height:100vh;overflow:hidden;}
   button{font-family:inherit;cursor:pointer;}
-  .btn-reset{background:none;border:1px solid var(--line);color:var(--muted);
-    border-radius:8px;padding:4px 10px;font-size:.78rem;}
 
-  /* ===== topology ===== */
-  .stage{flex:0 0 auto;background:
-      linear-gradient(var(--panel) 0 0) padding-box;
-    border-bottom:1px solid var(--line); padding:6px;}
-  .stage .hint{font-size:.76rem;color:var(--muted);text-align:center;margin:2px 0 4px;}
-  svg.net{width:100%;height:auto;display:block;max-height:46vh;}
-  .dev{cursor:pointer;}
-  .dev .box{transition:all .2s;}
-  .dev:hover .box{filter:brightness(1.15);}
+  header{background:var(--card);border-bottom:1px solid var(--line);
+    padding:8px 14px;display:flex;align-items:center;gap:8px;flex:0 0 auto;}
+  header h1{font-size:1rem;font-weight:700;}
+  header .sub{font-size:.72rem;color:var(--muted);}
+  header .me{margin-left:auto;font-size:.78rem;background:var(--device-bg);border:1px solid var(--device-line);
+    color:#92400E;border-radius:8px;padding:3px 10px;font-weight:600;}
+  .btn-reset{background:none;border:1px solid var(--line2);color:var(--muted);
+    border-radius:8px;padding:3px 9px;font-size:.74rem;}
+
+  /* checklist */
+  .quest{flex:0 0 auto;display:flex;gap:6px;padding:7px 10px;background:var(--card);
+    border-bottom:1px solid var(--line);overflow-x:auto;}
+  .q{flex:1;min-width:0;display:flex;align-items:center;gap:6px;font-size:.74rem;
+    background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:6px 8px;white-space:nowrap;}
+  .q .ic{width:18px;height:18px;border-radius:50%;border:2px solid var(--line2);flex:0 0 auto;
+    display:grid;place-items:center;font-size:.7rem;color:#fff;}
+  .q.done{background:var(--okbg);border-color:var(--ok);color:#166534;font-weight:600;}
+  .q.done .ic{background:var(--ok);border-color:var(--ok);}
+
+  /* topology */
+  .stage{flex:0 0 auto;background:var(--card);border-bottom:1px solid var(--line);padding:4px 6px 6px;}
+  .stage .hint{font-size:.72rem;color:var(--muted);text-align:center;margin:3px 0;}
+  svg.net{width:100%;height:auto;display:block;}
+  .dev .box{transition:.15s;}
+  .dev.pc{cursor:pointer;}
+  .dev.pc:active .box{filter:brightness(.95);}
   .dev .lbl{font-size:13px;font-weight:700;fill:var(--ink);text-anchor:middle;}
-  .dev .ipt{font-size:11px;text-anchor:middle;fill:var(--muted);font-family:'Consolas',monospace;}
-  .dev .ipt.set{fill:var(--ok);}
-  .dev .ipt.err{fill:var(--bad);}
-  .dev.ok .box{stroke:var(--ok);stroke-width:2.5;}
-  .dev.bad .box{stroke:var(--bad);stroke-width:2.5;}
-  .wire{stroke:var(--line);stroke-width:3;}
-  .wire.live{stroke:var(--ok);}
+  .dev .ipt{font-size:11px;text-anchor:middle;font-family:'Consolas',monospace;fill:var(--muted);}
+  .dev .ipt.set{fill:var(--ok);font-weight:700;} .dev .ipt.err{fill:var(--bad);font-weight:700;}
+  .dev.pc.ok .box{stroke:var(--ok);stroke-width:2.5;} .dev.pc.bad .box{stroke:var(--bad);stroke-width:2.5;}
+  .wire{stroke:var(--line2);stroke-width:3;} .wire.live{stroke:var(--ok);}
 
-  /* ===== terminal ===== */
-  .term-wrap{flex:1 1 auto;display:flex;flex-direction:column;min-height:0;background:#0B1120;}
-  .term-bar{display:flex;align-items:center;gap:8px;padding:7px 12px;background:var(--panel);
-    border-top:1px solid var(--line);border-bottom:1px solid var(--line);}
-  .term-bar .tt{font-size:.82rem;font-weight:700;}
-  .term-bar select{font-family:inherit;background:var(--panel2);color:var(--ink);
-    border:1px solid var(--line);border-radius:7px;padding:4px 8px;font-size:.82rem;}
-  .term-bar .keys{margin-left:auto;display:flex;gap:6px;}
-  .term-bar .keys button{background:var(--panel2);color:var(--signal);border:1px solid var(--line);
-    border-radius:7px;padding:4px 10px;font-size:.8rem;font-family:'Consolas',monospace;}
-  #out{flex:1 1 auto;overflow-y:auto;padding:10px 12px;font-family:'Consolas','Courier New',monospace;
-    font-size:.86rem;white-space:pre-wrap;word-break:break-word;line-height:1.5;color:#CBD5E1;min-height:120px;}
-  #out .cmd{color:#7DD3FC;} #out .ok{color:var(--ok);} #out .bad{color:var(--bad);}
-  #out .th{color:var(--muted);}
-  .inline{display:flex;align-items:center;gap:6px;padding:8px 12px;border-top:1px solid var(--line);
-    background:#0B1120;}
-  .inline .ps{color:var(--device2);font-family:'Consolas',monospace;font-size:.86rem;white-space:nowrap;}
-  #cmd{flex:1;background:#0B1120;border:none;outline:none;color:var(--ink);
-    font-family:'Consolas',monospace;font-size:.9rem;padding:4px;}
-  .inline button.go{background:var(--signal);color:#06283D;border:none;border-radius:7px;
-    padding:6px 12px;font-weight:700;}
+  /* terminal */
+  .term{flex:1 1 auto;display:flex;flex-direction:column;min-height:0;background:var(--term-bg);}
+  .tbar{display:flex;align-items:center;gap:7px;padding:6px 10px;background:#111A2E;
+    border-bottom:1px solid #1E293B;flex-wrap:wrap;}
+  .tbar .tt{font-size:.78rem;font-weight:700;color:#E2E8F0;}
+  .tbar select{font-family:inherit;background:#0B1120;color:#E2E8F0;border:1px solid #334155;
+    border-radius:6px;padding:3px 7px;font-size:.78rem;}
+  .chips{display:flex;gap:5px;width:100%;overflow-x:auto;padding-top:2px;}
+  .chips button{flex:0 0 auto;background:#0B1120;color:#7DD3FC;border:1px solid #334155;
+    border-radius:7px;padding:4px 9px;font-size:.76rem;font-family:'Consolas',monospace;}
+  .chips button:active{background:#1E293B;}
+  #out{flex:1 1 auto;overflow-y:auto;padding:9px 11px;font-family:'Consolas','Courier New',monospace;
+    font-size:.82rem;white-space:pre-wrap;word-break:break-word;line-height:1.5;color:var(--term-ink);}
+  #out .cmd{color:#7DD3FC;} #out .ok{color:#4ADE80;} #out .bad{color:#F87171;} #out .th{color:#94A3B8;}
+  #out .note{color:#FCD34D;}
+  .inline{display:flex;align-items:center;gap:6px;padding:7px 10px;border-top:1px solid #1E293B;background:#0B1120;}
+  .inline .ps{color:#FBBF24;font-family:'Consolas',monospace;font-size:.82rem;white-space:nowrap;}
+  #cmd{flex:1;background:transparent;border:none;outline:none;color:#E2E8F0;
+    font-family:'Consolas',monospace;font-size:.88rem;padding:3px;}
+  .inline .go{background:var(--signal);color:#fff;border:none;border-radius:7px;padding:6px 12px;font-weight:700;font-size:.82rem;}
 
-  /* ===== modals ===== */
-  .overlay{position:fixed;inset:0;background:rgba(2,6,23,.78);display:none;
-    align-items:center;justify-content:center;padding:18px;z-index:50;}
+  /* modals */
+  .overlay{position:fixed;inset:0;background:rgba(15,23,42,.6);display:none;align-items:center;justify-content:center;padding:18px;z-index:50;}
   .overlay.show{display:flex;}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;
-    padding:18px;width:100%;max-width:340px;}
+  .card{background:var(--card);border-radius:16px;padding:18px;width:100%;max-width:330px;box-shadow:0 12px 40px rgba(0,0,0,.25);}
   .card h2{font-size:1.05rem;margin-bottom:4px;}
-  .card .note{font-size:.8rem;color:var(--muted);margin-bottom:12px;}
-  .card label{display:block;font-size:.78rem;color:var(--muted);margin:8px 0 3px;}
-  .card input{width:100%;font-family:'Consolas',monospace;font-size:.95rem;padding:9px 11px;
-    border:1.5px solid var(--line);border-radius:9px;background:var(--panel2);color:var(--ink);}
-  .card input:focus{outline:none;border-color:var(--signal);}
-  .card input[readonly]{background:#3b3320;color:var(--device2);border-color:#5b4d22;}
+  .card .note{font-size:.8rem;color:var(--muted);margin-bottom:10px;}
+  .card label{display:block;font-size:.76rem;color:var(--muted);margin:9px 0 3px;}
+  .ipfield{display:flex;align-items:center;border:1.5px solid var(--line2);border-radius:9px;overflow:hidden;background:var(--bg);}
+  .ipfield .pre{padding:9px 4px 9px 11px;font-family:'Consolas',monospace;font-size:.98rem;color:var(--muted);background:var(--bg);}
+  .ipfield input{flex:1;border:none;outline:none;background:#fff;font-family:'Consolas',monospace;font-size:1.05rem;padding:9px 11px;color:var(--ink);width:100%;}
+  .card input.full{width:100%;font-family:'Consolas',monospace;font-size:.95rem;padding:9px 11px;border:1.5px solid var(--line2);border-radius:9px;background:#fff;color:var(--ink);}
+  .card input[readonly]{background:var(--device-bg);color:#92400E;border-color:var(--device-line);}
+  .gwrow{display:flex;gap:6px;align-items:stretch;}
+  .gwrow input{flex:1;}
+  .gwrow button{background:var(--device-bg);border:1px solid var(--device-line);color:#92400E;border-radius:9px;padding:0 10px;font-size:.78rem;font-weight:600;}
   .card .err{font-size:.8rem;color:var(--bad);margin-top:8px;min-height:1em;}
   .card .actions{display:flex;gap:8px;margin-top:14px;}
   .card .actions button{flex:1;border:none;border-radius:9px;padding:11px;font-weight:700;font-size:.95rem;}
-  .card .save{background:var(--ok);color:#04231A;}
-  .card .cancel{background:var(--panel2);color:var(--muted);}
+  .save{background:var(--ok);color:#fff;} .cancel{background:var(--bg);color:var(--muted);}
   #fx{position:fixed;inset:0;pointer-events:none;z-index:99;}
-  .win-msg{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:60;
-    background:var(--okbg);border:1.5px solid var(--ok);color:#D1FAE5;border-radius:12px;
-    padding:10px 18px;font-size:.92rem;font-weight:600;display:none;max-width:92%;text-align:center;}
+  .win-msg{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:60;max-width:92%;text-align:center;
+    background:var(--okbg);border:1.5px solid var(--ok);color:#166534;border-radius:12px;padding:10px 16px;font-size:.9rem;font-weight:600;display:none;box-shadow:0 8px 24px rgba(0,0,0,.15);}
   .win-msg.show{display:block;}
 </style>
 </head>
@@ -101,66 +102,67 @@
 <div class="win-msg" id="winMsg"></div>
 
 <header>
-  <div>
-    <h1>🖧 ตั้ง IP ให้ร้านเกมคุยกัน</h1>
-    <div class="sub">Packet Tracer จำลอง · 21909-1009 ปวช.1 · ตอนที่ 3</div>
-  </div>
-  <div class="me" id="meBox">เลขที่: <b id="meNo">—</b></div>
+  <div><h1>🖧 ตั้ง IP ให้ร้านเกมคุยกัน</h1><div class="sub">Packet Tracer จำลอง · 21909-1009 ปวช.1 · ตอน 3</div></div>
+  <div class="me">เลขที่ <span id="meNo">—</span></div>
   <button class="btn-reset" id="resetBtn">เริ่มใหม่</button>
 </header>
 
-<div class="stage">
-  <div class="hint">👆 แตะที่เครื่อง PC เพื่อตั้งค่า IP · สายเชื่อมไว้ให้แล้ว · ตั้งครบแล้วลอง ping ใน Terminal ข้างล่าง</div>
-  <svg class="net" id="net" viewBox="0 0 600 300" preserveAspectRatio="xMidYMid meet"></svg>
+<div class="quest">
+  <div class="q" id="q1"><span class="ic">1</span> ตั้ง IP ครบ 5</div>
+  <div class="q" id="q2"><span class="ic">2</span> ping เพื่อนในวง</div>
+  <div class="q" id="q3"><span class="ic">3</span> ping ออกเน็ต</div>
 </div>
 
-<div class="term-wrap">
-  <div class="term-bar">
+<div class="stage">
+  <div class="hint">👆 แตะที่เครื่อง <b>PC</b> เพื่อตั้ง IP · ตั้งเสร็จลอง <b>ping</b> ใน Terminal ข้างล่าง</div>
+  <svg class="net" id="net" viewBox="0 0 540 300" preserveAspectRatio="xMidYMid meet"></svg>
+</div>
+
+<div class="term">
+  <div class="tbar">
     <span class="tt">💻 Terminal</span>
-    <select id="srcSel" title="เลือกเครื่องที่จะพิมพ์คำสั่ง"></select>
-    <div class="keys">
-      <button data-k="ping ">ping</button>
-      <button data-k="ipconfig">ipconfig</button>
+    <select id="srcSel" title="เครื่องที่พิมพ์คำสั่ง"></select>
+    <div class="chips">
+      <button data-run="ipconfig">ipconfig</button>
+      <button data-run="ping 192.168.1.1">ping Router</button>
+      <button data-run="ping 8.8.8.8">ping 8.8.8.8</button>
+      <button data-fill="ping 192.168.1.">ping เพื่อน…</button>
     </div>
   </div>
   <div id="out"></div>
   <div class="inline">
     <span class="ps" id="ps">PC1&gt;</span>
-    <input id="cmd" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="พิมพ์คำสั่ง เช่น ping 192.168.1.1">
+    <input id="cmd" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="พิมพ์เอง เช่น ping 192.168.1.20">
     <button class="go" id="goBtn">รัน</button>
   </div>
 </div>
 
 <!-- เลขที่ -->
-<div class="overlay show" id="noOverlay">
-  <div class="card">
-    <h2>🎮 เริ่มภารกิจ</h2>
-    <div class="note">กรอก "เลขที่ของเธอ" ก่อน — เครื่อง PC1 ของเธอจะต้องตั้ง IP ลงท้ายด้วยเลขที่นี้ (กันลอกเพื่อน)</div>
-    <label>เลขที่ของเธอ (1–99)</label>
-    <input id="noInput" type="text" inputmode="numeric" placeholder="เช่น 7">
-    <div class="err" id="noErr"></div>
-    <div class="actions"><button class="save" id="noOk">เริ่มเลย</button></div>
-  </div>
-</div>
+<div class="overlay show" id="noOverlay"><div class="card">
+  <h2>🎮 เริ่มภารกิจ</h2>
+  <div class="note">กรอก "เลขที่ของเธอ" ก่อน — เครื่อง PC1 ของเธอต้องตั้ง IP ลงท้ายด้วยเลขที่นี้ (กันลอกเพื่อน)</div>
+  <label>เลขที่ของเธอ (2–99)</label>
+  <input class="full" id="noInput" type="text" inputmode="numeric" placeholder="เช่น 7">
+  <div class="err" id="noErr"></div>
+  <div class="actions"><button class="save" id="noOk">เริ่มเลย</button></div>
+</div></div>
 
 <!-- config -->
-<div class="overlay" id="cfgOverlay">
-  <div class="card">
-    <h2 id="cfgTitle">⚙️ ตั้งค่า PC</h2>
-    <div class="note" id="cfgNote">กรอก IP ให้อยู่วง 192.168.1.x · Subnet ล็อกไว้แล้ว</div>
-    <label>IP Address</label>
-    <input id="cfgIp" type="text" inputmode="decimal" placeholder="192.168.1.__">
-    <label>Subnet Mask</label>
-    <input id="cfgSub" type="text" value="255.255.255.0" readonly>
-    <label>Default Gateway</label>
-    <input id="cfgGw" type="text" inputmode="decimal" placeholder="192.168.1.1">
-    <div class="err" id="cfgErr"></div>
-    <div class="actions">
-      <button class="cancel" id="cfgCancel">ยกเลิก</button>
-      <button class="save" id="cfgSave">บันทึก</button>
-    </div>
+<div class="overlay" id="cfgOverlay"><div class="card">
+  <h2 id="cfgTitle">⚙️ ตั้งค่า PC</h2>
+  <div class="note" id="cfgNote"></div>
+  <label>IP Address (กรอกแค่เลขท้าย)</label>
+  <div class="ipfield"><span class="pre">192.168.1.</span><input id="cfgHost" type="text" inputmode="numeric" placeholder="__" maxlength="3"></div>
+  <label>Subnet Mask</label>
+  <input class="full" id="cfgSub" type="text" value="255.255.255.0" readonly>
+  <label>Default Gateway</label>
+  <div class="gwrow">
+    <input class="full" id="cfgGw" type="text" inputmode="decimal" placeholder="192.168.1.1">
+    <button id="gwAuto">ใช้ .1</button>
   </div>
-</div>
+  <div class="err" id="cfgErr"></div>
+  <div class="actions"><button class="cancel" id="cfgCancel">ยกเลิก</button><button class="save" id="cfgSave">บันทึก</button></div>
+</div></div>
 
 <script>/*!
  * GSAP 3.12.5
@@ -176,278 +178,189 @@
 </script>
 <script>
 const NET="192.168.1", ROUTER_IP="192.168.1.1", MASK="255.255.255.0";
-let studentNo=null;
-const pcs={}; [1,2,3,4,5].forEach(n=>pcs[n]={ip:"",gw:""});
-let editing=null;
+let studentNo=null, editing=null;
+const pcs={}; [1,2,3,4,5].forEach(n=>pcs[n]={host:"",gw:""});
+const prog={ip:false,peer:false,net:false};
+const LS="ip_sim_1009_wk6";
 
-// ---------- ตำแหน่งใน SVG ----------
-const PCX={1:70,2:185,3:300,4:415,5:530}, PCY=46, PCW=84, PCH=50;
-const SW={x:258,y:150,w:84,h:42}, RT={x:258,y:240,w:84,h:46};
+function ipOf(n){return pcs[n].host!==""?NET+"."+pcs[n].host:"";}
 
-function pcCenter(n){return {x:PCX[n]+PCW/2, y:PCY+PCH/2};}
-function center(o){return {x:o.x+o.w/2, y:o.y+o.h/2};}
+// ---------- SVG positions ----------
+const PCX={1:58,2:163,3:268,4:373,5:478}, PCY=34, PCW=92, PCH=54;
+const SW={x:222,y:150,w:96,h:42}, RT={x:222,y:232,w:96,h:48};
+const pcC=n=>({x:PCX[n],y:PCY+PCH/2});
+const cen=o=>({x:o.x+o.w/2,y:o.y+o.h/2});
 
-// ---------- render topology ----------
 function render(){
-  const sw=center(SW), rt=center(RT);
+  const sw=cen(SW), rt=cen(RT);
   let s=`<line class="wire" x1="${sw.x}" y1="${SW.y+SW.h}" x2="${rt.x}" y2="${RT.y}"></line>`;
+  [1,2,3,4,5].forEach(n=>{const c=pcC(n);
+    s+=`<line class="wire" id="w-${n}" x1="${c.x}" y1="${PCY+PCH}" x2="${sw.x}" y2="${SW.y}"></line>`;});
+  s+=`<g class="dev"><rect class="box" x="${SW.x}" y="${SW.y}" width="${SW.w}" height="${SW.h}" rx="8" fill="var(--device-bg)" stroke="var(--device-line)" stroke-width="2"></rect>
+    <text class="lbl" x="${sw.x}" y="${SW.y+18}">🔀 Switch</text><text class="ipt" x="${sw.x}" y="${SW.y+34}">รวมสาย</text></g>`;
+  s+=`<g class="dev"><rect class="box" x="${RT.x}" y="${RT.y}" width="${RT.w}" height="${RT.h}" rx="8" fill="var(--device-bg)" stroke="var(--device-line)" stroke-width="2"></rect>
+    <text class="lbl" x="${rt.x}" y="${RT.y+19}">📶 Router</text><text class="ipt set" x="${rt.x}" y="${RT.y+36}">192.168.1.1</text></g>`;
   [1,2,3,4,5].forEach(n=>{
-    const c=pcCenter(n);
-    s+=`<line class="wire" id="w-${n}" x1="${c.x}" y1="${PCY+PCH}" x2="${sw.x}" y2="${SW.y}"></line>`;
+    const st=pcState(n), cls=st.ok?"ok":(st.err?"bad":"");
+    const ip=ipOf(n), iptxt=ip||"แตะตั้ง IP", iptcls=ip?(st.ok?"ipt set":"ipt err"):"ipt";
+    s+=`<g class="dev pc ${cls}" onclick="openCfg(${n})">
+      <rect class="box" x="${PCX[n]-PCW/2}" y="${PCY}" width="${PCW}" height="${PCH}" rx="9" fill="var(--end-bg)" stroke="var(--end)" stroke-width="2"></rect>
+      <text class="lbl" x="${PCX[n]}" y="${PCY+22}">💻 PC${n}</text>
+      <text class="${iptcls}" x="${PCX[n]}" y="${PCY+40}">${iptxt}</text></g>`;
   });
-  // switch
-  s+=`<g class="dev" style="cursor:default"><rect class="box" x="${SW.x}" y="${SW.y}" width="${SW.w}" height="${SW.h}" rx="8" fill="#3b2f5c" stroke="${'#A78BFA'}" stroke-width="1.5"></rect>
-    <text class="lbl" x="${sw.x}" y="${SW.y+18}">🔀 Switch</text>
-    <text class="ipt" x="${sw.x}" y="${SW.y+34}">รวมสาย</text></g>`;
-  // router
-  s+=`<g class="dev" style="cursor:default"><rect class="box" x="${RT.x}" y="${RT.y}" width="${RT.w}" height="${RT.h}" rx="8" fill="#4a3a13" stroke="${'#FBBF24'}" stroke-width="1.5"></rect>
-    <text class="lbl" x="${rt.x}" y="${RT.y+18}">📶 Router</text>
-    <text class="ipt set" x="${rt.x}" y="${RT.y+34}">192.168.1.1</text></g>`;
-  // PCs
-  [1,2,3,4,5].forEach(n=>{
-    const p=pcs[n], st=pcState(n);
-    const cls = st.ok?"ok": (st.err?"bad":"");
-    const iptxt = p.ip ? p.ip : "ยังไม่ตั้ง";
-    const iptcls = p.ip ? (st.ok?"ipt set":"ipt err") : "ipt";
-    s+=`<g class="dev ${cls}" onclick="openCfg(${n})">
-      <rect class="box" x="${PCX[n]}" y="${PCY}" width="${PCW}" height="${PCH}" rx="9" fill="#1f2b3e" stroke="#475569" stroke-width="1.5"></rect>
-      <text class="lbl" x="${PCX[n]+PCW/2}" y="${PCY+22}">💻 PC${n}</text>
-      <text class="${iptcls}" x="${PCX[n]+PCW/2}" y="${PCY+39}">${iptxt}</text></g>`;
-  });
-  // packet layer
-  s+=`<circle id="packet" r="7" fill="#38BDF8" opacity="0"></circle>`;
+  s+=`<circle id="packet" r="7" fill="var(--signal)" opacity="0"></circle>`;
   document.getElementById('net').innerHTML=s;
 }
 
-// ---------- ตรวจ 1 เครื่อง ----------
-function parseIp(ip){
-  const t=(ip||"").trim();
-  if(!t) return {bad:"empty"};
-  const p=t.split(".");
-  if(p.length!==4||p.some(x=>x===""||!/^\d+$/.test(x)||+x<0||+x>255)) return {bad:"format"};
-  return {net:p.slice(0,3).join("."), host:+p[3]};
-}
-// คืน {ok, err, msg}  (err=true เมื่อกรอกแล้วผิด · ไม่ err เมื่อยังว่าง)
+// ---------- validate ----------
 function pcState(n){
   const p=pcs[n];
-  if(!p.ip) return {ok:false, err:false, msg:"ยังไม่ตั้ง IP"};
-  const r=parseIp(p.ip);
-  if(r.bad==="format") return {ok:false,err:true,msg:"❌ รูปแบบ IP ผิด ต้องเป็นเลข 4 ชุด 0–255 เช่น 192.168.1.10"};
-  if(r.net!==NET) return {ok:false,err:true,msg:`❌ 3 ชุดแรกเป็น ${r.net} คนละหมู่บ้านกับ Router (${NET})`};
-  if(r.host===0) return {ok:false,err:true,msg:"❌ ลงท้าย .0 ไม่ได้ (เลขหมู่บ้าน)"};
-  if(r.host===255) return {ok:false,err:true,msg:"❌ ลงท้าย .255 ไม่ได้ (broadcast)"};
-  if(r.host===1) return {ok:false,err:true,msg:"❌ .1 เป็นของ Router ห้ามใช้ซ้ำ"};
-  if(n===1 && r.host!==studentNo) return {ok:false,err:true,msg:`❌ PC1 ต้องลงท้ายด้วยเลขที่ของเธอ (.${studentNo})`};
-  // ซ้ำกับเครื่องอื่น
-  for(const m of [1,2,3,4,5]){
-    if(m===n) continue;
-    const o=parseIp(pcs[m].ip);
-    if(!o.bad && o.net===NET && o.host===r.host)
-      return {ok:false,err:true,msg:`❌ IP Conflict! .${r.host} ซ้ำกับ PC${m} (เลขที่บ้านชนกัน)`};
-  }
+  if(p.host==="") return {ok:false,err:false,msg:"ยังไม่ตั้ง IP"};
+  if(!/^\d+$/.test(p.host)||+p.host<0||+p.host>255) return {ok:false,err:true,msg:"❌ เลขท้ายต้องเป็นตัวเลข 0–255"};
+  const h=+p.host;
+  if(h===0) return {ok:false,err:true,msg:"❌ ลงท้าย .0 ไม่ได้ (เป็นเลขหมู่บ้าน ไม่ใช่เครื่อง)"};
+  if(h===255) return {ok:false,err:true,msg:"❌ ลงท้าย .255 ไม่ได้ (เป็น broadcast)"};
+  if(h===1) return {ok:false,err:true,msg:"❌ .1 เป็นของ Router ห้ามใช้ซ้ำ"};
+  if(n===1 && h!==studentNo) return {ok:false,err:true,msg:`❌ PC1 ต้องลงท้ายด้วยเลขที่ของเธอ (.${studentNo})`};
+  for(const m of [1,2,3,4,5]){if(m!==n && pcs[m].host!=="" && +pcs[m].host===h)
+    return {ok:false,err:true,msg:`❌ IP Conflict! .${h} ซ้ำกับ PC${m} (เลขที่บ้านชนกัน)`};}
   return {ok:true,err:false,msg:"🟢 IP ถูกกฎ"};
 }
 
-// ---------- modal เลขที่ ----------
+// ---------- เลขที่ ----------
 document.getElementById('noOk').addEventListener('click',()=>{
   const v=(document.getElementById('noInput').value||"").trim();
-  const e=document.getElementById('noErr');
-  if(!/^\d+$/.test(v)||+v<1||+v>99){e.textContent="กรอกเลขที่เป็นตัวเลข 1–99";return;}
-  studentNo=+v;
-  document.getElementById('meNo').textContent=studentNo;
+  if(!/^\d+$/.test(v)||+v<2||+v>99){document.getElementById('noErr').textContent="กรอกเลขที่ 2–99 (เลข 1 เป็นของ Router)";return;}
+  studentNo=+v; document.getElementById('meNo').textContent=studentNo;
   document.getElementById('noOverlay').classList.remove('show');
-  term(`พิมพ์ <span class="cmd">ipconfig</span> เพื่อดูค่าเครื่องตัวเอง หรือ <span class="cmd">ping 192.168.1.1</span> เพื่อเช็ก Router`,'th');
+  save(); term(`เริ่ม! แตะ <span class="cmd">PC1</span> ตั้ง IP ลงท้าย <span class="cmd">.${studentNo}</span> ก่อนเลย`,'th');
 });
 
-// ---------- modal config ----------
+// ---------- config ----------
 window.openCfg=function(n){
   editing=n;
   document.getElementById('cfgTitle').textContent=`⚙️ ตั้งค่า PC${n}`;
   document.getElementById('cfgNote').innerHTML = n===1
-    ? `เครื่องของเธอ — IP ต้องลงท้ายด้วยเลขที่ <b style="color:var(--device2)">.${studentNo}</b>`
-    : `กรอก IP ให้อยู่วง 192.168.1.x · ห้ามซ้ำเครื่องอื่น`;
-  document.getElementById('cfgIp').value=pcs[n].ip;
+    ? `เครื่องของเธอ — เลขท้ายต้องเป็น <b style="color:#B45309">.${studentNo}</b> (เลขที่ของเธอ)`
+    : `กรอกเลขท้าย (2–254) ห้ามซ้ำเครื่องอื่น · ห้าม 0/1/255`;
+  document.getElementById('cfgHost').value=pcs[n].host;
   document.getElementById('cfgGw').value=pcs[n].gw;
   document.getElementById('cfgErr').textContent="";
   document.getElementById('cfgOverlay').classList.add('show');
-  document.getElementById('cfgIp').focus();
+  setTimeout(()=>document.getElementById('cfgHost').focus(),50);
 };
+document.getElementById('gwAuto').addEventListener('click',()=>document.getElementById('cfgGw').value=ROUTER_IP);
 document.getElementById('cfgCancel').addEventListener('click',()=>document.getElementById('cfgOverlay').classList.remove('show'));
 document.getElementById('cfgSave').addEventListener('click',()=>{
-  pcs[editing].ip=document.getElementById('cfgIp').value.trim();
+  pcs[editing].host=document.getElementById('cfgHost').value.trim();
   pcs[editing].gw=document.getElementById('cfgGw').value.trim();
   const st=pcState(editing);
-  if(st.err){document.getElementById('cfgErr').textContent=st.msg;}  // เตือนแต่ยังบันทึก
+  document.getElementById('cfgErr').textContent=st.err?st.msg:"";
   document.getElementById('cfgOverlay').classList.remove('show');
-  render();
-  checkWin();
+  render(); save(); updateQuest();
 });
 
-// ---------- Terminal ----------
+// ---------- terminal ----------
 const out=document.getElementById('out');
-function term(html,cls=""){
-  const d=document.createElement('div'); if(cls)d.className=cls; d.innerHTML=html; out.appendChild(d);
-  out.scrollTop=out.scrollHeight;
-}
-function curPC(){return +document.getElementById('srcSel').value;}
-function fillSrc(){
-  const sel=document.getElementById('srcSel');
+function term(html,cls=""){const d=document.createElement('div');if(cls)d.className=cls;d.innerHTML=html;out.appendChild(d);out.scrollTop=out.scrollHeight;}
+const curPC=()=>+document.getElementById('srcSel').value;
+function fillSrc(){const sel=document.getElementById('srcSel');
   sel.innerHTML=[1,2,3,4,5].map(n=>`<option value="${n}">PC${n}</option>`).join("");
-  sel.addEventListener('change',()=>document.getElementById('ps').textContent=`PC${curPC()}>`);
-}
-document.querySelectorAll('.term-bar .keys button').forEach(b=>{
-  b.addEventListener('click',()=>{const i=document.getElementById('cmd');i.value=b.dataset.k;i.focus();});
-});
+  sel.addEventListener('change',()=>document.getElementById('ps').textContent=`PC${curPC()}>`);}
+document.querySelectorAll('.chips button').forEach(b=>b.addEventListener('click',()=>{
+  if(b.dataset.run){document.getElementById('cmd').value=b.dataset.run;run();}
+  else{const i=document.getElementById('cmd');i.value=b.dataset.fill;i.focus();}
+}));
 
 function run(){
-  const i=document.getElementById('cmd'); const raw=i.value.trim(); if(!raw)return;
+  const i=document.getElementById('cmd'),raw=i.value.trim(); if(!raw)return;
   const src=curPC();
-  term(`<span class="cmd">PC${src}> ${raw}</span>`);
-  i.value="";
-  const parts=raw.split(/\s+/);
-  const cmd=parts[0].toLowerCase();
-
-  if(cmd==="ipconfig"){
-    const p=pcs[src];
-    term(`   IPv4 Address . . : ${p.ip||"(ยังไม่ตั้ง)"}\n   Subnet Mask  . . : ${p.ip?MASK:"-"}\n   Default Gateway  : ${p.gw||"(ยังไม่ตั้ง)"}`);
-    return;
-  }
-  if(cmd==="ping"){
-    const target=parts[1];
-    if(!target){term(`   ใช้: ping &lt;IP&gt; เช่น ping 192.168.1.1`,'th');return;}
-    doPing(src,target);
-    return;
-  }
+  term(`<span class="cmd">PC${src}> ${raw}</span>`); i.value="";
+  const p=raw.split(/\s+/),cmd=p[0].toLowerCase();
+  if(cmd==="ipconfig"){const c=pcs[src];
+    term(`   IPv4 Address . . : ${ipOf(src)||"(ยังไม่ตั้ง)"}\n   Subnet Mask  . . : ${ipOf(src)?MASK:"-"}\n   Default Gateway  : ${c.gw||"(ยังไม่ตั้ง)"}`);return;}
+  if(cmd==="ping"){if(!p[1]){term(`   ใช้: ping &lt;IP&gt; เช่น ping 192.168.1.1`,'th');return;}doPing(src,p[1]);return;}
   term(`'${cmd}' ไม่ใช่คำสั่งที่รองรับ — ใช้ได้แค่ <span class="cmd">ping</span> กับ <span class="cmd">ipconfig</span>`,'th');
 }
+function parseIp(ip){const t=(ip||"").trim(),a=t.split(".");
+  if(a.length!==4||a.some(x=>x===""||!/^\d+$/.test(x)||+x<0||+x>255))return{bad:1};
+  return{net:a.slice(0,3).join("."),host:+a[3]};}
 
 function doPing(src,target){
   const s=pcState(src);
-  // เครื่องต้นทางต้องตั้งถูกก่อน
-  if(!s.ok){
-    term(`Ping request could not find host.`,'bad');
-    term(`   (เครื่อง PC${src} ของเธอยังตั้ง IP ไม่ถูก: ${s.msg.replace(/^❌ /,'')})`,'th');
-    return;
-  }
-  const sip=parseIp(pcs[src].ip);
-
-  // ---- ping ออกเน็ตภายนอก ----
+  if(!s.ok){term(`Ping request could not find host.`,'bad');term(`   (เครื่อง PC${src} ของเธอยังตั้ง IP ไม่ถูก: ${s.msg.replace(/^❌ /,'')})`,'th');return;}
   if(target==="8.8.8.8"){
-    if(pcs[src].gw===ROUTER_IP){
-      animate(src,'out',true);
-      reply(target,"ออกประตู Gateway ไปอินเทอร์เน็ตได้");
-    }else{
-      animate(src,'out',false);
-      term(`Request timed out.`,'bad');
-      term(`   (ออกเน็ตไม่ได้ เพราะยังไม่ได้ตั้ง Default Gateway = ${ROUTER_IP} ไม่มีประตูออก)`,'th');
-    }
-    return;
-  }
-
-  // ---- ping ในวง ----
+    if(pcs[src].gw===ROUTER_IP){anim(src,cen(RT),true);reply(target,"ออกประตู Gateway ไปอินเทอร์เน็ตได้!");prog.net=true;updateQuest();
+      term(`   📋 จดสมุด: ออกเน็ตได้เพราะตั้ง Default Gateway = ${ROUTER_IP}`,'note');}
+    else{anim(src,cen(RT),false);term(`Request timed out.`,'bad');term(`   (ออกเน็ตไม่ได้ เพราะยังไม่ได้ตั้ง Default Gateway = ${ROUTER_IP} — ไม่มีประตูออก) แตะ PC${src} ใส่ Gateway แล้วลองใหม่`,'th');}
+    return;}
   const t=parseIp(target);
-  if(t.bad){term(`Ping request could not find host ${target}.`,'bad');term(`   (รูปแบบ IP ปลายทางไม่ถูก)`,'th');return;}
-  if(t.net!==NET){
-    animate(src,null,false);
-    term(`Request timed out.`,'bad');
-    term(`   (ปลายทาง ${target} อยู่คนละหมู่บ้าน 3 ชุดแรกไม่ตรง จึงส่งไม่ถึง)`,'th');
-    return;
-  }
-  // Router?
-  if(t.host===1){animate(src,'rt',true);reply(target,"Router ตอบกลับ — เครื่องเธอถึง Gateway แล้ว");return;}
-  // หาเครื่องปลายทาง
-  let found=null;
-  for(const m of [1,2,3,4,5]){const o=parseIp(pcs[m].ip);if(!o.bad&&o.net===NET&&o.host===t.host){found=m;break;}}
-  if(found){
-    const fs=pcState(found);
-    if(fs.ok){animate(src,found,true);reply(target,`PC${found} ตอบกลับ — สองเครื่องอยู่วงเดียวกัน คุยกันได้!`);}
-    else{animate(src,found,false);term(`Request timed out.`,'bad');term(`   (PC${found} มี IP นี้แต่ตั้งค่าไม่ถูก จึงไม่ตอบ)`,'th');}
-  }else{
-    animate(src,null,false);
-    term(`Request timed out.`,'bad');
-    term(`   (ส่งจดหมายไม่ถึง หาบ้านเลขที่ ${target} ไม่เจอในร้านนี้)`,'th');
-  }
+  if(t.bad){term(`Ping request could not find host ${target}.`,'bad');return;}
+  if(t.net!==NET){anim(src,cen(SW),false);term(`Request timed out.`,'bad');term(`   (ปลายทาง ${target} อยู่คนละหมู่บ้าน 3 ชุดแรกไม่ตรง จึงส่งไม่ถึง)`,'th');return;}
+  if(t.host===1){anim(src,cen(RT),true);reply(target,"Router ตอบกลับ — เครื่องเธอถึง Gateway แล้ว");return;}
+  let f=null;for(const m of [1,2,3,4,5]){if(pcs[m].host!==""&&+pcs[m].host===t.host){f=m;break;}}
+  if(f){const fs=pcState(f);
+    if(fs.ok&&f!==src){anim(src,pcC(f),true);reply(target,`PC${f} ตอบกลับ — สองเครื่องอยู่วงเดียวกัน คุยกันได้!`);prog.peer=true;updateQuest();
+      term(`   📋 จดสมุด: PC${src} ping PC${f} = ได้ เพราะ 3 ชุดแรกตรงกัน (วงเดียวกัน)`,'note');}
+    else if(f===src){anim(src,pcC(f),true);reply(target,"ก็คือเครื่องตัวเองนั่นแหละ ลอง ping เครื่องอื่นดู");}
+    else{anim(src,pcC(f),false);term(`Request timed out.`,'bad');term(`   (PC${f} มี IP นี้แต่ตั้งค่าไม่ถูก จึงไม่ตอบ)`,'th');}
+  }else{anim(src,cen(SW),false);term(`Request timed out.`,'bad');term(`   (ส่งจดหมายไม่ถึง หาบ้านเลขที่ ${target} ไม่เจอในร้านนี้)`,'th');}
 }
-function reply(target,th){
-  term(`Reply from ${target}: bytes=32 time&lt;1ms TTL=128`,'ok');
-  term(`Reply from ${target}: bytes=32 time&lt;1ms TTL=128`,'ok');
-  term(`   (${th})`,'th');
-}
+function reply(target,th){term(`Reply from ${target}: bytes=32 time&lt;1ms TTL=128`,'ok');term(`Reply from ${target}: bytes=32 time&lt;1ms TTL=128`,'ok');term(`   (${th})`,'th');}
 
-// ---------- packet animation (GSAP) ----------
-function animate(src,dstKey,ok){
-  const pk=document.getElementById('packet'); if(!pk)return;
-  const a=pcCenter(src);
-  let b;
-  if(dstKey==='rt'||dstKey==='out') b=center(RT);
-  else if(typeof dstKey==='number') b=pcCenter(dstKey);
-  else b=center(SW);
-  gsap.killTweensOf(pk);
-  gsap.set(pk,{attr:{cx:a.x,cy:a.y,fill:ok?'#38BDF8':'#F87171'},opacity:1});
+// ---------- packet anim ----------
+function anim(src,b,ok){const pk=document.getElementById('packet');if(!pk)return;const a=pcC(src);
+  gsap.killTweensOf(pk);gsap.set(pk,{attr:{cx:a.x,cy:a.y,fill:ok?'#2563EB':'#DC2626'},opacity:1});
   const tl=gsap.timeline();
-  if(ok){
-    tl.to(pk,{attr:{cx:b.x,cy:b.y},duration:.5,ease:'power1.inOut'})
-      .to(pk,{attr:{cx:a.x,cy:a.y},duration:.5,ease:'power1.inOut'})
-      .to(pk,{opacity:0,duration:.2});
-  }else{
-    const mx=a.x+(b.x-a.x)*.45, my=a.y+(b.y-a.y)*.45;
-    tl.to(pk,{attr:{cx:mx,cy:my},duration:.4,ease:'power1.out'})
-      .to(pk,{attr:{cy:my+40},opacity:0,duration:.4,ease:'power2.in'});
-  }
+  if(ok)tl.to(pk,{attr:{cx:b.x,cy:b.y},duration:.45,ease:'power1.inOut'}).to(pk,{attr:{cx:a.x,cy:a.y},duration:.45,ease:'power1.inOut'}).to(pk,{opacity:0,duration:.2});
+  else{const mx=a.x+(b.x-a.x)*.45,my=a.y+(b.y-a.y)*.45;tl.to(pk,{attr:{cx:mx,cy:my},duration:.35}).to(pk,{attr:{cy:my+34},opacity:0,duration:.35,ease:'power2.in'});}
 }
 
-// ---------- win ----------
-function checkWin(){
-  const all=[1,2,3,4,5].every(n=>pcState(n).ok);
-  // ทุกเครื่องถูก + gateway ครบ
-  const gwAll=[1,2,3,4,5].every(n=>pcs[n].gw===ROUTER_IP);
+// ---------- quest / win ----------
+function updateQuest(){
+  prog.ip=[1,2,3,4,5].every(n=>pcState(n).ok);
   [1,2,3,4,5].forEach(n=>{const w=document.getElementById('w-'+n);if(w)w.classList.toggle('live',pcState(n).ok);});
-  if(all){
-    const wm=document.getElementById('winMsg');
-    wm.innerHTML = gwAll
-      ? "🎉 ครบทุกเครื่อง! ทั้งร้านคุยกันได้ + ออกเน็ตได้ — ลอกตาราง IP ลงสมุดตอน 2 ได้เลย"
-      : "🟢 ทุกเครื่อง IP ถูกครบ! (อยากออกเน็ตได้ ใส่ Gateway 192.168.1.1 ให้ครบด้วย) — ลอกตาราง IP ลงสมุด";
-    wm.classList.add('show');
-    confetti();
-    setTimeout(()=>wm.classList.remove('show'),6000);
-  }
+  [['q1',prog.ip],['q2',prog.peer],['q3',prog.net]].forEach(([id,v])=>{
+    const e=document.getElementById(id);e.classList.toggle('done',v);e.querySelector('.ic').textContent=v?'✓':id.slice(1);});
+  save();
+  if(prog.ip&&prog.peer&&prog.net&&!window._won){window._won=true;winNow();}
+}
+function winNow(){
+  const wm=document.getElementById('winMsg');
+  wm.innerHTML="🎉 ครบ 3 ภารกิจ! ตั้ง IP ถูก + ping เพื่อนได้ + ออกเน็ตได้<br>📋 ลอกตาราง IP ทั้ง 5 เครื่องลงสมุดตอน 2 ได้เลย";
+  wm.classList.add('show');confetti();setTimeout(()=>wm.classList.remove('show'),7000);
 }
 
 // ---------- confetti ----------
 const fx=document.getElementById('fx'),fxc=fx.getContext('2d');
-function sizeFx(){fx.width=innerWidth;fx.height=innerHeight;}
-addEventListener('resize',()=>{sizeFx();});sizeFx();
-function confetti(){
-  const cols=['#F59E0B','#FBBF24','#38BDF8','#34D399','#F87171','#A78BFA'];
-  const bits=[];
-  for(let i=0;i<140;i++)bits.push({x:innerWidth/2,y:innerHeight*0.3,r:4+Math.random()*5,c:cols[i%cols.length],rot:Math.random()*6});
-  bits.forEach(b=>{
-    const ang=-Math.PI/2+(Math.random()-0.5)*2.2, v=6+Math.random()*9;
-    const o={vx:Math.cos(ang)*v,vy:Math.sin(ang)*v};
-    gsap.to(o,{duration:1.9,ease:'none',onUpdate(){b.x+=o.vx;b.y+=o.vy;o.vy+=0.32;o.vx*=0.99;b.rot+=0.25;}});
-    gsap.to(b,{duration:1.9,r:0,ease:'power1.in'});
-  });
-  let f=0;(function draw(){fxc.clearRect(0,0,fx.width,fx.height);
-    bits.forEach(b=>{fxc.save();fxc.translate(b.x,b.y);fxc.rotate(b.rot);fxc.fillStyle=b.c;fxc.fillRect(-b.r,-b.r,b.r*2,b.r*1.2);fxc.restore();});
-    if(f++<120)requestAnimationFrame(draw);else fxc.clearRect(0,0,fx.width,fx.height);})();
-}
+function sizeFx(){fx.width=innerWidth;fx.height=innerHeight;} addEventListener('resize',sizeFx);sizeFx();
+function confetti(){const cols=['#F59E0B','#FBBF24','#2563EB','#16A34A','#DC2626','#A855F7'];const bits=[];
+  for(let i=0;i<70;i++)bits.push({x:innerWidth/2,y:innerHeight*0.28,r:4+Math.random()*5,c:cols[i%cols.length],rot:Math.random()*6});
+  bits.forEach(b=>{const ang=-Math.PI/2+(Math.random()-0.5)*2.2,v=6+Math.random()*9,o={vx:Math.cos(ang)*v,vy:Math.sin(ang)*v};
+    gsap.to(o,{duration:1.8,ease:'none',onUpdate(){b.x+=o.vx;b.y+=o.vy;o.vy+=.32;o.vx*=.99;b.rot+=.25;}});gsap.to(b,{duration:1.8,r:0});});
+  let f=0;(function d(){fxc.clearRect(0,0,fx.width,fx.height);bits.forEach(b=>{fxc.save();fxc.translate(b.x,b.y);fxc.rotate(b.rot);fxc.fillStyle=b.c;fxc.fillRect(-b.r,-b.r,b.r*2,b.r*1.2);fxc.restore();});if(f++<110)requestAnimationFrame(d);else fxc.clearRect(0,0,fx.width,fx.height);})();}
 
-// ---------- reset ----------
+// ---------- persist ----------
+function save(){try{localStorage.setItem(LS,JSON.stringify({studentNo,pcs,prog}));}catch(e){}}
+function load(){try{const d=JSON.parse(localStorage.getItem(LS));if(!d||!d.studentNo)return false;
+  studentNo=d.studentNo;Object.assign(pcs,d.pcs);Object.assign(prog,d.prog);
+  document.getElementById('meNo').textContent=studentNo;document.getElementById('noOverlay').classList.remove('show');return true;}catch(e){return false;}}
+
 document.getElementById('resetBtn').addEventListener('click',()=>{
-  studentNo=null;[1,2,3,4,5].forEach(n=>{pcs[n]={ip:"",gw:""};});
-  document.getElementById('meNo').textContent="—";
-  document.getElementById('noInput').value="";document.getElementById('noErr').textContent="";
-  document.getElementById('noOverlay').classList.add('show');
-  out.innerHTML="";render();
+  localStorage.removeItem(LS);studentNo=null;window._won=false;
+  [1,2,3,4,5].forEach(n=>pcs[n]={host:"",gw:""});prog.ip=prog.peer=prog.net=false;
+  document.getElementById('meNo').textContent="—";document.getElementById('noInput').value="";document.getElementById('noErr').textContent="";
+  out.innerHTML="";document.getElementById('noOverlay').classList.add('show');render();updateQuest();
 });
 
-// ---------- events ----------
 document.getElementById('goBtn').addEventListener('click',run);
 document.getElementById('cmd').addEventListener('keydown',e=>{if(e.key==="Enter")run();});
 
-// ---------- init ----------
-fillSrc();render();
-term('Network Simulator — 21909-1009 wk6','th');
+// init
+fillSrc();
+if(load()){term('โหลดงานที่ค้างไว้กลับมาแล้ว ทำต่อได้เลย','th');}
+else{term('Network Simulator — 21909-1009 wk6','th');}
+render();updateQuest();
 </script>
 </body>
 </html>
