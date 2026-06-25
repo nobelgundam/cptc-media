@@ -2,7 +2,7 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Packet Tracer จำลอง — ตั้ง IP ร้านเกม · 21909-1009 ปวช.1 wk6</title>
 <style>
   :root{
@@ -14,9 +14,11 @@
     --term-bg:#0B1120; --term-ink:#CBD5E1;
   }
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  html{min-height:100%;background:var(--bg);}
   body{font-family:'Sarabun','IBM Plex Sans Thai','Noto Sans Thai',sans-serif;
     background:var(--bg);color:var(--ink);line-height:1.5;
-    display:flex;flex-direction:column;height:100vh;overflow:hidden;}
+    display:flex;flex-direction:column;min-height:100vh;max-width:560px;margin:0 auto;
+    box-shadow:0 0 0 1px var(--line);}
   button{font-family:inherit;cursor:pointer;}
 
   header{background:var(--card);border-bottom:1px solid var(--line);
@@ -52,7 +54,7 @@
   .wire{stroke:var(--line2);stroke-width:3;} .wire.live{stroke:var(--ok);}
 
   /* terminal */
-  .term{flex:1 1 auto;display:flex;flex-direction:column;min-height:0;background:var(--term-bg);}
+  .term{flex:1 1 auto;display:flex;flex-direction:column;min-height:260px;background:var(--term-bg);}
   .tbar{display:flex;align-items:center;gap:7px;padding:6px 10px;background:#111A2E;
     border-bottom:1px solid #1E293B;flex-wrap:wrap;}
   .tbar .tt{font-size:.78rem;font-weight:700;color:#E2E8F0;}
@@ -63,7 +65,7 @@
     border-radius:7px;padding:4px 9px;font-size:.76rem;font-family:'Consolas',monospace;}
   .chips button:active{background:#1E293B;}
   #out{flex:1 1 auto;overflow-y:auto;padding:9px 11px;font-family:'Consolas','Courier New',monospace;
-    font-size:.82rem;white-space:pre-wrap;word-break:break-word;line-height:1.5;color:var(--term-ink);}
+    font-size:.82rem;white-space:pre-wrap;word-break:break-word;line-height:1.5;color:var(--term-ink);min-height:90px;}
   #out .cmd{color:#7DD3FC;} #out .ok{color:#4ADE80;} #out .bad{color:#F87171;} #out .th{color:#94A3B8;}
   #out .note{color:#FCD34D;}
   .inline{display:flex;align-items:center;gap:6px;padding:7px 10px;border-top:1px solid #1E293B;background:#0B1120;}
@@ -80,6 +82,7 @@
   .card .note{font-size:.8rem;color:var(--muted);margin-bottom:10px;}
   .card label{display:block;font-size:.76rem;color:var(--muted);margin:9px 0 3px;}
   .card input.full{width:100%;font-family:'Consolas',monospace;font-size:1rem;padding:10px 11px;border:1.5px solid var(--line2);border-radius:9px;background:#fff;color:var(--ink);}
+  .card input.full::placeholder{color:#B6C2D2;font-style:italic;}
   .card input[readonly]{background:var(--device-bg);color:#92400E;border-color:var(--device-line);}
   .gwrow{display:flex;gap:6px;align-items:stretch;}
   .gwrow input{flex:1;}
@@ -148,13 +151,13 @@
 <div class="overlay" id="cfgOverlay"><div class="card">
   <h2 id="cfgTitle">⚙️ ตั้งค่า PC</h2>
   <div class="note" id="cfgNote"></div>
-  <label>IP Address (กรอกให้เต็ม)</label>
-  <input class="full" id="cfgIp" type="text" inputmode="decimal" placeholder="192.168.1.__" autocomplete="off">
+  <label>IP Address (พิมพ์ต่อท้ายเลขเครื่อง)</label>
+  <input class="full" id="cfgIp" type="text" inputmode="decimal" placeholder="192.168.1.7" autocomplete="off">
   <label>Subnet Mask</label>
   <input class="full" id="cfgSub" type="text" value="255.255.255.0" readonly>
   <label>Default Gateway</label>
   <div class="gwrow">
-    <input class="full" id="cfgGw" type="text" inputmode="decimal" placeholder="192.168.1.1">
+    <input class="full" id="cfgGw" type="text" inputmode="decimal" placeholder="ยังไม่ใส่ — แตะ 'ใช้ .1'">
     <button id="gwAuto">ใช้ .1</button>
   </div>
   <div class="err" id="cfgErr"></div>
@@ -224,7 +227,7 @@ function pcState(n){
   if(r.host===1) return {ok:false,err:true,msg:"❌ .1 เป็นของ Router ห้ามใช้ซ้ำ"};
   if(n===1 && r.host!==studentNo) return {ok:false,err:true,msg:`❌ PC1 ต้องลงท้ายด้วยเลขที่ของเธอ (.${studentNo})`};
   for(const m of [1,2,3,4,5]){if(m!==n && pcs[m].ip){const o=parseIp(pcs[m].ip);
-    if(!o.bad && o.net===NET && o.host===r.host) return {ok:false,err:true,msg:`❌ IP Conflict! .${r.host} ซ้ำกับ PC${m} (เลขที่บ้านชนกัน)`};}}
+    if(!o.bad && o.net===NET && o.host===r.host) return {ok:false,err:true,msg:`❌ IP Conflict! .${r.host} ซ้ำกับ PC${m} (เครื่องที่ถูกอยู่ก่อนก็จะใช้ไม่ได้ด้วย)`};}}
   return {ok:true,err:false,msg:"🟢 IP ถูกกฎ"};
 }
 
@@ -243,12 +246,13 @@ window.openCfg=function(n){
   document.getElementById('cfgTitle').textContent=`⚙️ ตั้งค่า PC${n}`;
   document.getElementById('cfgNote').innerHTML = n===1
     ? `เครื่องของเธอ — IP ต้องเป็น <b style="color:#B45309">192.168.1.${studentNo}</b> (ลงท้ายเลขที่ของเธอ)`
-    : `กรอก IP ให้อยู่วง 192.168.1.x · ห้ามซ้ำเครื่องอื่น · ห้าม .0/.1/.255`;
-  document.getElementById('cfgIp').value=pcs[n].ip;
+    : `กรอก IP ให้อยู่ในวง 192.168.1.x · ห้ามซ้ำเครื่องอื่น · ห้าม .0/.1/.255`;
+  document.getElementById('cfgIp').value=pcs[n].ip || "192.168.1.";
   document.getElementById('cfgGw').value=pcs[n].gw;
-  document.getElementById('cfgErr').textContent="";
+  const st0=pcState(n);
+  document.getElementById('cfgErr').textContent = st0.err ? st0.msg : "";
   document.getElementById('cfgOverlay').classList.add('show');
-  setTimeout(()=>document.getElementById('cfgIp').focus(),50);
+  setTimeout(()=>{const f=document.getElementById('cfgIp');f.focus();f.setSelectionRange(f.value.length,f.value.length);},50);
 };
 document.getElementById('gwAuto').addEventListener('click',()=>document.getElementById('cfgGw').value=ROUTER_IP);
 document.getElementById('cfgCancel').addEventListener('click',()=>document.getElementById('cfgOverlay').classList.remove('show'));
@@ -256,9 +260,10 @@ document.getElementById('cfgSave').addEventListener('click',()=>{
   pcs[editing].ip=document.getElementById('cfgIp').value.trim();
   pcs[editing].gw=document.getElementById('cfgGw').value.trim();
   const st=pcState(editing);
-  document.getElementById('cfgErr').textContent=st.err?st.msg:"";
-  document.getElementById('cfgOverlay').classList.remove('show');
   render(); save(); updateQuest();
+  if(st.err){ document.getElementById('cfgErr').textContent=st.msg+" — แก้ให้ถูกแล้วกดบันทึก หรือกดยกเลิก"; return; }  // ผิด: ไม่ปิด ให้เห็นเหตุผล
+  document.getElementById('cfgErr').textContent="";
+  document.getElementById('cfgOverlay').classList.remove('show');
 });
 
 // ---------- terminal ----------
