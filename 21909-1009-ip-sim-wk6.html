@@ -103,7 +103,7 @@
 
 <header>
   <div><h1>🖧 ตั้ง IP ให้ร้านเกมคุยกัน</h1><div class="sub">Packet Tracer จำลอง · 21909-1009 ปวช.1 · ตอน 3</div></div>
-  <div class="me">เลขที่ <span id="meNo">—</span></div>
+  <div class="me"><span id="meNick"></span>เลขที่ <span id="meNo">—</span></div>
   <button class="btn-reset" id="resetBtn">เริ่มใหม่</button>
 </header>
 
@@ -143,6 +143,8 @@
   <div class="note">กรอก "เลขที่ของเธอ" ก่อน — เครื่อง PC1 ของเธอต้องตั้ง IP ลงท้ายด้วยเลขที่นี้ (กันลอกเพื่อน)</div>
   <label>เลขที่ของเธอ (2–99)</label>
   <input class="full" id="noInput" type="text" inputmode="numeric" placeholder="เช่น 7">
+  <label>ชื่อเล่น (ไม่บังคับ · เก็บในเครื่องเธอเท่านั้น ไม่ส่งไปไหน)</label>
+  <input class="full" id="noNick" type="text" placeholder="เช่น ไอติม" maxlength="20" style="font-family:'Sarabun',sans-serif;">
   <div class="err" id="noErr"></div>
   <div class="actions"><button class="save" id="noOk">เริ่มเลย</button></div>
 </div></div>
@@ -178,7 +180,8 @@
 </script>
 <script>
 const NET="192.168.1", ROUTER_IP="192.168.1.1", MASK="255.255.255.0";
-let studentNo=null, editing=null;
+let studentNo=null, editing=null, nickname="";
+function showMe(){document.getElementById('meNick').textContent=nickname?nickname+" · ":"";document.getElementById('meNo').textContent=studentNo??"—";}
 const pcs={}; [1,2,3,4,5].forEach(n=>pcs[n]={ip:"",gw:""});
 const prog={ip:false,peer:false,net:false};
 const LS="ip_sim_1009_wk6_v3";
@@ -235,9 +238,9 @@ function pcState(n){
 document.getElementById('noOk').addEventListener('click',()=>{
   const v=(document.getElementById('noInput').value||"").trim();
   if(!/^\d+$/.test(v)||+v<2||+v>99){document.getElementById('noErr').textContent="กรอกเลขที่ 2–99 (เลข 1 เป็นของ Router)";return;}
-  studentNo=+v; document.getElementById('meNo').textContent=studentNo;
+  studentNo=+v; nickname=(document.getElementById('noNick').value||"").trim(); showMe();
   document.getElementById('noOverlay').classList.remove('show');
-  save(); term(`เริ่ม! แตะ <span class="cmd">PC1</span> ตั้ง IP เป็น <span class="cmd">192.168.1.${studentNo}</span> ก่อนเลย`,'th');
+  save(); term(`เริ่ม! ${nickname?nickname+' ':''}แตะ <span class="cmd">PC1</span> ตั้ง IP เป็น <span class="cmd">192.168.1.${studentNo}</span> ก่อนเลย`,'th');
 });
 
 // ---------- config ----------
@@ -356,15 +359,15 @@ function confetti(){const cols=['#F59E0B','#FBBF24','#2563EB','#16A34A','#DC2626
   let f=0;(function d(){fxc.clearRect(0,0,fx.width,fx.height);bits.forEach(b=>{fxc.save();fxc.translate(b.x,b.y);fxc.rotate(b.rot);fxc.fillStyle=b.c;fxc.fillRect(-b.r,-b.r,b.r*2,b.r*1.2);fxc.restore();});if(f++<110)requestAnimationFrame(d);else fxc.clearRect(0,0,fx.width,fx.height);})();}
 
 // ---------- persist ----------
-function save(){try{localStorage.setItem(LS,JSON.stringify({studentNo,pcs,prog}));}catch(e){}}
+function save(){try{localStorage.setItem(LS,JSON.stringify({studentNo,nickname,pcs,prog}));}catch(e){}}
 function load(){try{const d=JSON.parse(localStorage.getItem(LS));if(!d||!d.studentNo)return false;
-  studentNo=d.studentNo;Object.assign(pcs,d.pcs);Object.assign(prog,d.prog);
-  document.getElementById('meNo').textContent=studentNo;document.getElementById('noOverlay').classList.remove('show');return true;}catch(e){return false;}}
+  studentNo=d.studentNo;nickname=d.nickname||"";Object.assign(pcs,d.pcs);Object.assign(prog,d.prog);
+  showMe();document.getElementById('noOverlay').classList.remove('show');return true;}catch(e){return false;}}
 
 document.getElementById('resetBtn').addEventListener('click',()=>{
-  localStorage.removeItem(LS);studentNo=null;window._won=false;
+  localStorage.removeItem(LS);studentNo=null;nickname="";window._won=false;
   [1,2,3,4,5].forEach(n=>pcs[n]={ip:"",gw:""});prog.ip=prog.peer=prog.net=false;
-  document.getElementById('meNo').textContent="—";document.getElementById('noInput').value="";document.getElementById('noErr').textContent="";
+  showMe();document.getElementById('noInput').value="";document.getElementById('noNick').value="";document.getElementById('noErr').textContent="";
   out.innerHTML="";document.getElementById('noOverlay').classList.add('show');render();updateQuest();
 });
 
