@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quiz ทบทวนก่อนสอบกลางภาค · Big Data ปวส.2 (31900-1002)</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap');
+  :root{--bg:#0c1726;--panel:#13243a;--line:#26405f;--ink:#e8f0fb;--mut:#9fb6d4;--cy:#39c2ff;--gn:#3ddc97;--rd:#ff6b81;--am:#ffcc66;}
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  body{font-family:'Sarabun',sans-serif;background:var(--bg);color:var(--ink);line-height:1.5;padding:14px;min-height:100vh;
+    background-image:radial-gradient(circle at 20% 0%,#15314e22,transparent 60%),radial-gradient(circle at 90% 100%,#1d3a2a22,transparent 55%);}
+  .wrap{max-width:760px;margin:0 auto;}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:14px;box-shadow:0 8px 24px #0006;}
+  h1{font-size:1.25rem;color:var(--cy);}
+  h2{font-size:1.05rem;margin-bottom:8px;}
+  .sub{color:var(--mut);font-size:.86rem;margin-top:4px;}
+  label{display:block;font-size:.9rem;margin:10px 0 4px;color:var(--mut);}
+  input{width:100%;background:#0b1828;border:1.5px solid var(--line);border-radius:9px;padding:11px;color:var(--ink);font-family:inherit;font-size:1rem;}
+  input:focus{outline:none;border-color:var(--cy);}
+  .btn{display:inline-block;background:var(--cy);color:#062033;border:none;border-radius:10px;padding:12px 20px;font-family:inherit;font-weight:700;font-size:1rem;cursor:pointer;margin-top:14px;}
+  .btn:disabled{opacity:.5;cursor:not-allowed;}
+  .btn.ghost{background:transparent;border:1.5px solid var(--line);color:var(--ink);}
+  .err{color:var(--rd);font-size:.85rem;margin-top:8px;min-height:1.1em;}
+  .hidden{display:none!important;}
+  .bar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;font-size:.85rem;color:var(--mut);margin-bottom:6px;}
+  .prog{height:7px;background:#0b1828;border-radius:4px;overflow:hidden;margin:6px 0 14px;}
+  .prog>i{display:block;height:100%;background:var(--cy);width:0;transition:width .25s;}
+  .qtext{font-size:1.05rem;font-weight:600;margin-bottom:12px;white-space:pre-wrap;}
+  .qtext pre,pre.mono{background:#08131f;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-family:'Consolas',monospace;font-size:.92rem;white-space:pre-wrap;color:#bfe3ff;margin:6px 0;}
+  .opt{display:block;width:100%;text-align:left;background:#0e1d30;border:1.5px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:9px;color:var(--ink);font-family:inherit;font-size:.98rem;cursor:pointer;white-space:pre-wrap;}
+  .opt:hover{border-color:var(--cy);}
+  .opt.sel{border-color:var(--cy);background:#143150;}
+  .nav{display:flex;justify-content:space-between;gap:10px;margin-top:8px;}
+  .warn{background:#3a1622;border:1px solid #7a2a3a;color:#ffb4c0;border-radius:9px;padding:9px 12px;font-size:.85rem;margin-bottom:12px;}
+  .score{font-size:2.6rem;font-weight:700;color:var(--gn);text-align:center;margin:6px 0;}
+  .score.low{color:var(--am);}
+  .rev{border-top:1px solid var(--line);padding:11px 0;font-size:.92rem;}
+  .rev .me{color:var(--gn);} .rev .no{color:var(--rd);}
+  .tag{display:inline-block;background:#0b1828;border:1px solid var(--line);border-radius:6px;padding:1px 8px;font-size:.74rem;color:var(--mut);margin-left:6px;}
+  .meta{display:flex;gap:14px;flex-wrap:wrap;font-size:.86rem;color:var(--mut);margin-top:8px;}
+  .meta b{color:var(--ink);}
+  .qtext pre{display:inline;}
+  /* fullscreen gate — บังจอเมื่อไม่เต็มจอ */
+  .fsgate{position:fixed;inset:0;background:rgba(7,13,22,.985);z-index:9999;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;}
+  .fsgate.show{display:flex;}
+  .fsgate h2{color:var(--am);font-size:1.3rem;margin-bottom:10px;}
+  .fsgate p{color:var(--mut);max-width:420px;margin-bottom:18px;}
+  .fsgate .big{font-size:3rem;margin-bottom:10px;}
+  .long-badge{display:inline-block;background:#3a2c10;border:1px solid #7a5e1f;color:var(--am);border-radius:6px;padding:1px 8px;font-size:.74rem;margin-left:6px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- หน้า 1: ใส่ชื่อ-เลขที่ -->
+  <div class="card" id="login">
+    <h1>📊 Quiz ทบทวนก่อนสอบกลางภาค</h1>
+    <div class="sub">วิชา 31900-1002 การจัดการข้อมูลขนาดใหญ่เบื้องต้น · ปวส.2 (ทค.2)</div>
+    <div class="sub">ทำ 20 ข้อ (สุ่มจากคลัง 60) · ทบทวนเนื้อหา สัปดาห์ 1-6 · เลือกคำตอบที่ถูกที่สุด</div>
+    <label>ชื่อ-สกุล</label>
+    <input id="inName" type="text" maxlength="40" placeholder="เช่น สมชาย ใจดี" autocomplete="off">
+    <label>เลขที่</label>
+    <input id="inNo" type="text" inputmode="numeric" maxlength="3" placeholder="เช่น 12" autocomplete="off">
+    <div class="warn">⚠️ ทำได้ครั้งเดียว · ระบบนับจำนวนครั้งที่สลับออกจากหน้าจอ · ห้ามเปิดแท็บอื่น/ค้นหา</div>
+    <div class="err" id="loginErr"></div>
+    <button class="btn" id="startBtn">เริ่มทำ Quiz</button>
+  </div>
+
+  <!-- หน้า 2: ทำข้อสอบ -->
+  <div class="card hidden" id="quiz">
+    <div class="bar"><span id="who"></span><span id="counter"></span></div>
+    <div class="prog"><i id="progBar"></i></div>
+    <div class="qtext" id="qText"></div>
+    <div id="opts"></div>
+    <div class="nav">
+      <button class="btn ghost" id="prevBtn">‹ ก่อนหน้า</button>
+      <button class="btn" id="nextBtn">ถัดไป ›</button>
+    </div>
+  </div>
+
+  <!-- หน้า 3: ผล -->
+  <div class="card hidden" id="result">
+    <h2>✅ ส่งคำตอบแล้ว</h2>
+    <div class="meta"><span>ชื่อ <b id="rName"></b></span><span>เลขที่ <b id="rNo"></b></span></div>
+    <div class="score" id="scoreNum">0/20</div>
+    <div class="sub" style="text-align:center" id="scorePct"></div>
+    <div class="meta" style="justify-content:center"><span>สลับออกจากจอ <b id="rSwitch">0</b> ครั้ง</span><span>ใช้เวลา <b id="rTime">0</b> นาที</span></div>
+    <div class="warn" style="margin-top:14px">📸 แคปหน้าจอนี้ส่งครู หรือให้ครูเดินดูคะแนน · ทำซ้ำไม่ได้</div>
+    <div style="text-align:center"><button class="btn ghost" id="dlBtn">ดาวน์โหลดผล (JSON)</button></div>
+    <h2 style="margin-top:18px">เฉลย + ทบทวนข้อที่ตอบ</h2>
+    <div id="review"></div>
+  </div>
+
+  <!-- ทำไปแล้ว -->
+  <div class="card hidden" id="locked">
+    <h2>🔒 เลขที่นี้ทำ Quiz ไปแล้ว</h2>
+    <div class="sub" id="lockMsg"></div>
+    <div class="score" id="lockScore"></div>
+  </div>
+
+</div>
+
+<!-- fullscreen gate -->
+<div class="fsgate" id="fsGate">
+  <div class="big">🔳</div>
+  <h2>ต้องทำข้อสอบในโหมดเต็มจอ</h2>
+  <p>ตรวจพบว่าออกจากโหมดเต็มจอ (กด Esc / สลับหน้าต่าง) · ระบบบันทึกแล้ว · กดปุ่มด้านล่างเพื่อกลับเข้าเต็มจอแล้วทำต่อ</p>
+  <button class="btn" id="fsBtn">🔳 กลับเข้าเต็มจอ แล้วทำต่อ</button>
+</div>
+
+<script src="qbank_wk7.js"></script>
+<script src="qbank_long_wk7.js"></script>
+<script>
+(function(){
+  "use strict";
+  var QUOTA_SHORT = {"5v":2,"rdbms":2,"select":3,"join":3,"quality":2,"clean":3}; // 15 ข้อสั้น
+  var N_LONG = 5;   // 5 ข้อยาว (ทุกคนต้องได้แตะ) → รวม 20
+  var LSPREFIX = "bigdata_wk7_quiz_";
+  var $ = function(id){ return document.getElementById(id); };
+
+  // ---------- anti-cheat ----------
+  var switches = 0, started = false;
+  document.addEventListener("contextmenu", function(e){ e.preventDefault(); });
+  ["copy","cut","paste"].forEach(function(ev){ document.addEventListener(ev, function(e){ e.preventDefault(); }); });
+  document.addEventListener("visibilitychange", function(){ if(started && document.hidden){ switches++; } });
+  window.addEventListener("blur", function(){ if(started){ switches++; updateWho(); } });
+
+  // ---------- บังคับเต็มจอ (fullscreen gate) ----------
+  function isFS(){ return !!(document.fullscreenElement||document.webkitFullscreenElement||document.mozFullScreenElement); }
+  function reqFS(){ var el=document.documentElement; var f=el.requestFullscreen||el.webkitRequestFullscreen||el.mozRequestFullScreen; if(f){ try{ var r=f.call(el); if(r&&r.catch) r.catch(function(){}); }catch(e){} } }
+  function checkGate(){ var g=document.getElementById("fsGate"); if(g) g.classList.toggle("show", started && !isFS()); }
+  document.addEventListener("fullscreenchange", checkGate);
+  document.addEventListener("webkitfullscreenchange", checkGate);
+
+  // ---------- util ----------
+  function shuffle(a){ for(var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=a[i];a[i]=a[j];a[j]=t; } return a; }
+  function pickByCat(src,cat,n){
+    var pool = src.filter(function(q){ return q.cat===cat; });
+    shuffle(pool);
+    return pool.slice(0,n);
+  }
+  // เตรียม 20 ข้อ = 15 สั้น (stratified) + 5 ยาว (สุ่ม) + สุ่มลำดับตัวเลือก (เก็บ index เฉลยใหม่)
+  function buildExam(){
+    var list = [];
+    for(var cat in QUOTA_SHORT){ list = list.concat(pickByCat(QBANK, cat, QUOTA_SHORT[cat])); }
+    var all = list.map(function(q){ return {q:q,long:false}; });
+    var lp = QBANK_LONG.slice(); shuffle(lp);
+    all = all.concat(lp.slice(0, N_LONG).map(function(q){ return {q:q,long:true}; }));
+    shuffle(all);
+    return all.map(function(w){
+      var q = w.q;
+      var idx = q.c.map(function(_,i){ return i; });
+      shuffle(idx);
+      return {
+        q: q.q, cat: q.cat, long: w.long,
+        choices: idx.map(function(i){ return q.c[i]; }),
+        ans: idx.indexOf(q.a),   // ตำแหน่งเฉลยหลังสลับ
+        picked: null
+      };
+    });
+  }
+
+  var exam = [], cur = 0, name="", no="", startTime=0;
+  var ACTIVE = LSPREFIX+"active";
+  function stateKey(n){ return LSPREFIX+n+"_st"; }
+  function saveState(){ try{ localStorage.setItem(stateKey(no), JSON.stringify({name:name,no:no,exam:exam,cur:cur,switches:switches,startTime:startTime})); localStorage.setItem(ACTIVE,no); }catch(e){} }
+  function clearState(){ try{ localStorage.removeItem(stateKey(no)); localStorage.removeItem(ACTIVE); }catch(e){} }
+  function resumeFrom(d){ name=d.name; no=d.no; exam=d.exam||[]; cur=d.cur||0; switches=d.switches||0; startTime=d.startTime||Date.now(); started=true; if(!exam.length) return false; show("quiz"); render(); setTimeout(checkGate, 300); return true; }
+  function showLocked(d){
+    try{ $("lockMsg").textContent=(d.name||"")+" เลขที่ "+(d.no||no)+" ส่งคำตอบไปแล้วเมื่อ "+(d.at||""); $("lockScore").textContent=d.score+"/"+(d.total||20); }
+    catch(e){ $("lockMsg").textContent="เลขที่ "+no+" ทำไปแล้ว"; }
+    show("locked");
+  }
+
+  // ---------- login ----------
+  $("startBtn").addEventListener("click", function(){
+    name = ($("inName").value||"").trim();
+    no   = ($("inNo").value||"").trim();
+    if(name.length < 2){ $("loginErr").textContent="กรอกชื่อ-สกุลก่อน"; return; }
+    if(!/^\d+$/.test(no)){ $("loginErr").textContent="กรอกเลขที่เป็นตัวเลข"; return; }
+    // ส่งไปแล้ว = ล็อกถาวร
+    var done = localStorage.getItem(LSPREFIX+no);
+    if(done){ try{ showLocked(JSON.parse(done)); }catch(e){ showLocked({}); } return; }
+    // กำลังทำค้างอยู่ = ทำต่อชุดเดิม (กันรีเฟรชสุ่มข้อใหม่)
+    var st = localStorage.getItem(stateKey(no));
+    if(st){ try{ if(resumeFrom(JSON.parse(st))) return; }catch(e){} }
+    exam = buildExam(); cur = 0; started = true; switches = 0; startTime = Date.now();
+    saveState();
+    reqFS(); setTimeout(checkGate, 600);
+    show("quiz"); render();
+  });
+  document.getElementById("fsBtn").addEventListener("click", function(){ reqFS(); setTimeout(checkGate, 300); });
+
+  function show(id){ ["login","quiz","result","locked"].forEach(function(x){ $(x).classList.toggle("hidden", x!==id); }); }
+  function updateWho(){ $("who").textContent = name+" · เลขที่ "+no + (switches?(" · สลับจอ "+switches):""); }
+
+  // ---------- render ข้อ ----------
+  function render(){
+    var item = exam[cur];
+    updateWho();
+    $("counter").innerHTML = "ข้อ "+(cur+1)+" / "+exam.length + (item.long?'<span class="long-badge">★ สถานการณ์</span>':"");
+    $("progBar").style.width = ((cur+1)/exam.length*100)+"%";
+    $("qText").textContent = item.q;
+    var box = $("opts"); box.innerHTML = "";
+    item.choices.forEach(function(ch, i){
+      var b = document.createElement("button");
+      b.className = "opt" + (item.picked===i?" sel":"");
+      b.textContent = ch;
+      b.addEventListener("click", function(){ item.picked = i; saveState(); render(); });
+      box.appendChild(b);
+    });
+    $("prevBtn").style.visibility = cur===0 ? "hidden" : "visible";
+    $("nextBtn").textContent = (cur===exam.length-1) ? "ส่งคำตอบ" : "ถัดไป ›";
+  }
+  $("prevBtn").addEventListener("click", function(){ if(cur>0){ cur--; saveState(); render(); } });
+  $("nextBtn").addEventListener("click", function(){
+    if(exam[cur].picked===null){ alert("เลือกคำตอบก่อนนะ"); return; }
+    if(cur < exam.length-1){ cur++; saveState(); render(); }
+    else { if(confirm("ส่งคำตอบเลยไหม? ส่งแล้วแก้ไม่ได้")) finish(); }
+  });
+
+  // ---------- ส่ง + ผล ----------
+  function finish(){
+    started = false;
+    var score = 0;
+    exam.forEach(function(it){ if(it.picked===it.ans) score++; });
+    var mins = Math.max(1, Math.round((Date.now()-startTime)/60000));
+    try{ if(document.exitFullscreen) document.exitFullscreen(); }catch(e){}
+    // ล็อก
+    var rec = { name:name, no:no, score:score, total:exam.length, switches:switches, at:new Date().toLocaleString("th-TH") };
+    clearState();
+    try{ localStorage.setItem(LSPREFIX+no, JSON.stringify(rec)); }catch(e){}
+    // แสดง
+    $("rName").textContent = name; $("rNo").textContent = no;
+    $("scoreNum").textContent = score+"/"+exam.length;
+    $("scoreNum").className = "score" + (score < exam.length*0.6 ? " low":"");
+    $("scorePct").textContent = "คิดเป็น "+Math.round(score/exam.length*100)+"%";
+    $("rSwitch").textContent = switches; $("rTime").textContent = mins;
+    var rev = $("review"); rev.innerHTML = "";
+    exam.forEach(function(it, i){
+      var ok = it.picked===it.ans;
+      var d = document.createElement("div"); d.className="rev";
+      d.innerHTML = "<b class='"+(ok?"me":"no")+"'>ข้อ "+(i+1)+" "+(ok?"✓ ถูก":"✗ ผิด")+"</b><span class='tag'>"+it.cat+"</span>"
+        + "<div style='margin:5px 0;white-space:pre-wrap'>"+esc(it.q)+"</div>"
+        + "<div class='me'>เฉลย: "+esc(it.choices[it.ans])+"</div>"
+        + (ok?"":"<div class='no'>คุณตอบ: "+esc(it.picked===null?"(ไม่ตอบ)":it.choices[it.picked])+"</div>");
+      rev.appendChild(d);
+    });
+    window._result = rec;
+    show("result");
+  }
+  function esc(s){ var d=document.createElement("div"); d.textContent=s; return d.innerHTML; }
+
+  $("dlBtn").addEventListener("click", function(){
+    var blob = new Blob([JSON.stringify(window._result,null,2)], {type:"application/json"});
+    var a = document.createElement("a"); a.href=URL.createObjectURL(blob);
+    a.download = "quiz_"+no+"_"+name+".json"; a.click();
+  });
+
+  // กันออกกลางคัน
+  window.addEventListener("beforeunload", function(e){ if(started){ e.preventDefault(); e.returnValue=""; } });
+
+  // auto-resume ตอนโหลด: ถ้ามีคนกำลังทำค้าง (ยังไม่ส่ง) → ทำต่อชุดเดิมข้อเดิมทันที (กันรีเฟรชหนีสุ่มข้อใหม่)
+  (function resumeOnLoad(){
+    var an = localStorage.getItem(ACTIVE);
+    if(!an) return;
+    if(localStorage.getItem(LSPREFIX+an)){ try{ localStorage.removeItem(ACTIVE); }catch(e){} return; } // ส่งไปแล้ว
+    var st = localStorage.getItem(stateKey(an));
+    if(st){ try{ resumeFrom(JSON.parse(st)); }catch(e){} }
+  })();
+})();
+</script>
+</body>
+</html>

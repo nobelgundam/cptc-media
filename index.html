@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>สื่อการสอน · ครูวรปรัชญ์ ชิโนทัย</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap');
+  :root{--bg:#0c1726;--ink:#e8f0fb;--mut:#9fb6d4;--cy:#39c2ff;--gn:#3ddc97;--line:#26405f;}
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  body{font-family:'Sarabun',sans-serif;background:var(--bg);color:var(--ink);line-height:1.5;padding:18px 14px 40px;
+    background-image:radial-gradient(circle at 15% 0%,#15314e33,transparent 55%),radial-gradient(circle at 90% 10%,#1d3a2a33,transparent 50%);min-height:100vh;}
+  .wrap{max-width:880px;margin:0 auto;}
+  header{text-align:center;padding:14px 0 22px;}
+  .logo{font-size:2.4rem;}
+  h1{font-size:1.5rem;color:var(--cy);margin-top:4px;}
+  .sub{color:var(--mut);font-size:.92rem;margin-top:6px;}
+  .sec{font-size:.85rem;color:var(--mut);margin:14px 4px 8px;letter-spacing:.5px;}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;}
+  .card{display:flex;align-items:center;gap:13px;background:#13243a;border:1px solid var(--line);border-radius:14px;
+    padding:15px;text-decoration:none;color:inherit;transition:transform .12s,border-color .12s;box-shadow:0 6px 18px #0005;}
+  .card.on:hover{transform:translateY(-2px);border-color:var(--cy);}
+  .card .em{font-size:2.1rem;flex:none;width:50px;height:50px;display:flex;align-items:center;justify-content:center;
+    background:#0e1d30;border-radius:12px;}
+  .card .body{flex:1;min-width:0;}
+  .card .code{font-size:.72rem;color:var(--mut);font-family:'Consolas',monospace;}
+  .card .t{font-size:1rem;font-weight:600;margin:1px 0;}
+  .card .lv{font-size:.78rem;color:var(--gn);}
+  .tag{font-size:.72rem;border-radius:6px;padding:2px 9px;flex:none;}
+  .tag.go{background:#16352a;color:var(--gn);border:1px solid #2f6b4f;}
+  .tag.soon{background:#2a2233;color:#b79fd4;border:1px solid #4a3a5e;}
+  .card.soon{opacity:.62;}
+  footer{text-align:center;color:var(--mut);font-size:.8rem;margin-top:28px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">🎓</div>
+    <h1>สื่อการสอนออนไลน์</h1>
+    <div class="sub">ครูวรปรัชญ์ ชิโนทัย · แผนกเทคโนโลยีคอมพิวเตอร์<br>วิทยาลัยเทคนิคชุมพร</div>
+  </header>
+
+  <div class="sec">📱 แตะเลือกวิชา — เปิดได้ทั้งมือถือและคอม</div>
+  <div class="grid">
+
+    <a class="card on" href="21909-1009/index.html">
+      <span class="em">🌐</span>
+      <span class="body"><span class="code">21909-1009</span><div class="t">ระบบเครือข่ายคอมพิวเตอร์</div><span class="lv">ปวช.1</span></span>
+      <span class="tag go">เข้า</span>
+    </a>
+
+    <a class="card on" href="31909-0005/index.html">
+      <span class="em">🖥️</span>
+      <span class="body"><span class="code">31909-0005</span><div class="t">ระบบคอมพิวเตอร์ + เครือข่ายเบื้องต้น</div><span class="lv">ปวส.1</span></span>
+      <span class="tag go">เข้า</span>
+    </a>
+
+    <a class="card on" href="31900-1002/index.html">
+      <span class="em">📊</span>
+      <span class="body"><span class="code">31900-1002</span><div class="t">การจัดการข้อมูลขนาดใหญ่ (Big Data)</div><span class="lv">ปวส.2</span></span>
+      <span class="tag go">เข้า</span>
+    </a>
+
+  </div>
+
+  <footer>เปิดบนมือถือได้เลย ไม่ต้องติดตั้ง · งานของนักเรียนถูกเก็บในเครื่องอัตโนมัติ</footer>
+</div>
+</body>
+</html>

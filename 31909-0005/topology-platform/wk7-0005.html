@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ใบงานที่ 7 · สร้างเครือข่ายตามแบบ — 31909-0005</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="wrap wide">
+
+  <div class="topbar">
+    <span class="logo">🛠️</span>
+    <h1>สร้างเครือข่าย <span class="th-en">(Network Builder)</span></h1>
+    <span class="sub" id="counts">อุปกรณ์ 0 · สาย 0</span>
+  </div>
+
+  <!-- แถบสถานะ/คำแนะนำ (Signaling — Mayer) -->
+  <div class="statusbar"><span class="dot"></span><span id="status">เลือกอุปกรณ์ทางซ้าย แล้วแตะบนกระดานเพื่อวาง</span></div>
+
+  <!-- โจทย์ wk7: เลือกแบบ + ชื่อ/เลขที่ + Mission -->
+  <div class="scn-head">
+    <button class="btn-reset" id="scnReset">เริ่มภารกิจใหม่</button>
+    <span class="me" id="scnMe">เลขที่ <b>—</b> · แบบ <b>—</b></span>
+  </div>
+  <div class="scn-picks">
+    <div class="pick" data-plan="A"><b>แบบ A</b><small>🏢 สำนักงาน · Star+Wi-Fi<br>PC3 + SW1 + AP1 + Server1</small></div>
+    <div class="pick" data-plan="B"><b>แบบ B</b><small>🎮 ร้านเกม · Mesh<br>PC3 + SW2 + Server1</small></div>
+    <div class="pick" data-plan="C"><b>แบบ C</b><small>🏬 อาคาร 2 ชั้น · Star×2<br>PC3 + SW2 + Router1</small></div>
+  </div>
+  <div class="spec-box" id="scnSpec">👆 เลือกแบบที่ครูกำหนด (ตามช่วงเลขที่: 1–6=A · 7–12=B · 13–18=C) เพื่อเริ่มภารกิจ</div>
+  <div class="mission">
+    <div class="mq" id="mq1" data-n="1"><span class="ic">1</span> ใส่ชื่อ+เลขที่+เลือกแบบ</div>
+    <div class="mq" id="mq2" data-n="2"><span class="ic">2</span> วางอุปกรณ์ครบตามแบบ</div>
+    <div class="mq" id="mq3" data-n="3"><span class="ic">3</span> เชื่อมสายครบ</div>
+    <div class="mq" id="mq4" data-n="4"><span class="ic">4</span> ตั้ง IP (เลขท้าย=เลขที่) + ping ได้</div>
+    <div class="mq" id="mq5" data-n="5"><span class="ic">5</span> ✂️ ตัดสายทดสอบความทน</div>
+  </div>
+
+  <!-- โหมด 4 ปุ่ม -->
+  <div class="modebar">
+    <button class="btn" id="m-place"><span class="ic">📍</span> วาง</button>
+    <button class="btn" id="m-connect"><span class="ic">🔗</span> เชื่อม</button>
+    <button class="btn" id="m-config"><span class="ic">⚙️</span> ตั้ง IP</button>
+    <button class="btn" id="m-cutlink"><span class="ic">✂️</span> ตัดสาย</button>
+    <button class="btn" id="m-delete"><span class="ic">🗑️</span> ลบ</button>
+  </div>
+
+  <!-- เวที: sidebar ซ้าย (เลือกของมาวาง) + กระดานขวา -->
+  <div class="stage">
+    <aside class="sidebar">
+      <!-- พาเลตอุปกรณ์ (โหมดวาง) -->
+      <div id="side-devices">
+        <div class="side-h">อุปกรณ์</div>
+        <div class="palette" id="palette"></div>
+      </div>
+      <!-- ชนิดสื่อกลาง (โหมดเชื่อม) -->
+      <div id="side-media" class="hidden">
+        <div class="side-h">สื่อกลาง</div>
+        <div class="media" id="media">
+          <div class="mbtn on" data-media="utp"><span class="swatch sw-utp"></span><span class="mlb">สาย UTP</span></div>
+          <div class="mbtn" data-media="fiber"><span class="swatch sw-fiber"></span><span class="mlb">ไฟเบอร์<small>Fiber</small></span></div>
+          <div class="mbtn" data-media="wireless"><span class="swatch sw-wireless"></span><span class="mlb">ไร้สาย<small>Wireless</small></span></div>
+        </div>
+      </div>
+    </aside>
+
+    <div class="main">
+      <div class="canvas-box">
+        <svg id="canvas" xmlns="http://www.w3.org/2000/svg"></svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- Terminal (CLI: ipconfig / ping) -->
+  <div class="terminal">
+    <div class="term-head">
+      <span class="tt">💻 Terminal</span>
+      <label class="term-pc">เครื่อง:
+        <select id="srcSel" title="เลือกเครื่องที่จะพิมพ์คำสั่ง"></select>
+      </label>
+    </div>
+    <div class="term-out" id="termOut"><div class="th">พิมพ์ <b>ipconfig</b> ดูเลข IP · <b>ping &lt;IP&gt;</b> ทดสอบส่งข้อมูล · <b>http &lt;IP&gt;</b> เปิดเว็บที่ Server (ตั้ง IP ที่เครื่องก่อนนะ)</div></div>
+    <div class="term-chips">
+      <button data-run="ipconfig">ipconfig</button>
+      <button data-fill="ping ">ping…</button>
+      <button data-fill="http ">http…</button>
+    </div>
+    <div class="term-in">
+      <span class="prompt" id="termPrompt">&gt;</span>
+      <input id="cmd" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="เช่น ping 192.168.1.20">
+      <button class="btn go" id="runBtn">รัน</button>
+    </div>
+  </div>
+
+  <!-- ปุ่มจำลอง + ล้าง -->
+  <div class="actions">
+    <button class="btn primary" id="btn-sim"><span class="ic">🧭</span> ชี้เส้นทาง</button>
+    <button class="btn" id="btn-clear"><span class="ic">🧹</span> ล้างทั้งหมด</button>
+  </div>
+
+  <div class="legend">
+    <b>สื่อกลาง (Media):</b>
+    <span style="color:var(--utp)">■</span> UTP &nbsp;
+    <span style="color:var(--fiber)">■</span> ไฟเบอร์ (Fiber) &nbsp;
+    <span style="color:var(--wireless)">▦</span> ไร้สาย (Wireless)<br>
+    💡 ขั้นตอน: วางอุปกรณ์ → เชื่อมสาย → <b>ตั้ง IP</b> ที่ PC/Server → <b>ping</b> ใน Terminal · ตั้ง IP ผิดชนิดสื่อจะเชื่อมไม่ได้ (ดู "ต่อได้" ใต้อุปกรณ์)
+  </div>
+
+  <a class="back" href="index.html">← กลับหน้าหลัก</a>
+</div>
+
+<!-- IP config dialog -->
+<div class="overlay" id="cfgOverlay">
+  <div class="dialog">
+    <h3 id="cfgTitle">⚙️ ตั้งค่า IP</h3>
+    <p class="dlg-note">กรอกเลข IP 4 ชุด (0–255) · ห้ามลงท้าย .0 / .255 · ห้ามซ้ำเครื่องอื่นในวงเดียวกัน</p>
+    <label>IP Address (ไอพีแอดเดรส)</label>
+    <input class="full" id="cfgIp" type="text" inputmode="decimal" placeholder="192.168.1.10" autocomplete="off">
+    <label>Subnet Mask (ซับเน็ตมาสก์)</label>
+    <input class="full" id="cfgSub" type="text" value="255.255.255.0" readonly>
+    <label>Default Gateway (เกตเวย์ — ถ้าต้องออกข้ามวง)</label>
+    <input class="full" id="cfgGw" type="text" placeholder="192.168.1.1 (ไม่บังคับ)" autocomplete="off">
+    <div id="cfgHttpWrap" class="hidden">
+      <label>เว็บเซิร์ฟเวอร์นี้ตอบ HTTP status อะไร (เมื่อมีคน http มา)</label>
+      <select class="full" id="cfgHttp">
+        <option value="200">200 OK — สำเร็จ เปิดเว็บได้</option>
+        <option value="401">401 Unauthorized — ยังไม่ล็อกอิน (4xx)</option>
+        <option value="403">403 Forbidden — ห้ามเข้า ไม่มีสิทธิ์ (4xx)</option>
+        <option value="404">404 Not Found — ไม่เจอหน้า (4xx)</option>
+        <option value="500">500 Internal Server Error — เซิร์ฟเวอร์พัง (5xx)</option>
+        <option value="503">503 Service Unavailable — ปิดปรับปรุง (5xx)</option>
+      </select>
+    </div>
+    <div class="dlg-err" id="cfgErr"></div>
+    <div class="dlg-actions">
+      <button class="btn" id="cfgCancel">ยกเลิก</button>
+      <button class="btn primary" id="cfgSave">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<canvas id="fx"></canvas>
+<div class="win-msg" id="winMsg"></div>
+<!-- ใส่ชื่อ/เลขที่ (เก็บในเครื่องเด็ก ไม่ส่งไปไหน) -->
+<div class="overlay" id="noOverlay"><div class="dialog">
+  <h3>🎯 เริ่มภารกิจ ใบงานที่ 7</h3>
+  <p class="dlg-note">กรอกเลขที่ก่อน — เครื่องแรกของเธอต้องตั้ง IP ลงท้ายด้วยเลขที่นี้ (กันลอกเพื่อน)</p>
+  <label>เลขที่ของเธอ (2–99)</label>
+  <input class="full" id="noInput" type="text" inputmode="numeric" placeholder="เช่น 7">
+  <label>ชื่อเล่น (ไม่บังคับ · เก็บในเครื่องเธอเท่านั้น ไม่ส่งไปไหน)</label>
+  <input class="full" id="noNick" type="text" maxlength="20" placeholder="เช่น เจมส์">
+  <div class="dlg-err" id="noErr"></div>
+  <div class="dlg-actions"><button class="btn primary" id="noOk">เริ่มเลย</button></div>
+</div></div>
+
+<script src="js/engine.js"></script>
+<script>
+(function(){
+  var E = window.NetSimEngine;
+
+  // อุปกรณ์ + ศัพท์ไทย/อังกฤษคู่ + สื่อที่ต่อได้ (โชว์ให้เด็กเห็นก่อนต่อ)
+  var devices = [
+    {type:'pc',     label:'พีซี (PC)',           support:'UTP, Wireless'},
+    {type:'switch', label:'สวิตช์ (Switch)',      support:'UTP, Fiber'},
+    {type:'router', label:'เราเตอร์ (Router)',    support:'UTP, Fiber, Wireless'},
+    {type:'ap',     label:'AP (Access Point)',   support:'UTP, Wireless'},
+    {type:'server', label:'เซิร์ฟเวอร์ (Server)', support:'UTP, Fiber'},
+    {type:'isp',    label:'ผู้ให้บริการ (ISP)',   support:'Fiber, UTP'}
+  ];
+  var ICON = {
+    pc:'<rect x="-15" y="-13" width="30" height="20" rx="2" fill="#2d3e57" stroke="#7fb2ff" stroke-width="2"/><rect x="-12" y="-10" width="24" height="14" fill="#173a63"/><rect x="-10" y="11" width="20" height="3" rx="1.5" fill="#9fb3cc"/>',
+    switch:'<rect x="-18" y="-8" width="36" height="16" rx="3" fill="#214a3a" stroke="#3ddc97" stroke-width="2"/><rect x="-13" y="-2" width="5" height="5" fill="#9affd6"/><rect x="-5" y="-2" width="5" height="5" fill="#9affd6"/><rect x="3" y="-2" width="5" height="5" fill="#9affd6"/><rect x="11" y="-2" width="5" height="5" fill="#9affd6"/>',
+    router:'<rect x="-17" y="-10" width="34" height="20" rx="10" fill="#3a2a52" stroke="#c08bff" stroke-width="2"/><path d="M-9 -2 h14 M5 -2 l-4 -3 M5 -2 l-4 3 M9 4 h-14 M-5 4 l4 -3 M-5 4 l4 3" fill="none" stroke="#e0c4ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
+    ap:'<circle cx="0" cy="6" r="6" fill="#173a63" stroke="#5fd0ff" stroke-width="2"/><path d="M-6 -1 a8 8 0 0 1 12 0" fill="none" stroke="#7fe0ff" stroke-width="2"/><path d="M-11 -5 a14 14 0 0 1 22 0" fill="none" stroke="#7fe0ff" stroke-width="2" opacity=".7"/>',
+    server:'<rect x="-11" y="-15" width="22" height="30" rx="3" fill="#4a3410" stroke="#ffce6b" stroke-width="2"/><rect x="-7" y="-11" width="14" height="6" fill="#2a1e08"/><rect x="-7" y="-2" width="14" height="6" fill="#2a1e08"/><circle cx="5" cy="-8" r="1.3" fill="#3ddc97"/><circle cx="5" cy="1" r="1.3" fill="#3ddc97"/>',
+    isp:'<circle cx="0" cy="0" r="15" fill="#13344e" stroke="#74c7ff" stroke-width="2"/><ellipse cx="0" cy="0" rx="6.5" ry="15" fill="none" stroke="#74c7ff" stroke-width="1.4"/><line x1="-15" y1="0" x2="15" y2="0" stroke="#74c7ff" stroke-width="1.4"/><path d="M-13 -7 H13 M-13 7 H13" stroke="#74c7ff" stroke-width="1.2" fill="none"/>'
+  };
+
+  var statusEl = document.getElementById('status');
+  var countsEl = document.getElementById('counts');
+  var toastEl  = document.getElementById('toast');
+  var toastT;
+  function showToast(msg, kind){
+    toastEl.textContent = msg;
+    toastEl.className = 'toast show ' + (kind||'');
+    clearTimeout(toastT);
+    toastT = setTimeout(function(){ toastEl.className = 'toast'; }, 2400);
+  }
+
+  /* ---- พาเลตอุปกรณ์ (sidebar) ---- */
+  var pal = document.getElementById('palette');
+  devices.forEach(function(d){
+    var b = document.createElement('div');
+    b.className = 'dev'; b.dataset.type = d.type;
+    b.innerHTML = '<svg viewBox="-22 -22 44 44">' + ICON[d.type] + '</svg>' +
+      '<span>' + d.label + '</span><small>ต่อได้: ' + d.support + '</small>';
+    b.addEventListener('click', function(){
+      pal.querySelectorAll('.dev').forEach(function(x){x.classList.remove('on');});
+      b.classList.add('on');
+      E.setPlaceType(d.type);
+      statusEl.textContent = 'แตะบนกระดานเพื่อวาง "' + d.label + '" (ลากเพื่อย้ายได้)';
+    });
+    pal.appendChild(b);
+  });
+  pal.querySelector('.dev').classList.add('on');
+
+  /* ---- ตัวเลือกสื่อกลาง (sidebar) ---- */
+  var mediaBtns = document.querySelectorAll('#media .mbtn');
+  mediaBtns.forEach(function(mb){
+    mb.addEventListener('click', function(){
+      mediaBtns.forEach(function(x){x.classList.remove('on');});
+      mb.classList.add('on');
+      E.setMedia(mb.dataset.media);
+    });
+  });
+
+  /* ---- โหมด ---- */
+  var modeBtns = {
+    place:   document.getElementById('m-place'),
+    connect: document.getElementById('m-connect'),
+    config:  document.getElementById('m-config'),
+    cutlink: document.getElementById('m-cutlink'),
+    delete:  document.getElementById('m-delete')
+  };
+  var sideDevices = document.getElementById('side-devices');
+  var sideMedia   = document.getElementById('side-media');
+  var simBtn = document.getElementById('btn-sim');
+  var STATUS_TXT = {
+    place:   'เลือกอุปกรณ์ทางซ้าย แล้วแตะบนกระดานเพื่อวาง · ลากเพื่อย้าย',
+    connect: 'เลือกสื่อกลางทางซ้าย แล้วแตะอุปกรณ์ A → อุปกรณ์ B',
+    config:  '⚙️ แตะที่ พีซี (PC) หรือ เซิร์ฟเวอร์ (Server) เพื่อตั้งเลข IP',
+    cutlink: '✂️ โหมดตัดสาย: แตะที่ "เส้นสาย" เพื่อตัด → ลองชี้เส้นทาง/ping ดูว่ายังถึงกันไหม (สอนจุดอ่อนเครือข่าย)',
+    delete:  'โหมดลบ: แตะอุปกรณ์ 1 ครั้ง แล้วแตะซ้ำเพื่อยืนยัน',
+    simulate:'🧭 ชี้เส้นทาง: แตะเครื่อง "ต้นทาง" → "ปลายทาง" บนจอ (ดูข้อมูลวิ่งผ่านทางไหน)'
+  };
+  function setMode(m){
+    E.setMode(m);
+    for (var k in modeBtns){ modeBtns[k].classList.toggle('on', k===m); }
+    modeBtns.delete.classList.toggle('danger', m==='delete');
+    modeBtns.cutlink.classList.toggle('danger', m==='cutlink');
+    simBtn.classList.toggle('on', m==='simulate');
+    // sidebar: connect → โชว์สื่อ, อื่นๆ → โชว์อุปกรณ์
+    sideMedia.classList.toggle('hidden', m!=='connect');
+    sideDevices.classList.toggle('hidden', m==='connect');
+    statusEl.textContent = STATUS_TXT[m] || '';
+  }
+  modeBtns.place.addEventListener('click',   function(){ setMode('place'); });
+  modeBtns.connect.addEventListener('click', function(){ setMode('connect'); });
+  modeBtns.config.addEventListener('click',  function(){ setMode('config'); });
+  modeBtns.cutlink.addEventListener('click', function(){
+    if (E.counts().edges < 1){ showToast('ยังไม่มีสายให้ตัด — ไปโหมด "เชื่อม" ต่อสายก่อน', 'bad'); return; }
+    setMode('cutlink');
+  });
+  modeBtns.delete.addEventListener('click',  function(){ setMode('delete'); });
+  simBtn.addEventListener('click', function(){
+    if (E.counts().nodes < 2){ showToast('วางอุปกรณ์อย่างน้อย 2 ตัวก่อน', 'bad'); return; }
+    setMode('simulate');
+  });
+
+  document.getElementById('btn-clear').addEventListener('click', function(){
+    if (E.counts().nodes === 0) return;
+    if (confirm('ล้างกระดานทั้งหมด? (ลบทุกอุปกรณ์และสาย)')){
+      E.clearAll(); setMode('place');
+      showToast('ล้างกระดานแล้ว', 'ok');
+    }
+  });
+
+  /* ================= IP config dialog ================= */
+  var overlay = document.getElementById('cfgOverlay');
+  var cfgIp = document.getElementById('cfgIp');
+  var cfgGw = document.getElementById('cfgGw');
+  var cfgErr = document.getElementById('cfgErr');
+  var cfgTitle = document.getElementById('cfgTitle');
+  var cfgId = null;
+
+  function openCfg(id){
+    cfgId = id;
+    var n = E.getNode(id);
+    cfgTitle.textContent = '⚙️ ตั้งค่า ' + id + ' — ' + E.typeLabel(n.type);
+    cfgIp.value = n.ip || '192.168.1.';
+    cfgGw.value = n.gw || '';
+    cfgErr.textContent = '';
+    var httpWrap = document.getElementById('cfgHttpWrap');
+    if (n.type === 'server'){ httpWrap.classList.remove('hidden'); document.getElementById('cfgHttp').value = String(n.http || 200); }
+    else httpWrap.classList.add('hidden');
+    overlay.classList.add('show');
+    setTimeout(function(){ cfgIp.focus(); cfgIp.setSelectionRange(cfgIp.value.length, cfgIp.value.length); }, 50);
+  }
+  document.getElementById('cfgCancel').addEventListener('click', function(){ overlay.classList.remove('show'); });
+  overlay.addEventListener('click', function(e){ if (e.target===overlay) overlay.classList.remove('show'); });
+  document.getElementById('cfgSave').addEventListener('click', function(){
+    var ip = cfgIp.value.trim(), gw = cfgGw.value.trim();
+    var err = E.ipError(ip);
+    if (err){ cfgErr.textContent = '❌ ' + err; return; }
+    var conflict = E.ipConflict(cfgId, ip);
+    if (conflict){ cfgErr.textContent = '❌ IP ซ้ำกับ ' + conflict + ' (ในวงเดียวกันห้ามซ้ำ)'; return; }
+    var isServer = !document.getElementById('cfgHttpWrap').classList.contains('hidden');
+    var http = isServer ? document.getElementById('cfgHttp').value : undefined;
+    E.setNodeIP(cfgId, ip, gw, http);
+    overlay.classList.remove('show');
+    showToast('ตั้ง IP ' + cfgId + ' = ' + ip + (isServer ? ' · HTTP ' + http : ''), 'ok');
+    refreshTerm();
+  });
+
+  /* ================= Terminal ================= */
+  var srcSel  = document.getElementById('srcSel');
+  var termOut = document.getElementById('termOut');
+  var cmdIn   = document.getElementById('cmd');
+
+  function refreshTerm(){
+    var list = E.nodesWithIP();           // PC + Server ทั้งหมด
+    var prev = srcSel.value;
+    srcSel.innerHTML = '';
+    if (!list.length){
+      var o = document.createElement('option');
+      o.textContent = '— ยังไม่มี PC/Server —'; o.value = '';
+      srcSel.appendChild(o);
+      document.getElementById('termPrompt').textContent = '>';
+      return;
+    }
+    list.forEach(function(n){
+      var o = document.createElement('option');
+      o.value = n.id;
+      o.textContent = n.id + (n.ip ? ' · ' + n.ip : ' · (ยังไม่ตั้ง IP)');
+      srcSel.appendChild(o);
+    });
+    if (prev && list.some(function(n){return n.id===prev;})) srcSel.value = prev;
+    updatePrompt();
+  }
+  function updatePrompt(){ document.getElementById('termPrompt').textContent = (srcSel.value||'') + '>'; }
+  srcSel.addEventListener('change', updatePrompt);
+
+  function termPrint(text, cls){
+    var d = document.createElement('div');
+    if (cls) d.className = cls;
+    d.textContent = text;
+    termOut.appendChild(d);
+    termOut.scrollTop = termOut.scrollHeight;
+  }
+
+  function runCmd(raw){
+    raw = (raw||'').trim();
+    if (!raw) return;
+    var srcId = srcSel.value;
+    if (!srcId){ termPrint('ยังไม่มีเครื่อง PC/Server — วางก่อนนะ', 'bad'); return; }
+    termPrint((srcId) + '> ' + raw, 'cmd');
+    var p = raw.split(/\s+/), cmd = p[0].toLowerCase();
+    if (cmd === 'ipconfig'){
+      var n = E.getNode(srcId);
+      termPrint('IPv4 Address . . : ' + (n.ip || '(ยังไม่ตั้ง)'));
+      termPrint('Subnet Mask  . . : ' + (n.ip ? E.mask : '-'));
+      termPrint('Default Gateway  : ' + (n.gw || '(ยังไม่ตั้ง)'));
+      return;
+    }
+    if (cmd === 'ping'){
+      if (!p[1]){ termPrint('ใช้: ping <IP> เช่น ping 192.168.1.20', 'th'); return; }
+      doPing(srcId, p[1]);
+      return;
+    }
+    if (cmd === 'http'){
+      if (!p[1]){ termPrint('ใช้: http <IP> เช่น http 192.168.1.50 (เปิดเว็บที่ Server)', 'th'); return; }
+      doHttp(srcId, p[1]);
+      return;
+    }
+    termPrint("'" + cmd + "' ไม่ใช่คำสั่งที่รองรับ — ใช้ได้: ping, ipconfig, http", 'th');
+  }
+
+  function doPing(srcId, ip){
+    var res = E.ping(srcId, ip, function(r, hops){
+      termPrint('ตอบกลับจาก ' + ip + ': สำเร็จ (' + hops + ' hop' + (r.routed ? ' · ข้ามวงผ่าน Router' : '') + ')', 'ok');
+      termPrint('📋 จดสมุด: ' + srcId + ' ping ' + ip + ' = ได้ — ' + (r.sameNet ? 'วงเดียวกัน (subnet เดียวกัน)' : 'คนละวง ต้องผ่าน Router'), 'note');
+      showToast('✅ ' + srcId + ' ส่งถึง ' + ip + ' แล้ว (' + hops + ' hop)', 'ok');
+      SCN.onPing();
+    });
+    if (res.ok){ termPrint('กำลัง ping ' + ip + ' ...'); statusEl.textContent = '📦 กำลัง ping ' + ip + ' จาก ' + srcId + ' ...'; return; }
+    var MSG = {
+      srcnoip:  'เครื่องต้นทางยังไม่ได้ตั้ง IP — ไปโหมด "ตั้ง IP" แล้วแตะเครื่องนี้ก่อน',
+      srcbad:   'IP ของเครื่องต้นทางผิดกฎ — ตั้งใหม่ก่อน',
+      badtarget:'รูปแบบ IP ปลายทางผิด เช่น ping 192.168.1.20',
+      self:     'นั่นคือ IP ของเครื่องตัวเอง — ลอง ping เครื่องอื่น',
+      nohost:   'ไม่มีเครื่องใดใช้ IP ' + ip + ' (ยังไม่ได้ตั้ง หรือพิมพ์ผิด)',
+      unwired:  'สายยังไม่เชื่อมถึงกัน — ไปโหมด "เชื่อม" ต่อสายให้ครบเส้นทางก่อน',
+      diffnet:  'คนละวง (subnet ต่างกัน) — ต้องต่อผ่าน Router + ตั้ง Default Gateway'
+    };
+    var m = MSG[res.reason] || 'ส่งไม่ถึง';
+    termPrint('✗ Request timed out — ' + m, 'bad');
+    showToast('⛔ ปิงไม่สำเร็จ: ' + m, 'bad');   // เด้งเด่นกลางจอ — กันครู/เด็กมองไม่เห็นใน Terminal
+  }
+
+  // HTTP status ที่เจอบ่อย — ไทย/อังกฤษคู่ (2xx สำเร็จ · 4xx Client Error · 5xx Server Error)
+  var HTTP_INFO = {
+    200:{en:'OK',                    th:'สำเร็จ — เปิดหน้าเว็บได้ปกติ'},
+    401:{en:'Unauthorized',          th:'ยังไม่ได้ล็อกอิน/ไม่มีสิทธิ์ยืนยันตัว (Client Error 4xx)'},
+    403:{en:'Forbidden',             th:'ห้ามเข้า ถึงล็อกอินแล้วก็ไม่มีสิทธิ์ (Client Error 4xx)'},
+    404:{en:'Not Found',             th:'ไม่เจอหน้าที่ขอ (Client Error 4xx)'},
+    500:{en:'Internal Server Error', th:'เซิร์ฟเวอร์มีปัญหาภายใน (Server Error 5xx)'},
+    503:{en:'Service Unavailable',   th:'เซิร์ฟเวอร์ไม่ว่าง/ปิดปรับปรุง (Server Error 5xx)'}
+  };
+  function doHttp(srcId, ip){
+    var res = E.http(srcId, ip, function(status, hops, targetId){
+      var info = HTTP_INFO[status] || {en:'', th:''};
+      var good = status < 400;
+      termPrint('HTTP/1.1 ' + status + ' ' + info.en, good ? 'ok' : 'bad');
+      termPrint('   → ' + info.th, 'note');
+      showToast((good ? '✅ ' : '⛔ ') + status + ' ' + info.en, good ? 'ok' : 'bad');
+    });
+    if (res.ok){ termPrint('กำลังเปิดเว็บ http://' + ip + ' ...'); statusEl.textContent = '🌐 เปิดเว็บ ' + ip + ' จาก ' + srcSel.value + ' ...'; return; }
+    if (res.reason === 'noserver'){
+      termPrint('✗ เชื่อมต่อไม่ได้ — ' + ip + ' ไม่ใช่เว็บเซิร์ฟเวอร์ (ต้องเป็น Server ถึงจะ http ได้)', 'bad');
+      showToast('⛔ ' + ip + ' ไม่มีเว็บเซิร์ฟเวอร์', 'bad');
+      return;
+    }
+    var NET = {
+      srcnoip:'เครื่องต้นทางยังไม่ตั้ง IP', srcbad:'IP ต้นทางผิดกฎ', badtarget:'รูปแบบ IP ผิด',
+      self:'นั่นคือ IP ของเครื่องตัวเอง', nohost:'ไม่มีเครื่องใดใช้ IP ' + ip,
+      unwired:'สายยังไม่เชื่อมถึงกัน', diffnet:'คนละวง ต้องผ่าน Router + ตั้ง Gateway'
+    };
+    var nm = NET[res.reason] || 'ส่งไม่ถึง';
+    termPrint('✗ เปิดเว็บไม่ได้ — ' + nm, 'bad');
+    showToast('⛔ เปิดเว็บไม่ได้: ' + nm, 'bad');
+  }
+
+  document.getElementById('runBtn').addEventListener('click', function(){ runCmd(cmdIn.value); cmdIn.value=''; });
+  cmdIn.addEventListener('keydown', function(e){ if (e.key==='Enter'){ runCmd(cmdIn.value); cmdIn.value=''; } });
+  document.querySelectorAll('.term-chips button').forEach(function(b){
+    b.addEventListener('click', function(){
+      if (b.dataset.run){ runCmd(b.dataset.run); }
+      else if (b.dataset.fill){ cmdIn.value = b.dataset.fill; cmdIn.focus(); }
+    });
+  });
+
+  /* ================= Scenario layer (โจทย์ wk7) ================= */
+  var SCN = (function(){
+    var LS = 'netsim_0005_wk7_meta';
+    var studentNo = null, nickname = '', plan = '', pinged = false, cutTested = false, lastEdges = 0, won = false;
+    var SPEC = {
+      A:{name:'แบบ A · สำนักงาน + Wi-Fi (Star + ไร้สาย)', need:{pc:3,'switch':1,ap:1,server:1}, min:5, text:'Star + ไร้สาย — PC 3 + Switch 1 + AP 1 + Server 1 · เครื่องมีสายเข้า Switch · AP กระจาย Wi-Fi (อย่างน้อย 1 PC ต่อไร้สายผ่าน AP)'},
+      B:{name:'แบบ B · ร้านเกม (Mesh บางส่วน)',  need:{pc:3,'switch':2,server:1}, min:5, text:'Mesh — PC 3 + Switch 2 + Server 1 · 2 Switch เชื่อมกัน + มีสายสำรอง (ตัดเส้นเดียวยังไม่ล่ม)'},
+      C:{name:'แบบ C · อาคาร 2 ชั้น (Star ต่อ Star)', need:{pc:3,'switch':2,router:1}, min:5, text:'Star ต่อ Star — PC 3 + Switch 2 + Router 1 · Switch ชั้นละตัว เชื่อมขึ้น Router กลาง'}
+    };
+    var me = document.getElementById('scnMe'), specBox = document.getElementById('scnSpec');
+    function showMe(){ me.innerHTML = (nickname?('<b>'+nickname+'</b> · '):'') + 'เลขที่ <b>'+(studentNo||'—')+'</b> · แบบ <b>'+(plan||'—')+'</b>'; }
+    function st(){ try{ return JSON.parse(E.exportState()); }catch(e){ return {nodes:[],edges:[]}; } }
+    function counts(){ var c={}; st().nodes.forEach(function(n){ c[n.type]=(c[n.type]||0)+1; }); return c; }
+    function placedOk(){ if(!plan) return false; var need=SPEC[plan].need, c=counts(); for(var k in need){ if((c[k]||0)<need[k]) return false; } return true; }
+    function wiredOk(){ return st().edges.length >= (plan?SPEC[plan].min:99); }
+    function ipFirstOk(){ if(!studentNo) return false; return E.nodesWithIP().some(function(n){ return n.ip && n.ip.split('.').pop()===String(studentNo); }); }
+    function setQ(id,v){ var el=document.getElementById(id); if(!el) return; el.classList.toggle('done',v); el.querySelector('.ic').textContent = v?'✓':el.dataset.n; }
+    var L=[false,false,false,false,false,false];   // ภารกิจ 1..5 — latch: ติ๊กแล้วค้าง (ตัดสายทดลองไม่รีเซ็ต)
+    function update(){
+      if(studentNo&&plan) L[1]=true;
+      if(placedOk()) L[2]=true;
+      if(wiredOk()) L[3]=true;
+      if(ipFirstOk()&&pinged) L[4]=true;
+      if(cutTested) L[5]=true;
+      setQ('mq1',L[1]); setQ('mq2',L[2]); setQ('mq3',L[3]); setQ('mq4',L[4]); setQ('mq5',L[5]);
+      save();
+      if(L[1]&&L[2]&&L[3]&&L[4]&&L[5]&&!won){ won=true; winNow(); }
+    }
+    function winNow(){ var w=document.getElementById('winMsg'); w.innerHTML='\U0001F389 ครบทุกภารกิจ! สร้างแบบ '+plan+' + ตั้ง IP + ping + ทดสอบตัดสายแล้ว<br>\U0001F4CB จดผล ping/ตัดสาย ลงสมุดตอนที่ 3–4 ได้เลย'; w.classList.add('show'); confetti(); setTimeout(function(){ w.classList.remove('show'); },7000); }
+    function save(){ try{ localStorage.setItem(LS,JSON.stringify({studentNo:studentNo,nickname:nickname,plan:plan,pinged:pinged,cutTested:cutTested,won:won,L:L})); }catch(e){} }
+    function load(){ try{ var d=JSON.parse(localStorage.getItem(LS)); if(!d||!d.studentNo) return false; studentNo=d.studentNo; nickname=d.nickname||''; plan=d.plan||''; pinged=!!d.pinged; cutTested=!!d.cutTested; won=!!d.won; if(d.L&&d.L.length===6) L=d.L; return true; }catch(e){ return false; } }
+    function pickPlan(p){ if(p!==plan){ L[2]=L[3]=L[4]=L[5]=false; pinged=false; cutTested=false; won=false; } plan=p; document.querySelectorAll('.pick').forEach(function(b){ b.classList.toggle('on', b.dataset.plan===p); }); specBox.innerHTML='\U0001F3AF <b>'+SPEC[p].name+'</b><br>'+SPEC[p].text; showMe(); update(); }
+    var fx=document.getElementById('fx'), fxc=fx.getContext('2d');
+    function sizeFx(){ fx.width=innerWidth; fx.height=innerHeight; } addEventListener('resize',sizeFx); sizeFx();
+    function confetti(){ var cols=['#F59E0B','#FBBF24','#2563EB','#16A34A','#DC2626','#A855F7'], bits=[], i; for(i=0;i<70;i++) bits.push({x:innerWidth/2,y:innerHeight*0.2,r:4+Math.random()*5,c:cols[i%cols.length],vx:(Math.random()-0.5)*9,vy:-4-Math.random()*8,rot:Math.random()*6}); var f=0; (function d(){ fxc.clearRect(0,0,fx.width,fx.height); bits.forEach(function(b){ b.x+=b.vx; b.y+=b.vy; b.vy+=0.32; b.vx*=0.99; b.rot+=0.25; fxc.save(); fxc.translate(b.x,b.y); fxc.rotate(b.rot); fxc.fillStyle=b.c; fxc.fillRect(-b.r,-b.r,b.r*2,b.r*1.2); fxc.restore(); }); if(f++<110) requestAnimationFrame(d); else fxc.clearRect(0,0,fx.width,fx.height); })(); }
+    function openNameModal(){ document.getElementById('noOverlay').classList.add('show'); }
+    function saveName(){ var v=(document.getElementById('noInput').value||'').trim(); if(!/^\d+$/.test(v)||+v<2||+v>99){ document.getElementById('noErr').textContent='กรอกเลขที่ 2–99'; return; } studentNo=+v; nickname=(document.getElementById('noNick').value||'').trim(); document.getElementById('noOverlay').classList.remove('show'); showMe(); save(); update(); }
+    return {
+      onChange:function(n,e){ if(e<lastEdges && E.getMode()==='cutlink') cutTested=true; lastEdges=e; update(); },
+      onPing:function(){ pinged=true; update(); },
+      start:function(){
+        document.querySelectorAll('.pick').forEach(function(b){ b.addEventListener('click',function(){ pickPlan(b.dataset.plan); }); });
+        document.getElementById('noOk').addEventListener('click',saveName);
+        document.getElementById('noInput').addEventListener('keydown',function(ev){ if(ev.key==='Enter') saveName(); });
+        document.getElementById('scnReset').addEventListener('click',function(){
+          if(!confirm('เริ่มภารกิจใหม่? (ล้างชื่อ/เลขที่/แบบ — กระดานคงเดิม)')) return;
+          localStorage.removeItem(LS); studentNo=null; nickname=''; plan=''; pinged=false; cutTested=false; won=false; L=[false,false,false,false,false,false];
+          document.querySelectorAll('.pick').forEach(function(b){ b.classList.remove('on'); });
+          specBox.textContent=''; showMe(); update(); openNameModal();
+        });
+        if(load()){ if(plan) pickPlan(plan); showMe(); update(); } else openNameModal();
+      }
+    };
+  })();
+
+  // init engine ท้ายสุด (หลังประกาศ DOM refs + ฟังก์ชันครบ — callback onChange/refreshTerm เรียกได้ปลอดภัย)
+  E.init(document.getElementById('canvas'), {
+    storeKey: 'netsim_0005_wk7',
+    onStatus: function(m){ statusEl.textContent = m; },
+    onChange: function(n,e){ countsEl.textContent = 'อุปกรณ์ ' + n + ' · สาย ' + e; refreshTerm(); SCN.onChange(n,e); },
+    onToast: showToast,
+    onConfig: function(id){ openCfg(id); }
+  });
+
+  // เริ่มที่โหมดวาง
+  setMode('place');
+  refreshTerm();
+  SCN.start();
+})();
+</script>
+</body>
+</html>
