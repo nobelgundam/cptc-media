@@ -68,6 +68,17 @@
   }
   function typeLabel(type) { var t = TYPES[type]; return t ? t.label + ' (' + t.en + ')' : type; }
 
+  /* ---------- กฎบทบาท-ตำแหน่ง (topology role): ISP ต่อได้เฉพาะ Router ----------
+   * แก้ปัญหาเด็กวางมั่ว (ต่อ ISP เข้า Switch/AP/PC ตรงๆ) — เน็ตจากผู้ให้บริการ
+   * ต้องผ่านเราเตอร์ก่อนเสมอ · media matrix คุมชนิดสายอยู่แล้ว ที่นี่คุม "ใครต่อใคร" */
+  function roleError(A, B) {
+    if (A.type === 'isp' && B.type !== 'router')
+      return { node: B, msg: 'ISP ต้องต่อเข้า Router ก่อน — ต่อ ' + typeLabel(B.type) + ' ตรงๆ ไม่ได้ (เน็ตผู้ให้บริการต้องผ่านเราเตอร์)' };
+    if (B.type === 'isp' && A.type !== 'router')
+      return { node: A, msg: 'ISP ต้องต่อเข้า Router ก่อน — ต่อ ' + typeLabel(A.type) + ' ตรงๆ ไม่ได้ (เน็ตผู้ให้บริการต้องผ่านเราเตอร์)' };
+    return null;
+  }
+
   /* ---------- สถานะ engine ---------- */
   var svg, layers = {}, state, seq, els;
   var mode = 'idle';          // place | connect | delete | simulate | idle
@@ -248,6 +259,8 @@
     // ตรวจทั้งสองฝั่งว่ารองรับสื่อชนิดนี้ไหม (กันต่อมั่ว)
     if (!deviceSupports(A.type, m)) return { ok: false, reason: 'media', node: A };
     if (!deviceSupports(B.type, m)) return { ok: false, reason: 'media', node: B };
+    // กฎบทบาท: ISP ต่อได้เฉพาะ Router (กันวางมั่ว ISP→Switch/AP/PC)
+    var rerr = roleError(A, B); if (rerr) return { ok: false, reason: 'role', node: rerr.node, msg: rerr.msg };
     // เชื่อมไร้สายเข้า AP/Router ที่ "ตั้งรหัสแล้ว" ต้องใส่รหัสก่อน (ผ่าน connectAuth)
     if (!_authBypass) { var sap = securedAp(a, b, m); if (sap) return { ok: false, reason: 'wifi', node: sap, a: a, b: b, m: m }; }
     var e = { id: 'e' + (++_edgeSeq), a: a, b: b, media: m };
@@ -308,6 +321,9 @@
         var nd = res.node;
         toast('🚫 ' + typeLabel(nd.type) + ' ต่อ "' + MEDIA_LABEL[media] + '" ไม่ได้ — รองรับ: ' + supportedText(nd.type), 'bad');
         status('สื่อไม่ตรงชนิดอุปกรณ์ — ดู "รองรับ" ใต้ปุ่มอุปกรณ์ แล้วเลือกสื่อใหม่');
+      } else if (res.reason === 'role') {
+        toast('🚫 ' + res.msg, 'bad');
+        status(res.msg);
       } else if (res.reason === 'dup') {
         toast('สองตัวนี้เชื่อมกันอยู่แล้ว', 'bad'); status('เลือกอุปกรณ์ตัวแรกเพื่อเริ่มเชื่อมสาย');
       } else {
@@ -602,6 +618,61 @@
     state.nodes.forEach(renderNode);
   }
 
+  /* ================= อินเทอร์เน็ตภายนอก (ping/tracert ปลายทางจริง) =================
+   * ปลายทางนอกวง (เว็บ/DNS) จำลอง latency ต่างกัน = สอน "ปิงต่ำ=ลื่น · ปิงสูง=แล็ก"
+   * สำเร็จเฉพาะเมื่อ topology มีทางออกจริง: ต้นทางตั้ง IP+Gateway + มี ISP + เชื่อมถึง ISP ผ่าน Router */
+  var NET_HOSTS = {
+    '8.8.8.8':      { ms: 12,  ttl: 117, ip: '8.8.8.8',       note: 'Google DNS' },
+    'google.com':   { ms: 9,   ttl: 116, ip: '142.250.71.14', note: 'เซิร์ฟเวอร์ในไทย เร็ว' },
+    'youtube.com':  { ms: 11,  ttl: 115, ip: '142.250.71.46', note: 'เซิร์ฟเวอร์ในไทย เร็ว' },
+    'facebook.com': { ms: 14,  ttl: 58,  ip: '57.144.222.1',  note: 'เซิร์ฟเวอร์ต่างประเทศ' },
+    'garena.co.th': { ms: 30,  ttl: 54,  ip: '103.10.29.55',  note: 'เซิร์ฟเวอร์เกมในไทย' },
+    'roblox.com':   { ms: 178, ttl: 52,  ip: '128.116.112.1', note: 'เซิร์ฟเวอร์ US ไกล ปิงสูง แล็ก' }
+  };
+  function netTarget(host) {
+    host = (host || '').trim().toLowerCase();
+    var h = NET_HOSTS[host];
+    return h ? { host: host, ip: h.ip, ms: h.ms, ttl: h.ttl, note: h.note } : null;
+  }
+  function ispNode() {
+    for (var i = 0; i < state.nodes.length; i++) if (state.nodes[i].type === 'isp') return state.nodes[i];
+    return null;
+  }
+  // ต้นทางออกอินเทอร์เน็ตได้ไหม → คืน path ถึง ISP (ใช้ animate/tracert) หรือเหตุผลที่ออกไม่ได้
+  function reachInternet(srcId) {
+    var src = nodeById(srcId);
+    if (!src || !src.ip) return { ok: false, reason: 'srcnoip' };
+    if (ipError(src.ip)) return { ok: false, reason: 'srcbad' };
+    var isp = ispNode();
+    if (!isp) return { ok: false, reason: 'noisp' };
+    var path = findShortestPathBFS(buildAdj(), srcId, isp.id);
+    if (!path) return { ok: false, reason: 'unwired' };
+    var hasRouter = path.some(function (id) { return nodeById(id).type === 'router'; });
+    if (!hasRouter) return { ok: false, reason: 'norouter' };
+    if (!src.gw) return { ok: false, reason: 'nogw' };
+    return { ok: true, path: path, isp: isp.id };
+  }
+  function pingNet(srcId, host, onArrive) {
+    var t = netTarget(host);
+    if (!t) return { ok: false, reason: 'dns' };
+    var r = reachInternet(srcId);
+    if (!r.ok) return { ok: false, reason: r.reason, target: t };
+    animateAlong(r.path, function (hops) { if (onArrive) onArrive(t, hops); });
+    return { ok: true, target: t, path: r.path };
+  }
+  // ข้อมูลเส้นทาง tracert (ไม่ animate) — internet: path→ISP+ปลายทาง · LAN: path ถึงเครื่อง
+  function tracePath(srcId, host) {
+    var t = netTarget(host);
+    if (t) {
+      var r = reachInternet(srcId);
+      if (!r.ok) return { ok: false, reason: r.reason, target: t };
+      return { ok: true, kind: 'net', nodes: r.path, target: t };
+    }
+    var pc = pingCheck(srcId, host);
+    if (!pc.ok) return { ok: false, reason: pc.reason };
+    return { ok: true, kind: 'lan', nodes: pc.path, target: { ip: host } };
+  }
+
   /* ================= public API ================= */
   global.NetSimEngine = {
     init: function (svgEl, opts) {
@@ -672,6 +743,11 @@
       var res = httpRequest(srcId, targetIp);
       if (res.ok) animateAlong(res.path, function (hops) { if (onArrive) onArrive(res.status, hops, res.target); });
       return res;
-    }
+    },
+    // ----- อินเทอร์เน็ตภายนอก (ping เว็บ/DNS · tracert) -----
+    netTarget: function (host) { return netTarget(host); },       // รู้จัก host ไหม (เว็บ/8.8.8.8)
+    hasISP: function () { return !!ispNode(); },
+    pingNet: function (srcId, host, onArrive) { return pingNet(srcId, host, onArrive); },
+    tracePath: function (srcId, host) { return tracePath(srcId, host); }
   };
 })(window);

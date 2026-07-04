@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>ใบงานที่ 8 · หมอเครือข่าย ping/tracert — 21909-1009</title>
+<title>ใบงานที่ 8 · ตรวจเครือข่ายด้วย ping / tracert — 21909-1009</title>
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -18,18 +18,21 @@
   <!-- แถบสถานะ/คำแนะนำ (Signaling — Mayer) -->
   <div class="statusbar"><span class="dot"></span><span id="status">เลือกอุปกรณ์ทางซ้าย แล้วแตะบนกระดานเพื่อวาง</span></div>
 
-  <!-- โจทย์ wk8: ตรวจการเชื่อมต่อด้วย ping -->
+  <!-- โจทย์ wk8: เปิดร้านเกม เชื่อมเน็ต ทดสอบ ping/tracert -->
   <div class="scn-head">
     <button class="btn-reset" id="scnReset">เริ่มภารกิจใหม่</button>
     <span class="me" id="scnMe">เลขที่ <b>—</b></span>
   </div>
-  <div class="spec-box" id="scnSpec">🩺 <b>ภารกิจ: หมอเครือข่าย ตรวจชีพจรร้านเกม</b><br>ร้านมีคอมต่อ Switch ไว้ให้แล้ว → ตั้ง IP ให้คอม (เครื่องแรกลงท้ายเลขที่เธอ) → พิมพ์ <b>ping</b> เช็คว่าคอมคุยกันได้ไหม (ดู Reply + จำนวน hop)</div>
+  <div class="spec-box" id="scnSpec">🎮 <b>ภารกิจ: เปิดร้านเกม เชื่อมเน็ตให้ลูกค้าเล่นได้</b><br>วางเอง <b>ตามลำดับจริง</b>: ผู้ให้บริการเน็ต (ISP) → เราเตอร์ → สวิตช์ → คอมลูกค้า · ต่อให้ถูก → ตั้ง IP + Gateway → ทดสอบ <b>ping / tracert</b> ทั้งในร้าน + ออกเน็ต</div>
   <div class="mission">
-    <div class="mq" id="mq1" data-n="1"><span class="ic">1</span> ใส่เลขที่ + ตั้ง IP ให้คอมอย่างน้อย 2 เครื่อง (PC1 ลงท้ายเลขที่เธอ)</div>
-    <div class="mq" id="mq2" data-n="2"><span class="ic">2</span> 📞 พิมพ์ <b>ping</b> ไปคอมอีกเครื่อง จนขึ้น "สำเร็จ" (Reply)</div>
+    <div class="mq" id="mq1" data-n="1"><span class="ic">1</span> ใส่ชื่อ-เลขที่ + วางครบ: ISP · เราเตอร์ · สวิตช์ · คอม 2 เครื่อง</div>
+    <div class="mq" id="mq2" data-n="2"><span class="ic">2</span> เชื่อม<b>ถูกลำดับ</b>: ISP→เราเตอร์→สวิตช์→คอม (ISP ต่อคอม/สวิตช์ตรงไม่ได้)</div>
+    <div class="mq" id="mq3" data-n="3"><span class="ic">3</span> ตั้ง IP คอม (เลขท้าย = เลขที่เธอ) + ตั้ง Gateway = IP เราเตอร์</div>
+    <div class="mq" id="mq4" data-n="4"><span class="ic">4</span> 📶 ping คอมเพื่อนในร้าน สำเร็จ (วงเดียวกัน)</div>
+    <div class="mq" id="mq5" data-n="5"><span class="ic">5</span> 🌐 ping หรือ tracert ออกเน็ต (8.8.8.8 / google.com) สำเร็จ</div>
   </div>
 
-  <!-- โหมด 4 ปุ่ม -->
+  <!-- โหมด 5 ปุ่ม -->
   <div class="modebar">
     <button class="btn" id="m-place"><span class="ic">📍</span> วาง</button>
     <button class="btn" id="m-connect"><span class="ic">🔗</span> เชื่อม</button>
@@ -64,7 +67,7 @@
     </div>
   </div>
 
-  <!-- Terminal (CLI: ipconfig / ping) -->
+  <!-- Terminal (CLI: ipconfig / ping / tracert / http) -->
   <div class="terminal">
     <div class="term-head">
       <span class="tt">💻 Terminal</span>
@@ -72,15 +75,17 @@
         <select id="srcSel" title="เลือกเครื่องที่จะพิมพ์คำสั่ง"></select>
       </label>
     </div>
-    <div class="term-out" id="termOut"><div class="th">พิมพ์ <b>ipconfig</b> ดูเลข IP · <b>ping &lt;IP&gt;</b> ทดสอบส่งข้อมูล · <b>http &lt;IP&gt;</b> เปิดเว็บที่ Server (ตั้ง IP ที่เครื่องก่อนนะ)</div></div>
+    <div class="term-out" id="termOut"><div class="th">พิมพ์ <b>ipconfig</b> ดูเลข IP · <b>ping &lt;IP/เว็บ&gt;</b> ทดสอบส่งข้อมูล · <b>tracert &lt;IP/เว็บ&gt;</b> ดูเส้นทาง (ตั้ง IP ที่เครื่องก่อนนะ)</div></div>
     <div class="term-chips">
       <button data-run="ipconfig">ipconfig</button>
-      <button data-fill="ping ">ping…</button>
-      <button data-fill="http ">http…</button>
+      <button data-fill="ping ">ping เพื่อน…</button>
+      <button data-run="ping 8.8.8.8">ping 8.8.8.8</button>
+      <button data-run="ping google.com">ping google</button>
+      <button data-fill="tracert ">tracert…</button>
     </div>
     <div class="term-in">
       <span class="prompt" id="termPrompt">&gt;</span>
-      <input id="cmd" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="เช่น ping 192.168.1.20">
+      <input id="cmd" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="เช่น ping 192.168.1.20 หรือ ping google.com">
       <button class="btn go" id="runBtn">รัน</button>
     </div>
   </div>
@@ -88,7 +93,6 @@
   <!-- ปุ่มจำลอง + ล้าง -->
   <div class="actions">
     <button class="btn primary" id="btn-sim"><span class="ic">🧭</span> ชี้เส้นทาง</button>
-    <button class="btn" id="btn-speed"><span class="ic">📶</span> ทดสอบความเร็ว</button>
     <button class="btn" id="btn-clear"><span class="ic">🧹</span> ล้างทั้งหมด</button>
   </div>
 
@@ -97,7 +101,7 @@
     <span style="color:var(--utp)">■</span> UTP &nbsp;
     <span style="color:var(--fiber)">■</span> ไฟเบอร์ (Fiber) &nbsp;
     <span style="color:var(--wireless)">▦</span> ไร้สาย (Wireless)<br>
-    💡 ขั้นตอน: วางอุปกรณ์ → เชื่อมสาย → <b>ตั้ง IP</b> ที่ PC/Server → <b>ping</b> ใน Terminal · ตั้ง IP ผิดชนิดสื่อจะเชื่อมไม่ได้ (ดู "ต่อได้" ใต้อุปกรณ์)
+    💡 ลำดับจริง: <b>ISP → เราเตอร์ → สวิตช์ → คอม</b> · ISP ต่อคอม/สวิตช์ตรงไม่ได้ (ต้องผ่านเราเตอร์) · ตั้ง IP ที่คอม + Gateway = IP เราเตอร์ ถึงจะออกเน็ตได้
   </div>
 
   <a class="back" href="index.html">← กลับหน้าหลัก</a>
@@ -108,13 +112,13 @@
   <div class="dialog">
     <h3 id="cfgTitle">⚙️ ตั้งค่า IP</h3>
     <div id="cfgIpWrap">
-      <p class="dlg-note">กรอกเลข IP 4 ชุด (0–255) · ห้ามลงท้าย .0 / .255 · ห้ามซ้ำเครื่องอื่นในวงเดียวกัน</p>
+      <p class="dlg-note">กรอกเลข IP 4 ชุด (0–255) · ห้ามลงท้าย .0 / .255 · ห้ามซ้ำเครื่องอื่นในวงเดียวกัน · เลขท้ายแนะนำ = เลขที่ของเธอ (กันลอก)</p>
       <label>IP Address (ไอพีแอดเดรส)</label>
       <input class="full" id="cfgIp" type="text" inputmode="decimal" placeholder="192.168.1.10" autocomplete="off">
       <label>Subnet Mask (ซับเน็ตมาสก์)</label>
       <input class="full" id="cfgSub" type="text" value="255.255.255.0" readonly>
-      <label>Default Gateway (เกตเวย์ — ถ้าต้องออกข้ามวง)</label>
-      <input class="full" id="cfgGw" type="text" placeholder="192.168.1.1 (ไม่บังคับ)" autocomplete="off">
+      <label>Default Gateway (เกตเวย์ = IP เราเตอร์ ถ้าต้องออกเน็ต)</label>
+      <input class="full" id="cfgGw" type="text" placeholder="192.168.1.1" autocomplete="off">
       <div id="cfgHttpWrap" class="hidden">
         <label>เว็บเซิร์ฟเวอร์นี้ตอบ HTTP status อะไร (เมื่อมีคน http มา)</label>
         <select class="full" id="cfgHttp">
@@ -167,8 +171,8 @@
 <canvas id="fx"></canvas>
 <div class="win-msg" id="winMsg"></div>
 <div class="overlay" id="noOverlay"><div class="dialog">
-  <h3>🩺 เริ่มภารกิจ ใบงานที่ 8</h3>
-  <p class="dlg-note">กรอกเลขที่ก่อน — IP เครื่องแรก (PC1) ให้ลงท้ายด้วยเลขที่ของเธอ (กันลอกเพื่อน)</p>
+  <h3>🎮 เริ่มภารกิจ ใบงานที่ 8 · ping / tracert</h3>
+  <p class="dlg-note">กรอกเลขที่ก่อน — IP คอมของเธอแนะนำให้ลงท้ายด้วยเลขที่ (กันลอกเพื่อน)</p>
   <label>เลขที่ของเธอ (2–99)</label>
   <input class="full" id="noInput" type="text" inputmode="numeric" placeholder="เช่น 7">
   <label>ชื่อเล่น (ไม่บังคับ · เก็บในเครื่องเธอเท่านั้น ไม่ส่งไปไหน)</label>
@@ -251,9 +255,9 @@
   var simBtn = document.getElementById('btn-sim');
   var STATUS_TXT = {
     place:   'เลือกอุปกรณ์ทางซ้าย แล้วแตะบนกระดานเพื่อวาง · ลากเพื่อย้าย',
-    connect: 'เลือกสื่อกลางทางซ้าย แล้วแตะอุปกรณ์ A → อุปกรณ์ B',
-    config:  '⚙️ แตะที่ พีซี (PC) หรือ เซิร์ฟเวอร์ (Server) เพื่อตั้งเลข IP',
-    cutlink: '✂️ โหมดตัดสาย: แตะที่ "เส้นสาย" เพื่อตัด → ลองชี้เส้นทาง/ping ดูว่ายังถึงกันไหม (สอนจุดอ่อนเครือข่าย)',
+    connect: 'เลือกสื่อกลางทางซ้าย แล้วแตะอุปกรณ์ A → อุปกรณ์ B (ISP ต่อได้เฉพาะเราเตอร์)',
+    config:  '⚙️ แตะที่ พีซี (PC) หรือ เซิร์ฟเวอร์ (Server) เพื่อตั้งเลข IP + Gateway',
+    cutlink: '✂️ โหมดตัดสาย: แตะที่ "เส้นสาย" เพื่อตัด → ลองชี้เส้นทาง/ping ดูว่ายังถึงกันไหม',
     delete:  'โหมดลบ: แตะอุปกรณ์ 1 ครั้ง แล้วแตะซ้ำเพื่อยืนยัน',
     simulate:'🧭 ชี้เส้นทาง: แตะเครื่อง "ต้นทาง" → "ปลายทาง" บนจอ (ดูข้อมูลวิ่งผ่านทางไหน)'
   };
@@ -263,7 +267,6 @@
     modeBtns.delete.classList.toggle('danger', m==='delete');
     modeBtns.cutlink.classList.toggle('danger', m==='cutlink');
     simBtn.classList.toggle('on', m==='simulate');
-    // sidebar: connect → โชว์สื่อ, อื่นๆ → โชว์อุปกรณ์
     sideMedia.classList.toggle('hidden', m!=='connect');
     sideDevices.classList.toggle('hidden', m==='connect');
     statusEl.textContent = STATUS_TXT[m] || '';
@@ -287,25 +290,6 @@
       E.clearAll(); setMode('place');
       showToast('ล้างกระดานแล้ว', 'ok');
     }
-  });
-
-  document.getElementById('btn-speed').addEventListener('click', function(){
-    var aps = E.apNodes();
-    if (!aps.length){ showToast('ยังไม่มี Router/AP — วางก่อนถึงทดสอบความเร็วได้', 'bad'); return; }
-    termPrint('📶 ทดสอบความเร็วเน็ต (เน็ตรวม 100 Mbps แบ่งกันตามจำนวนเครื่องที่เกาะ Wi-Fi):', 'th');
-    var slow = false;
-    aps.forEach(function(id){
-      var s = E.wifiSpeed(id); if (!s) return;
-      var who = s.devices + ' เครื่องของเรา' + (s.ghosts ? (' + ' + s.ghosts + ' เครื่องแปลกหน้าแอบเกาะ 😱') : '');
-      if (!s.secured){ slow = true;
-        termPrint('  ⚠️ ' + id + ' (Wi-Fi เปิด ไม่มีรหัส): เกาะ ' + s.users + ' เครื่อง (' + who + ') → ' + s.perDevice + ' Mbps/เครื่อง — ช้า!', 'bad');
-      } else {
-        termPrint('  ✅ ' + id + ' (ตั้งรหัสแล้ว): เกาะ ' + s.users + ' เครื่อง (' + who + ') → ' + s.perDevice + ' Mbps/เครื่อง — เร็ว', 'ok');
-      }
-    });
-    termPrint('  💡 ตั้งรหัส Wi-Fi = กันคนแปลกหน้าแอบเกาะ = เน็ตไม่ถูกแย่ง = เร็วขึ้น', 'note');
-    showToast(slow ? '⚠️ Wi-Fi เปิดอยู่ คนแปลกหน้าแย่งเน็ต — ตั้งรหัสกัน!' : '✅ Wi-Fi ปลอดภัย เน็ตไม่ถูกแย่ง', slow ? 'bad' : 'ok');
-    statusEl.textContent = '📶 ดูผลความเร็วใน Terminal ล่างจอ';
   });
 
   /* ================= IP config dialog ================= */
@@ -353,13 +337,12 @@
   document.getElementById('cfgCancel').addEventListener('click', function(){ overlay.classList.remove('show'); });
   overlay.addEventListener('click', function(e){ if (e.target===overlay) overlay.classList.remove('show'); });
   document.getElementById('cfgSave').addEventListener('click', function(){
-    // โหมดตั้งรหัส Wi-Fi (AP/Router)
     if (!document.getElementById('cfgWifiWrap').classList.contains('hidden')){
       var pass = document.getElementById('cfgWifi').value.trim();
       if (pass && !E.wifiStrong(pass)){ cfgErr.textContent = '❌ รหัสยังไม่แข็งแรงพอ — ทำให้ครบ 5 ข้อสีเขียวก่อน'; return; }
       E.setNodeWifi(cfgId, pass);
       overlay.classList.remove('show');
-      showToast(pass ? '🔒 ตั้งรหัส Wi-Fi ' + cfgId + ' แล้ว (แข็งแรง)' : '⚠️ ' + cfgId + ' เปิด Wi-Fi ไม่มีรหัส (เน็ตช้า ไม่ปลอดภัย)', pass ? 'ok' : 'bad');
+      showToast(pass ? '🔒 ตั้งรหัส Wi-Fi ' + cfgId + ' แล้ว (แข็งแรง)' : '⚠️ ' + cfgId + ' เปิด Wi-Fi ไม่มีรหัส', pass ? 'ok' : 'bad');
       return;
     }
     var ip = cfgIp.value.trim(), gw = cfgGw.value.trim();
@@ -371,7 +354,7 @@
     var http = isServer ? document.getElementById('cfgHttp').value : undefined;
     E.setNodeIP(cfgId, ip, gw, http);
     overlay.classList.remove('show');
-    showToast('ตั้ง IP ' + cfgId + ' = ' + ip + (isServer ? ' · HTTP ' + http : ''), 'ok');
+    showToast('ตั้ง IP ' + cfgId + ' = ' + ip + (gw ? ' · GW ' + gw : '') + (isServer ? ' · HTTP ' + http : ''), 'ok');
     refreshTerm();
   });
 
@@ -408,7 +391,7 @@
   var cmdIn   = document.getElementById('cmd');
 
   function refreshTerm(){
-    var list = E.nodesWithIP();           // PC + Server ทั้งหมด
+    var list = E.nodesWithIP();
     var prev = srcSel.value;
     srcSel.innerHTML = '';
     if (!list.length){
@@ -438,11 +421,24 @@
     termOut.scrollTop = termOut.scrollHeight;
   }
 
+  // สุ่มเวลารอบค่าฐาน (ให้ 3 บรรทัด ping ต่างกันเล็กน้อย = สมจริง)
+  function rnd(base){ return Math.max(1, Math.round(base * (0.82 + Math.random()*0.36))); }
+  // พิมพ์ผล ping แบบสมจริง (3 reply + สถิติ) — คืนเวลาเฉลี่ย
+  function pingStats(label, ip, ms, ttl){
+    termPrint('กำลัง Ping ' + label + ' [' + ip + '] ด้วย 32 bytes ข้อมูล:', 'th');
+    var a = [rnd(ms), rnd(ms), rnd(ms)];
+    for (var i=0;i<3;i++) termPrint('ตอบกลับจาก ' + ip + ': bytes=32 time=' + a[i] + 'ms TTL=' + ttl, 'ok');
+    var mn = Math.min(a[0],a[1],a[2]), mx = Math.max(a[0],a[1],a[2]), av = Math.round((a[0]+a[1]+a[2])/3);
+    termPrint('สถิติ Ping สำหรับ ' + ip + ': ส่ง = 3, รับ = 3, หาย = 0 (0% loss)', 'note');
+    termPrint('   เวลาไป-กลับ: ต่ำสุด = ' + mn + 'ms, เฉลี่ย = ' + av + 'ms, สูงสุด = ' + mx + 'ms', 'note');
+    return av;
+  }
+
   function runCmd(raw){
     raw = (raw||'').trim();
     if (!raw) return;
     var srcId = srcSel.value;
-    if (!srcId){ termPrint('ยังไม่มีเครื่อง PC/Server — วางก่อนนะ', 'bad'); return; }
+    if (!srcId){ termPrint('ยังไม่มีเครื่อง PC/Server — วางแล้วตั้ง IP ก่อนนะ', 'bad'); return; }
     termPrint((srcId) + '> ' + raw, 'cmd');
     var p = raw.split(/\s+/), cmd = p[0].toLowerCase();
     if (cmd === 'ipconfig'){
@@ -453,8 +449,13 @@
       return;
     }
     if (cmd === 'ping'){
-      if (!p[1]){ termPrint('ใช้: ping <IP> เช่น ping 192.168.1.20', 'th'); return; }
+      if (!p[1]){ termPrint('ใช้: ping <IP หรือ เว็บ> เช่น ping 192.168.1.20 หรือ ping google.com', 'th'); return; }
       doPing(srcId, p[1]);
+      return;
+    }
+    if (cmd === 'tracert' || cmd === 'traceroute'){
+      if (!p[1]){ termPrint('ใช้: tracert <IP หรือ เว็บ> เช่น tracert 8.8.8.8', 'th'); return; }
+      doTracert(srcId, p[1]);
       return;
     }
     if (cmd === 'http'){
@@ -462,32 +463,84 @@
       doHttp(srcId, p[1]);
       return;
     }
-    termPrint("'" + cmd + "' ไม่ใช่คำสั่งที่รองรับ — ใช้ได้: ping, ipconfig, http", 'th');
+    termPrint("'" + cmd + "' ไม่ใช่คำสั่งที่รองรับ — ใช้ได้: ping, tracert, ipconfig, http", 'th');
   }
 
-  function doPing(srcId, ip){
-    var res = E.ping(srcId, ip, function(r, hops){
-      termPrint('ตอบกลับจาก ' + ip + ': สำเร็จ (' + hops + ' hop' + (r.routed ? ' · ข้ามวงผ่าน Router' : '') + ')', 'ok');
-      termPrint('📋 จดสมุด: ' + srcId + ' ping ' + ip + ' = ได้ — ' + (r.sameNet ? 'วงเดียวกัน (subnet เดียวกัน)' : 'คนละวง ต้องผ่าน Router'), 'note');
-      showToast('✅ ' + srcId + ' ส่งถึง ' + ip + ' แล้ว (' + hops + ' hop)', 'ok');
-      try{ SCN.markPing(); }catch(e){}
+  // ping: ถ้าเป็นชื่อเว็บ/8.8.8.8 → ออกเน็ต · ถ้าเป็น IP ในวง → LAN
+  function doPing(srcId, host){
+    if (E.netTarget(host)){ doPingNet(srcId, host); return; }
+    var res = E.ping(srcId, host, function(r, hops){
+      var ms = r.routed ? 4 : 1, ttl = r.routed ? 127 : 128;
+      var av = pingStats(host, host, ms, ttl);
+      termPrint('📋 จดสมุด: ping ' + host + ' = ได้ ' + av + 'ms · ' + hops + ' hop — ' + (r.sameNet ? 'วงเดียวกัน (subnet เดียวกัน)' : 'คนละวง ผ่าน Router'), 'note');
+      showToast('✅ ' + srcId + ' ping ' + host + ' สำเร็จ', 'ok');
+      SCN.markPing('lan');
     });
-    if (res.ok){ termPrint('กำลัง ping ' + ip + ' ...'); statusEl.textContent = '📦 กำลัง ping ' + ip + ' จาก ' + srcId + ' ...'; return; }
+    if (res.ok){ termPrint('กำลัง ping ' + host + ' ...'); statusEl.textContent = '📦 กำลัง ping ' + host + ' จาก ' + srcId + ' ...'; return; }
     var MSG = {
       srcnoip:  'เครื่องต้นทางยังไม่ได้ตั้ง IP — ไปโหมด "ตั้ง IP" แล้วแตะเครื่องนี้ก่อน',
       srcbad:   'IP ของเครื่องต้นทางผิดกฎ — ตั้งใหม่ก่อน',
       badtarget:'รูปแบบ IP ปลายทางผิด เช่น ping 192.168.1.20',
       self:     'นั่นคือ IP ของเครื่องตัวเอง — ลอง ping เครื่องอื่น',
-      nohost:   'ไม่มีเครื่องใดใช้ IP ' + ip + ' (ยังไม่ได้ตั้ง หรือพิมพ์ผิด)',
+      nohost:   'ไม่มีเครื่องใดใช้ IP ' + host + ' (ยังไม่ได้ตั้ง หรือพิมพ์ผิด)',
       unwired:  'สายยังไม่เชื่อมถึงกัน — ไปโหมด "เชื่อม" ต่อสายให้ครบเส้นทางก่อน',
       diffnet:  'คนละวง (subnet ต่างกัน) — ต้องต่อผ่าน Router + ตั้ง Default Gateway'
     };
     var m = MSG[res.reason] || 'ส่งไม่ถึง';
     termPrint('✗ Request timed out — ' + m, 'bad');
-    showToast('⛔ ปิงไม่สำเร็จ: ' + m, 'bad');   // เด้งเด่นกลางจอ — กันครู/เด็กมองไม่เห็นใน Terminal
+    showToast('⛔ ปิงไม่สำเร็จ: ' + m, 'bad');
   }
 
-  // HTTP status ที่เจอบ่อย — ไทย/อังกฤษคู่ (2xx สำเร็จ · 4xx Client Error · 5xx Server Error)
+  // ping ออกอินเทอร์เน็ต (เว็บ/DNS) — สำเร็จเฉพาะมี ISP + Router + Gateway ครบเส้นทาง
+  function doPingNet(srcId, host){
+    var res = E.pingNet(srcId, host, function(t, hops){
+      var av = pingStats(host, t.ip, t.ms, t.ttl);
+      var lag = t.ms >= 100 ? ' ⚠️ ปิงสูง = แล็ก!' : (t.ms <= 15 ? ' ✅ ปิงต่ำ = ลื่น' : '');
+      termPrint('📋 จดสมุด: ping ' + host + ' = ' + av + 'ms' + lag + ' — ออกเน็ตผ่าน Router→ISP สำเร็จ (' + t.note + ')', 'note');
+      showToast('✅ ' + host + ' = ' + av + 'ms' + lag, 'ok');
+      SCN.markPing('net');
+    });
+    if (res.ok){ termPrint('กำลังออกเน็ตไป ' + host + ' ...'); statusEl.textContent = '🌐 ping ' + host + ' จาก ' + srcId + ' ...'; return; }
+    var NETMSG = {
+      dns:     'ไม่รู้จักชื่อนี้ — ลอง 8.8.8.8, google.com, youtube.com, garena.co.th, roblox.com',
+      srcnoip: 'เครื่องต้นทางยังไม่ตั้ง IP — ตั้งก่อน',
+      srcbad:  'IP ต้นทางผิดกฎ — ตั้งใหม่',
+      noisp:   'ไม่มี ISP (ผู้ให้บริการเน็ต) ในเครือข่าย — วาง ISP แล้วต่อเข้าเราเตอร์ก่อน',
+      unwired: 'ยังเชื่อมไม่ถึง ISP — ต่อสาย คอม→สวิตช์→เราเตอร์→ISP ให้ครบ',
+      norouter:'เส้นทางไม่มีเราเตอร์ — ออกเน็ตต้องผ่านเราเตอร์',
+      nogw:    'ยังไม่ได้ตั้ง Default Gateway — ตั้ง IP ที่คอม แล้วใส่ Gateway = IP ของเราเตอร์'
+    };
+    var m = NETMSG[res.reason] || 'ออกเน็ตไม่ได้';
+    termPrint('✗ ออกเน็ตไม่ได้ — ' + m, 'bad');
+    showToast('⛔ ' + m, 'bad');
+  }
+
+  // tracert: แสดงเส้นทางทีละ hop (ในวง หรือ ออกเน็ต)
+  function doTracert(srcId, host){
+    var tp = E.tracePath(srcId, host);
+    if (!tp.ok){
+      var TMSG = {
+        dns:'ไม่รู้จักชื่อ — ลอง 8.8.8.8 / google.com', srcnoip:'ต้นทางยังไม่ตั้ง IP', srcbad:'IP ต้นทางผิดกฎ',
+        badtarget:'รูปแบบ IP ปลายทางผิด', self:'นั่นคือ IP ตัวเอง', nohost:'ไม่มีเครื่องใช้ IP นี้',
+        unwired:'สายยังไม่เชื่อมถึงกัน', diffnet:'คนละวง — ต้องผ่าน Router + Gateway',
+        noisp:'ไม่มี ISP ในเครือข่าย', norouter:'ไม่มีเราเตอร์ในเส้นทาง', nogw:'ยังไม่ตั้ง Gateway'
+      };
+      termPrint('✗ tracert ไม่สำเร็จ — ' + (TMSG[tp.reason] || 'ส่งไม่ถึง'), 'bad');
+      showToast('⛔ tracert ไม่สำเร็จ', 'bad');
+      return;
+    }
+    termPrint('เส้นทางไป ' + host + (tp.target.ip ? ' [' + tp.target.ip + ']' : '') + ' :', 'th');
+    var hop = 1;
+    for (var i=1;i<tp.nodes.length;i++){
+      var id = tp.nodes[i], n = E.getNode(id);
+      var lbl = id + (n && n.ip ? ' [' + n.ip + ']' : ' (' + E.typeLabel(n ? n.type : '') + ')');
+      termPrint('  ' + hop + '\t' + rnd(hop*3) + ' ms\t' + lbl, 'ok'); hop++;
+    }
+    if (tp.kind === 'net'){ termPrint('  ' + hop + '\t' + tp.target.ms + ' ms\t' + host + ' [' + tp.target.ip + ']', 'ok'); hop++; }
+    termPrint('📋 จดสมุด: นับได้ ' + (hop-1) + ' hop — ข้อมูลวิ่งผ่าน ' + (tp.kind === 'net' ? 'เราเตอร์→ISP→อินเทอร์เน็ต' : 'อุปกรณ์ในร้าน'), 'note');
+    SCN.markPing(tp.kind === 'net' ? 'net' : 'lan');
+  }
+
   var HTTP_INFO = {
     200:{en:'OK',                    th:'สำเร็จ — เปิดหน้าเว็บได้ปกติ'},
     401:{en:'Unauthorized',          th:'ยังไม่ได้ล็อกอิน/ไม่มีสิทธิ์ยืนยันตัว (Client Error 4xx)'},
@@ -529,44 +582,39 @@
     });
   });
 
-  // init engine ท้ายสุด (หลังประกาศ DOM refs + ฟังก์ชันครบ — callback onChange/refreshTerm เรียกได้ปลอดภัย)
-  /* ================= Scenario layer (โจทย์ wk8 · ping ทดสอบการเชื่อมต่อ) ================= */
-  // preset topology ร้านเกม: Switch กลาง + คอม 4 เครื่อง เชื่อมสาย UTP ไว้ให้แล้ว (เด็กแค่ตั้ง IP + ping)
-  var PRESET_SHOP = {
-    "nodes":[
-      {"id":"SW1","type":"switch","x":400,"y":235},
-      {"id":"PC1","type":"pc","x":170,"y":110},
-      {"id":"PC2","type":"pc","x":630,"y":110},
-      {"id":"PC3","type":"pc","x":170,"y":380},
-      {"id":"PC4","type":"pc","x":630,"y":380}
-    ],
-    "edges":[
-      {"id":"e1","a":"SW1","b":"PC1","media":"utp"},
-      {"id":"e2","a":"SW1","b":"PC2","media":"utp"},
-      {"id":"e3","a":"SW1","b":"PC3","media":"utp"},
-      {"id":"e4","a":"SW1","b":"PC4","media":"utp"}
-    ]
-  };
+  /* ================= Scenario layer (โจทย์ wk8 · ping/tracert วางเอง) ================= */
   var SCN = (function(){
     var LS = 'netsim_1009_wk8_meta';
-    var studentNo=null, nickname='', won=false, pingLatch=false;
-    var L=[false,false];
+    var studentNo=null, nickname='', won=false;
+    var L=[false,false,false,false,false,false];  // ใช้ index 1..5
+    var pingLan=false, pingNet=false;              // latch (ping เป็น event ติ๊กแล้วค้าง)
     var me=document.getElementById('scnMe');
     function showMe(){ me.innerHTML=(nickname?('<b>'+nickname+'</b> · '):'')+'เลขที่ <b>'+(studentNo||'—')+'</b>'; }
     function st(){ try{ return JSON.parse(E.exportState()); }catch(e){ return {nodes:[],edges:[]}; } }
-    function ipCount(){ return st().nodes.filter(function(n){ return n.type==='pc' && n.ip; }).length; }
-    function markPing(){ pingLatch=true; update(); }
+    function counts(){ var c={}; st().nodes.forEach(function(n){ c[n.type]=(c[n.type]||0)+1; }); return c; }
+    function placedOk(){ var c=counts(); return (c.isp||0)>=1 && (c.router||0)>=1 && (c.switch||0)>=1 && (c.pc||0)>=2; }
+    // เชื่อมถูกลำดับ: ISP↔Router + Router↔Switch + Switch↔PC (อย่างน้อยอย่างละ 1)
+    function hasLink(ta, tb){
+      var s=st(), map={}; s.nodes.forEach(function(n){ map[n.id]=n.type; });
+      return s.edges.some(function(e){ var x=map[e.a], y=map[e.b]; return (x===ta&&y===tb)||(x===tb&&y===ta); });
+    }
+    function wiredOk(){ return hasLink('isp','router') && hasLink('router','switch') && hasLink('pc','switch'); }
+    function ipGwOk(){ return st().nodes.some(function(n){ return n.type==='pc' && n.ip && n.gw; }); }
+    function markPing(kind){ if(kind==='lan') pingLan=true; if(kind==='net') pingNet=true; update(); }
     function setQ(id,v){ var el=document.getElementById(id); if(!el) return; el.classList.toggle('done',v); el.querySelector('.ic').textContent=v?'✓':el.dataset.n; }
     function update(){
-      if(studentNo && ipCount()>=2) L[0]=true;
-      if(pingLatch) L[1]=true;
-      setQ('mq1',L[0]); setQ('mq2',L[1]);
+      if(studentNo&&placedOk()) L[1]=true;
+      if(L[1]&&wiredOk()) L[2]=true;
+      if(L[2]&&ipGwOk()) L[3]=true;
+      if(pingLan) L[4]=true;
+      if(pingNet) L[5]=true;
+      setQ('mq1',L[1]); setQ('mq2',L[2]); setQ('mq3',L[3]); setQ('mq4',L[4]); setQ('mq5',L[5]);
       save();
-      if(L[0]&&L[1]&&!won){ won=true; winNow(); }
+      if(L[1]&&L[2]&&L[3]&&L[4]&&L[5]&&!won){ won=true; winNow(); }
     }
-    function winNow(){ var w=document.getElementById('winMsg'); w.innerHTML='\U0001F389 เยี่ยม! คอมในร้านคุยกันได้แล้ว (ping สำเร็จ)<br>\U0001F4CB จดผล ping + จำนวน hop ลงใบงานได้เลย'; w.classList.add('show'); confetti(); setTimeout(function(){ w.classList.remove('show'); },7000); }
-    function save(){ try{ localStorage.setItem(LS,JSON.stringify({studentNo:studentNo,nickname:nickname,won:won,pingLatch:pingLatch,L:L})); }catch(e){} }
-    function load(){ try{ var d=JSON.parse(localStorage.getItem(LS)); if(!d||!d.studentNo) return false; studentNo=d.studentNo; nickname=d.nickname||''; won=!!d.won; pingLatch=!!d.pingLatch; if(d.L&&d.L.length===2) L=d.L; return true; }catch(e){ return false; } }
+    function winNow(){ var w=document.getElementById('winMsg'); w.innerHTML='🎉 เยี่ยม! ร้านเกมออนไลน์ครบวงจร เชื่อมเน็ตได้แล้ว<br>📋 จดผล ping/tracert + ค่า ms ลงสมุดได้เลย'; w.classList.add('show'); confetti(); setTimeout(function(){ w.classList.remove('show'); },7000); }
+    function save(){ try{ localStorage.setItem(LS,JSON.stringify({studentNo:studentNo,nickname:nickname,won:won,L:L,pingLan:pingLan,pingNet:pingNet})); }catch(e){} }
+    function load(){ try{ var d=JSON.parse(localStorage.getItem(LS)); if(!d||!d.studentNo) return false; studentNo=d.studentNo; nickname=d.nickname||''; won=!!d.won; if(d.L&&d.L.length===6) L=d.L; pingLan=!!d.pingLan; pingNet=!!d.pingNet; return true; }catch(e){ return false; } }
     var fx=document.getElementById('fx'), fxc=fx.getContext('2d');
     function sizeFx(){ fx.width=innerWidth; fx.height=innerHeight; } addEventListener('resize',sizeFx); sizeFx();
     function confetti(){ var cols=['#39c2ff','#3ddc97','#ffcc66','#ff6b81','#a855f7'],bits=[],i; for(i=0;i<70;i++) bits.push({x:innerWidth/2,y:innerHeight*0.2,r:4+Math.random()*5,c:cols[i%cols.length],vx:(Math.random()-0.5)*9,vy:-4-Math.random()*8,rot:Math.random()*6}); var f=0; (function d(){ fxc.clearRect(0,0,fx.width,fx.height); bits.forEach(function(b){ b.x+=b.vx; b.y+=b.vy; b.vy+=0.32; b.vx*=0.99; b.rot+=0.25; fxc.save(); fxc.translate(b.x,b.y); fxc.rotate(b.rot); fxc.fillStyle=b.c; fxc.fillRect(-b.r,-b.r,b.r*2,b.r*1.2); fxc.restore(); }); if(f++<110) requestAnimationFrame(d); else fxc.clearRect(0,0,fx.width,fx.height); })(); }
@@ -576,13 +624,11 @@
       onChange:function(){ update(); },
       markPing:markPing,
       start:function(){
-        if(E.counts().nodes===0){ E.loadState(PRESET_SHOP); }
         document.getElementById('noOk').addEventListener('click',saveName);
         document.getElementById('noInput').addEventListener('keydown',function(ev){ if(ev.key==='Enter') saveName(); });
         document.getElementById('scnReset').addEventListener('click',function(){
-          if(!confirm('เริ่มภารกิจใหม่? (ล้างชื่อ/เลขที่ + คืน topology ร้านเกม)')) return;
-          localStorage.removeItem(LS); studentNo=null; nickname=''; won=false; pingLatch=false; L=[false,false];
-          E.loadState(PRESET_SHOP);
+          if(!confirm('เริ่มภารกิจใหม่? (ล้างชื่อ/เลขที่ + ผลปิง — กระดานคงเดิม)')) return;
+          localStorage.removeItem(LS); studentNo=null; nickname=''; won=false; L=[false,false,false,false,false,false]; pingLan=false; pingNet=false;
           showMe(); update(); openNameModal();
         });
         if(load()){ showMe(); update(); } else openNameModal();
@@ -599,7 +645,6 @@
     onWifi: function(apId, a, b, m){ openWifiConnect(apId, a, b, m); }
   });
 
-  // เริ่มที่โหมดวาง
   setMode('place');
   refreshTerm();
   SCN.start();
