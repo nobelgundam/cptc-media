@@ -175,7 +175,7 @@
 <div class="overlay" id="noOverlay"><div class="dialog">
   <h3>☕ เริ่มภารกิจ ใบงานที่ 8 · ร้านกาแฟ 2 ชั้น</h3>
   <p class="dlg-note">กรอกเลขที่ก่อน — POS เครื่องแรกของเธอต้องตั้ง IP ลงท้ายด้วยเลขที่นี้ (กันลอกเพื่อน ครูตรวจสด)</p>
-  <label>เลขที่ของเธอ (2–99)</label>
+  <label>เลขที่ของเธอ (1–99)</label>
   <input class="full" id="noInput" type="text" inputmode="numeric" placeholder="เช่น 7">
   <label>ชื่อเล่น (ไม่บังคับ · เก็บในเครื่องเธอเท่านั้น ไม่ส่งไปไหน)</label>
   <input class="full" id="noNick" type="text" maxlength="20" placeholder="เช่น เจมส์">
@@ -582,7 +582,7 @@
     function sizeFx(){ fx.width=innerWidth; fx.height=innerHeight; } addEventListener('resize',sizeFx); sizeFx();
     function confetti(){ var cols=['#F59E0B','#FBBF24','#2563EB','#16A34A','#DC2626','#A855F7'], bits=[], i; for(i=0;i<70;i++) bits.push({x:innerWidth/2,y:innerHeight*0.2,r:4+Math.random()*5,c:cols[i%cols.length],vx:(Math.random()-0.5)*9,vy:-4-Math.random()*8,rot:Math.random()*6}); var f=0; (function d(){ fxc.clearRect(0,0,fx.width,fx.height); bits.forEach(function(b){ b.x+=b.vx; b.y+=b.vy; b.vy+=0.32; b.vx*=0.99; b.rot+=0.25; fxc.save(); fxc.translate(b.x,b.y); fxc.rotate(b.rot); fxc.fillStyle=b.c; fxc.fillRect(-b.r,-b.r,b.r*2,b.r*1.2); fxc.restore(); }); if(f++<110) requestAnimationFrame(d); else fxc.clearRect(0,0,fx.width,fx.height); })(); }
     function openNameModal(){ document.getElementById('noOverlay').classList.add('show'); }
-    function saveName(){ var v=(document.getElementById('noInput').value||'').trim(); if(!/^\d+$/.test(v)||+v<2||+v>99){ document.getElementById('noErr').textContent='กรอกเลขที่ 2–99'; return; } studentNo=+v; nickname=(document.getElementById('noNick').value||'').trim(); document.getElementById('noOverlay').classList.remove('show'); showMe(); save(); update(); }
+    function saveName(){ var v=(document.getElementById('noInput').value||'').trim(); if(!/^\d+$/.test(v)||+v<1||+v>99){ document.getElementById('noErr').textContent='กรอกเลขที่ 1–99'; return; } studentNo=+v; nickname=(document.getElementById('noNick').value||'').trim(); document.getElementById('noOverlay').classList.remove('show'); showMe(); save(); update(); }
     return {
       onChange:function(n,e){
         if(e<lastEdges && E.getMode()==='cutlink' && !cutTested){
