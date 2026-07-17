@@ -444,7 +444,7 @@
 
   /* ================= IP / Terminal subsystem (ปวช.1/ปวส.1 เบื้องต้น) ================= */
   var DEFAULT_MASK = '255.255.255.0';
-  function canHaveIP(type) { return type === 'pc' || type === 'server' || type === 'isp'; }  // ปลายทาง + ISP (8.8.8.8)
+  function canHaveIP(type) { return type === 'pc' || type === 'server' || type === 'isp' || type === 'router'; }  // ปลายทาง + ISP + Router (ขา Gateway)
   function parseIp(s) {
     var a = (s || '').trim().split('.');
     if (a.length !== 4) return { bad: 1 };
@@ -726,8 +726,11 @@
     wifiSpeed: function (id) { return wifiSpeed(id); },
     apNodes: function () { return state.nodes.filter(function (n) { return canHaveWifi(n.type); }).map(function (n) { return n.id; }); },
     nodesWithIP: function () {
-      return state.nodes.filter(function (n) { return canHaveIP(n.type); })
-        .map(function (n) { return { id: n.id, type: n.type, ip: n.ip || '', gw: n.gw || '' }; });
+      // pc/server = ปลายทางเสมอ · router/isp โผล่ใน Terminal เฉพาะตั้ง IP แล้ว (กันหน้าเก่า dropdown เปลี่ยน)
+      return state.nodes.filter(function (n) {
+        if (n.type === 'router' || n.type === 'isp') return !!n.ip;
+        return canHaveIP(n.type);
+      }).map(function (n) { return { id: n.id, type: n.type, ip: n.ip || '', gw: n.gw || '' }; });
     },
     setNodeIP: function (id, ip, gw, http) { setNodeIP(id, ip, gw, http); },
     ipError: function (ip) { return ipError(ip); },
