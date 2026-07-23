@@ -41,7 +41,9 @@
   <div class="mission">
     <div class="mq" id="mq1" data-n="1"><span class="ic">1</span> ใส่เลขที่ (ตั้ง IP โต๊ะเธอ)</div>
     <div class="mq" id="mq2" data-n="2"><span class="ic">2</span> 🕵️ ping พิมพ์กลาง (192.168.1.100) → เจอ Request timed out (จดสมุด!)</div>
-    <div class="mq" id="mq3" data-n="3"><span class="ic">3</span> 🛡️ เปิด Firewall เครื่องพิมพ์ (Allow Sharing) แล้ว ping .100 สำเร็จ → พิมพ์ออก!</div>
+    <div class="mq" id="mq3" data-n="3"><span class="ic">3</span> 🛡️ เปิด Firewall เครื่องพิมพ์ แล้ว ping .100 สำเร็จ → พิมพ์ออก!</div>
+    <div class="mq" id="mq4" data-n="4"><span class="ic">4</span> 📂 เปิด Firewall โต๊ะ2 แล้ว ping .101 → เข้าถึงโฟลเดอร์แชร์เพื่อนได้</div>
+    <div class="mq" id="mq5" data-n="5"><span class="ic">5</span> 🔍 ลอง ping โต๊ะ3 (.102) — ได้เลย! (เครื่องนี้ไม่ได้บล็อก → Firewall เป็นราย "เครื่อง")</div>
   </div>
 
   <div class="scaffold">📝 <b>จดสมุด ตอนที่ 3</b> (เติมคำในช่องว่าง):<br>
@@ -69,6 +71,8 @@
     <div class="term-chips">
       <button data-run="ipconfig">ipconfig</button>
       <button data-run="ping 192.168.1.100">ping เครื่องพิมพ์</button>
+      <button data-run="ping 192.168.1.101">ping โต๊ะ2</button>
+      <button data-run="ping 192.168.1.102">ping โต๊ะ3</button>
       <button data-fill="ping ">ping…</button>
     </div>
     <div class="term-in">
@@ -281,26 +285,31 @@
   /* ===== Scenario / Mission ===== */
   var SCN = (function(){
     var LS = 'netsim_1009_wk10_meta';
-    var studentNo = null, nickname = '', sawBlock = false, pingOk = false, won = false;
+    var studentNo = null, nickname = '', sawBlock = false, pingPrn = false, pingD2 = false, pingD3 = false, won = false;
     var me = document.getElementById('scnMe');
     function showMe(){ me.innerHTML = (nickname?('<b>'+nickname+'</b> · '):'') + 'เลขที่ <b>'+(studentNo||'—')+'</b>'; }
     function setQ(id,v){ var el=document.getElementById(id); if(!el) return; el.classList.toggle('done',v); el.querySelector('.ic').textContent = v?'✓':el.dataset.n; }
-    var L=[false,false,false,false];
+    var L=[false,false,false,false,false,false];
     function update(){
       if(studentNo) L[1]=true;
       if(sawBlock)  L[2]=true;
-      if(pingOk)    L[3]=true;
-      setQ('mq1',L[1]); setQ('mq2',L[2]); setQ('mq3',L[3]); save();
-      if(L[1]&&L[2]&&L[3]&&!won){ won=true; winNow(); }
+      if(pingPrn)   L[3]=true;
+      if(pingD2)    L[4]=true;
+      if(pingD3)    L[5]=true;
+      setQ('mq1',L[1]); setQ('mq2',L[2]); setQ('mq3',L[3]); setQ('mq4',L[4]); setQ('mq5',L[5]);
+      var justWon = (L[1]&&L[2]&&L[3]&&L[4]&&L[5]&&!won);
+      if(justWon) won=true;
+      save();
+      if(justWon) winNow();
     }
     function winNow(){
       var w=document.getElementById('winMsg');
-      w.innerHTML='🎉 แก้ได้! เปิด Firewall แล้ว ping ทะลุ เครื่องพิมพ์ทำงาน<br>📋 จดสมุด 3 ข้อ: อาการ (Request timed out) · สาเหตุ (Firewall บล็อก) · วิธีแก้ (เปิด Allow File and Printer Sharing) · 📸 แคปจังหวะ ping สำเร็จ ส่ง Classroom';
-      w.classList.add('show'); printFly(); confetti();
+      w.innerHTML='🎉 ครบภารกิจช่าง! เปิด Firewall ให้เครื่องพิมพ์+โต๊ะเพื่อน → แชร์ไฟล์+พิมพ์ได้ · เห็นแล้วว่า Firewall เป็นด่านราย "เครื่อง"<br>📋 จดสมุด 3 ข้อ: อาการ (Request timed out) · สาเหตุ (Firewall บล็อก) · วิธีแก้ (เปิด Allow File and Printer Sharing) · 📸 แคปจังหวะ ping สำเร็จ ส่ง Classroom';
+      w.classList.add('show'); confetti();
       setTimeout(function(){ w.classList.remove('show'); }, 8000);
     }
-    function save(){ try{ localStorage.setItem(LS,JSON.stringify({studentNo:studentNo,nickname:nickname,sawBlock:sawBlock,pingOk:pingOk,won:won,L:L})); }catch(e){} }
-    function load(){ try{ var d=JSON.parse(localStorage.getItem(LS)); if(!d||!d.studentNo) return false; studentNo=d.studentNo; nickname=d.nickname||''; sawBlock=!!d.sawBlock; pingOk=!!d.pingOk; won=!!d.won; if(d.L&&d.L.length===4) L=d.L; return true; }catch(e){ return false; } }
+    function save(){ try{ localStorage.setItem(LS,JSON.stringify({studentNo:studentNo,nickname:nickname,sawBlock:sawBlock,pingPrn:pingPrn,pingD2:pingD2,pingD3:pingD3,won:won,L:L})); }catch(e){} }
+    function load(){ try{ var d=JSON.parse(localStorage.getItem(LS)); if(!d||!d.studentNo) return false; studentNo=d.studentNo; nickname=d.nickname||''; sawBlock=!!d.sawBlock; pingPrn=!!d.pingPrn; pingD2=!!d.pingD2; pingD3=!!d.pingD3; won=!!d.won; if(d.L&&d.L.length===6) L=d.L; return true; }catch(e){ return false; } }
 
     var fx=document.getElementById('fx'), fxc=fx.getContext('2d');
     function sizeFx(){ fx.width=innerWidth; fx.height=innerHeight; } addEventListener('resize',sizeFx); sizeFx();
@@ -319,13 +328,18 @@
     }
     return {
       onFirewallBlock:function(target,ip){ if(!sawBlock){ sawBlock=true; showToast('🕵️ เจอกับดัก! จดอาการ+สาเหตุลงสมุด แล้วไปเปิด Firewall ที่เครื่องนั้น','ok'); } update(); },
-      onPingOk:function(target,ip){ if(ip==='192.168.1.100'){ pingOk=true; } update(); },
+      onPingOk:function(target,ip){
+        if(ip==='192.168.1.100'){ if(!pingPrn){ pingPrn=true; printFly(); } }
+        else if(ip==='192.168.1.101'){ if(!pingD2){ pingD2=true; showToast('📂 เข้าถึงโฟลเดอร์แชร์โต๊ะ 2 ได้แล้ว (เปิด Firewall โต๊ะ2 สำเร็จ)','ok'); } }
+        else if(ip==='192.168.1.102'){ if(!pingD3){ pingD3=true; showToast('🔍 โต๊ะ3 ไม่ได้เปิด Firewall block → ping ได้ทันที · Firewall เป็นราย "เครื่อง"!','ok'); } }
+        update();
+      },
       start:function(){
         document.getElementById('noOk').addEventListener('click',saveName);
         document.getElementById('noInput').addEventListener('keydown',function(ev){ if(ev.key==='Enter') saveName(); });
         document.getElementById('scnReset').addEventListener('click',function(){
           if(!confirm('เริ่มใหม่? (ล้างชื่อ/เลขที่ + ตั้ง Firewall กลับมาบล็อก)')) return;
-          localStorage.removeItem(LS); studentNo=null; nickname=''; sawBlock=false; pingOk=false; won=false; L=[false,false,false,false];
+          localStorage.removeItem(LS); studentNo=null; nickname=''; sawBlock=false; pingPrn=false; pingD2=false; pingD3=false; won=false; L=[false,false,false,false,false,false];
           seedBoard(); showMe(); update(); openNameModal();
         });
         if(load()){ showMe(); applySeatIp(); update(); } else openNameModal();
