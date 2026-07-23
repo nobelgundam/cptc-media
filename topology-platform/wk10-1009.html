@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ใบงานที่ 9 · รปภ.ไฟร์วอลล์ แชร์ไฟล์+เครื่องพิมพ์ — 21909-1009</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+  /* ชี้เป้า NB: ตอน ping โดน firewall → โล่แดงเด้งที่เครื่องนั้น (เด็กพื้นอ่อนรู้ทันทีปัญหาอยู่ที่เครื่อง ไม่ใช่สาย) */
+  @keyframes fwpulse{0%,100%{transform:scale(1);}50%{transform:scale(1.25);}}
+  .node.fw-alert .ring{stroke:#ff5d6c !important;stroke-width:4 !important;}
+  .node.fw-alert .node-fw{animation:fwpulse .45s ease 3;}
+  .scaffold{background:#10243a;border:1px solid #2c4a63;border-radius:9px;padding:9px 12px;margin-bottom:8px;font-size:.84rem;color:#cfe;line-height:1.7;}
+  .scaffold b{color:#ffd54a;}
+  .scaffold .bl{display:inline-block;min-width:120px;border-bottom:2px dotted #6b8bb0;margin:0 3px;}
+  .print-fly{position:fixed;left:50%;top:60%;transform:translate(-50%,-50%);font-size:3rem;z-index:60;pointer-events:none;opacity:0;}
+  .print-fly.go{animation:printout 1.6s ease forwards;}
+  @keyframes printout{0%{opacity:0;transform:translate(-50%,-30%) scale(.4);}25%{opacity:1;}70%{opacity:1;transform:translate(-50%,-70%) scale(1.1);}100%{opacity:0;transform:translate(-50%,-95%) scale(1);}}
+</style>
+</head>
+<body>
+<div class="wrap wide">
+
+  <div class="topbar">
+    <span class="logo">🛡️</span>
+    <h1>รปภ.ไฟร์วอลล์ <span class="th-en">(wk10 · 21909-1009 · ตอนที่ 3)</span></h1>
+    <span class="sub" id="counts">อุปกรณ์ 0 · สาย 0</span>
+  </div>
+
+  <div class="statusbar"><span class="dot"></span><span id="status">แตะที่ "เครื่อง" เพื่อตั้ง Firewall · พิมพ์ ping ใน Terminal ล่างจอ</span></div>
+
+  <div class="scn-head">
+    <button class="btn-reset" id="scnReset">เริ่มใหม่</button>
+    <span class="me" id="scnMe">เลขที่ <b>—</b></span>
+  </div>
+
+  <div class="spec-box" id="scnSpec">🎯 <b>ออฟฟิศต่อสายครบแล้ว วงเดียวกันหมด (192.168.1.x)</b> — แต่ <b>ping เครื่องพิมพ์กลาง (.100) ไม่เจอ!</b><br>
+    <b>โต๊ะเธอ</b> = IP ลงท้ายเลขที่ตัวเอง · <b>พิมพ์กลาง</b> = .100 · โต๊ะ2 = .101 · โต๊ะ3 = .102 · โต๊ะ4 = .103<br>
+    🕵️ ภารกิจช่าง: หาว่าทำไม "สายครบ วงเดียวกัน" แต่ยังส่งไม่ถึง แล้วแก้ให้แชร์/พิมพ์ได้</div>
+
+  <div class="mission">
+    <div class="mq" id="mq1" data-n="1"><span class="ic">1</span> ใส่เลขที่ (ตั้ง IP โต๊ะเธอ)</div>
+    <div class="mq" id="mq2" data-n="2"><span class="ic">2</span> 🕵️ ping พิมพ์กลาง (192.168.1.100) → เจอ Request timed out (จดสมุด!)</div>
+    <div class="mq" id="mq3" data-n="3"><span class="ic">3</span> 🛡️ เปิด Firewall เครื่องพิมพ์ (Allow Sharing) แล้ว ping .100 สำเร็จ → พิมพ์ออก!</div>
+  </div>
+
+  <div class="scaffold">📝 <b>จดสมุด ตอนที่ 3</b> (เติมคำในช่องว่าง):<br>
+    1) อาการ: ping เครื่องพิมพ์ขึ้นว่า <span class="bl"></span> ทั้งที่สายครบ วงเดียวกัน<br>
+    2) สาเหตุ: เครื่องพิมพ์มี <span class="bl"></span> (รปภ.เฝ้าเครื่อง) บล็อกไว้<br>
+    3) วิธีแก้: เข้าไปเปิดสวิตช์ <span class="bl"></span> (อนุญาตแชร์ไฟล์+เครื่องพิมพ์)</div>
+
+  <div class="stage">
+    <div class="main" style="width:100%">
+      <div class="canvas-box">
+        <svg id="canvas" xmlns="http://www.w3.org/2000/svg"></svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- Terminal -->
+  <div class="terminal">
+    <div class="term-head">
+      <span class="tt">💻 Terminal</span>
+      <label class="term-pc">เครื่อง:
+        <select id="srcSel" title="เลือกเครื่องที่จะพิมพ์คำสั่ง"></select>
+      </label>
+    </div>
+    <div class="term-out" id="termOut"><div class="th">แตะเครื่องบนกระดานเพื่อตั้ง Firewall · พิมพ์ <b>ping 192.168.1.100</b> ทดสอบส่งไปเครื่องพิมพ์กลาง</div></div>
+    <div class="term-chips">
+      <button data-run="ipconfig">ipconfig</button>
+      <button data-run="ping 192.168.1.100">ping เครื่องพิมพ์</button>
+      <button data-fill="ping ">ping…</button>
+    </div>
+    <div class="term-in">
+      <span class="prompt" id="termPrompt">&gt;</span>
+      <input id="cmd" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="เช่น ping 192.168.1.100">
+      <button class="btn go" id="runBtn">รัน</button>
+    </div>
+  </div>
+
+  <div class="legend">
+    🛡️ <b>โล่ = Firewall กำลังบล็อก</b> (ping ไม่เข้า) · 🔓 = เปิด Allow Sharing แล้ว<br>
+    💡 ช่างต้อง: ping ดูก่อน → เจอ timed out → แตะเครื่องนั้น เปิด Firewall → ping ใหม่ให้ทะลุ (โยงข้อสอบข้อ 36: ไฟติด ≠ ใช้ได้)
+  </div>
+
+  <a class="back" href="../21909-1009/index.html">← สื่อวิชานี้</a>
+</div>
+
+<!-- เลขที่ modal -->
+<div class="overlay" id="noOverlay">
+  <div class="dialog">
+    <h3>👷 ช่างประจำออฟฟิศ</h3>
+    <p class="dlg-note">ใส่เลขที่ตัวเอง → IP โต๊ะเธอจะลงท้ายด้วยเลขนี้ (กันลอก ครูตรวจสด)</p>
+    <label>เลขที่ (1–99)</label>
+    <input class="full" id="noInput" type="number" inputmode="numeric" min="1" max="99" placeholder="เช่น 7">
+    <label>ชื่อเล่น (ไม่บังคับ)</label>
+    <input class="full" id="noNick" type="text" placeholder="เช่น ไอซ" autocomplete="off">
+    <div class="dlg-err" id="noErr"></div>
+    <div class="dlg-actions">
+      <button class="btn primary" id="noOk">เริ่มภารกิจ</button>
+    </div>
+  </div>
+</div>
+
+<!-- 🛡️ Firewall dialog -->
+<div class="overlay" id="fwOverlay">
+  <div class="dialog">
+    <h3 id="fwTitle">🛡️ ตั้งค่า Firewall</h3>
+    <p class="dlg-note">ทุกเครื่อง Windows มี "รปภ.เฝ้าประตู" = Firewall · ค่าเดิม = ไม่รับแขกแปลกหน้า (ping/แชร์ไม่ได้) · เปิด "Allow File and Printer Sharing" ให้เพื่อนในวงเดียวกันเข้าถึง/พิมพ์ได้</p>
+    <div class="fw-toggle" id="fwToggle">
+      <button class="fw-opt" data-block="true">🛡️ บล็อก (ค่าเดิม)<small>รปภ.ไม่รับแขกแปลกหน้า → ping = Request timed out</small></button>
+      <button class="fw-opt" data-block="false">🔓 Allow File and Printer Sharing<small>เปิดประตูให้เพื่อนในวงเดียวกันเข้าถึง/สั่งพิมพ์ได้</small></button>
+    </div>
+    <div class="dlg-actions">
+      <button class="btn primary" id="fwCancel">เสร็จ</button>
+    </div>
+  </div>
+</div>
+
+<div class="win-msg" id="winMsg"></div>
+<div class="print-fly" id="printFly">🖨️📄</div>
+<canvas id="fx"></canvas>
+<div class="toast" id="toast"></div>
+
+<script src="js/engine.js"></script>
+<script>
+(function(){
+  var E = window.NetSimEngine;
+
+  var statusEl = document.getElementById('status');
+  var countsEl = document.getElementById('counts');
+  var toastEl  = document.getElementById('toast');
+  var toastT;
+  function showToast(msg, kind){
+    toastEl.textContent = msg;
+    toastEl.className = 'toast show ' + (kind||'');
+    clearTimeout(toastT);
+    toastT = setTimeout(function(){ toastEl.className = 'toast'; }, 2600);
+  }
+
+  /* ===== ผังออฟฟิศ preset (id ไทย = label อ่านออก · วงเดียวกัน สายครบ) ===== */
+  var PRESET = {
+    nodes: [
+      {id:'สวิตช์',    type:'switch', x:170, y:62},
+      {id:'โต๊ะเธอ',   type:'pc',     x:52,  y:152},
+      {id:'โต๊ะ2',     type:'pc',     x:288, y:152, ip:'192.168.1.101', fw:true, fwAllow:false},
+      {id:'โต๊ะ3',     type:'pc',     x:52,  y:280, ip:'192.168.1.102'},
+      {id:'โต๊ะ4',     type:'pc',     x:288, y:280, ip:'192.168.1.103'},
+      {id:'พิมพ์กลาง', type:'server', x:170, y:288, ip:'192.168.1.100', http:200, fw:true, fwAllow:false}
+    ],
+    edges: [
+      {id:'ed1', a:'สวิตช์', b:'โต๊ะเธอ',   media:'utp'},
+      {id:'ed2', a:'สวิตช์', b:'โต๊ะ2',     media:'utp'},
+      {id:'ed3', a:'สวิตช์', b:'โต๊ะ3',     media:'utp'},
+      {id:'ed4', a:'สวิตช์', b:'โต๊ะ4',     media:'utp'},
+      {id:'ed5', a:'สวิตช์', b:'พิมพ์กลาง', media:'utp'}
+    ]
+  };
+  function seedBoard(){ E.loadState(JSON.parse(JSON.stringify(PRESET))); }
+
+  /* ===== 🛡️ Firewall dialog ===== */
+  var fwOverlay = document.getElementById('fwOverlay');
+  var fwId = null;
+  function renderFwToggle(){
+    var st = E.getFirewall(fwId) || { blocking:true };
+    document.querySelectorAll('#fwToggle .fw-opt').forEach(function(b){
+      b.classList.toggle('on', (b.dataset.block==='true') === st.blocking);
+    });
+  }
+  function openFw(id){
+    fwId = id;
+    var n = E.getNode(id);
+    document.getElementById('fwTitle').textContent = '🛡️ Firewall ' + id + ' — ' + E.typeLabel(n.type);
+    if (!E.getFirewall(id).has) E.setFirewall(id, true);
+    renderFwToggle();
+    fwOverlay.classList.add('show');
+  }
+  document.querySelectorAll('#fwToggle .fw-opt').forEach(function(b){
+    b.addEventListener('click', function(){
+      var block = b.dataset.block === 'true';
+      E.setFirewall(fwId, block);
+      renderFwToggle();
+      showToast(block ? ('🛡️ ' + fwId + ' บล็อก — ping/แชร์ไม่ได้') : ('🔓 ' + fwId + ' เปิด Allow Sharing แล้ว — ลอง ping ใหม่'), block ? 'bad' : 'ok');
+    });
+  });
+  document.getElementById('fwCancel').addEventListener('click', function(){ fwOverlay.classList.remove('show'); });
+  fwOverlay.addEventListener('click', function(e){ if(e.target===fwOverlay) fwOverlay.classList.remove('show'); });
+
+  /* ===== ชี้เป้าโล่แดงเด้ง (NB scaffold) ===== */
+  function alertNode(id){
+    var g = document.querySelector('#canvas [data-id="'+id+'"]');
+    if(!g) return;
+    g.classList.add('fw-alert');
+    setTimeout(function(){ g.classList.remove('fw-alert'); }, 1500);
+  }
+
+  /* ===== Terminal ===== */
+  var srcSel  = document.getElementById('srcSel');
+  var termOut = document.getElementById('termOut');
+  var cmdIn   = document.getElementById('cmd');
+
+  function refreshTerm(){
+    var list = E.nodesWithIP();
+    var prev = srcSel.value;
+    srcSel.innerHTML = '';
+    if (!list.length){
+      var o = document.createElement('option'); o.textContent='— ยังไม่มีเครื่อง —'; o.value=''; srcSel.appendChild(o);
+      document.getElementById('termPrompt').textContent='>'; return;
+    }
+    list.forEach(function(n){
+      var o = document.createElement('option');
+      o.value = n.id;
+      o.textContent = n.id + (n.ip ? ' · ' + n.ip : ' · (ยังไม่ตั้ง IP)');
+      srcSel.appendChild(o);
+    });
+    if (prev && list.some(function(n){return n.id===prev;})) srcSel.value = prev;
+    else { var you = list.filter(function(n){return n.id==='โต๊ะเธอ';})[0]; if(you) srcSel.value='โต๊ะเธอ'; }
+    updatePrompt();
+  }
+  function updatePrompt(){ document.getElementById('termPrompt').textContent = (srcSel.value||'') + '>'; }
+  srcSel.addEventListener('change', updatePrompt);
+
+  function termPrint(text, cls){
+    var d = document.createElement('div'); if (cls) d.className = cls;
+    d.textContent = text; termOut.appendChild(d); termOut.scrollTop = termOut.scrollHeight;
+  }
+
+  function runCmd(raw){
+    raw = (raw||'').trim(); if (!raw) return;
+    var srcId = srcSel.value;
+    if (!srcId){ termPrint('ยังไม่มีเครื่อง — ใส่เลขที่ก่อน', 'bad'); return; }
+    termPrint(srcId + '> ' + raw, 'cmd');
+    var p = raw.split(/\s+/), cmd = p[0].toLowerCase();
+    if (cmd === 'ipconfig'){
+      var n = E.getNode(srcId);
+      termPrint('IPv4 Address . . : ' + (n.ip || '(ยังไม่ตั้ง)'));
+      termPrint('Subnet Mask  . . : ' + (n.ip ? E.mask : '-'));
+      return;
+    }
+    if (cmd === 'ping'){
+      if (!p[1]){ termPrint('ใช้: ping <IP> เช่น ping 192.168.1.100', 'th'); return; }
+      doPing(srcId, p[1]); return;
+    }
+    termPrint("'" + cmd + "' ไม่รองรับ — ใช้: ping, ipconfig", 'th');
+  }
+
+  function doPing(srcId, ip){
+    var res = E.ping(srcId, ip, function(r, hops){
+      termPrint('ตอบกลับจาก ' + ip + ': สำเร็จ (' + hops + ' hop)', 'ok');
+      termPrint('📋 จด: ' + srcId + ' ping ' + ip + ' = ได้ (วงเดียวกัน + Firewall เปิดแล้ว)', 'note');
+      showToast('✅ ' + srcId + ' ส่งถึง ' + ip + ' แล้ว', 'ok');
+      SCN.onPingOk(r.target, ip);
+    });
+    if (res.ok){ termPrint('กำลัง ping ' + ip + ' ...'); return; }
+    if (res.reason === 'firewall'){
+      termPrint('✗ Request timed out — สาย+วงถูกครบ แต่ 🛡️ Firewall ที่ ' + res.target + ' บล็อกอยู่ (ยังไม่เปิด Allow File and Printer Sharing)', 'bad');
+      showToast('🛡️ ' + res.target + ' บล็อกด้วย Firewall — แตะเครื่องนั้นเปิด Allow Sharing', 'bad');
+      alertNode(res.target);
+      SCN.onFirewallBlock(res.target, ip);
+      return;
+    }
+    var MSG = {
+      srcnoip:'เครื่องต้นทางยังไม่ตั้ง IP — ใส่เลขที่ก่อน', srcbad:'IP ต้นทางผิดกฎ',
+      badtarget:'รูปแบบ IP ผิด เช่น ping 192.168.1.100', self:'นั่นคือ IP เครื่องตัวเอง',
+      nohost:'ไม่มีเครื่องใดใช้ IP ' + ip, unwired:'สายยังไม่เชื่อมถึงกัน',
+      diffnet:'คนละวง ต้องผ่าน Router'
+    };
+    termPrint('✗ Request timed out — ' + (MSG[res.reason]||'ส่งไม่ถึง'), 'bad');
+    showToast('⛔ ปิงไม่สำเร็จ', 'bad');
+  }
+
+  document.getElementById('runBtn').addEventListener('click', function(){ runCmd(cmdIn.value); cmdIn.value=''; });
+  cmdIn.addEventListener('keydown', function(e){ if (e.key==='Enter'){ runCmd(cmdIn.value); cmdIn.value=''; } });
+  document.querySelectorAll('.term-chips button').forEach(function(b){
+    b.addEventListener('click', function(){
+      if (b.dataset.run){ runCmd(b.dataset.run); }
+      else if (b.dataset.fill){ cmdIn.value = b.dataset.fill; cmdIn.focus(); }
+    });
+  });
+
+  /* ===== Scenario / Mission ===== */
+  var SCN = (function(){
+    var LS = 'netsim_1009_wk10_meta';
+    var studentNo = null, nickname = '', sawBlock = false, pingOk = false, won = false;
+    var me = document.getElementById('scnMe');
+    function showMe(){ me.innerHTML = (nickname?('<b>'+nickname+'</b> · '):'') + 'เลขที่ <b>'+(studentNo||'—')+'</b>'; }
+    function setQ(id,v){ var el=document.getElementById(id); if(!el) return; el.classList.toggle('done',v); el.querySelector('.ic').textContent = v?'✓':el.dataset.n; }
+    var L=[false,false,false,false];
+    function update(){
+      if(studentNo) L[1]=true;
+      if(sawBlock)  L[2]=true;
+      if(pingOk)    L[3]=true;
+      setQ('mq1',L[1]); setQ('mq2',L[2]); setQ('mq3',L[3]); save();
+      if(L[1]&&L[2]&&L[3]&&!won){ won=true; winNow(); }
+    }
+    function winNow(){
+      var w=document.getElementById('winMsg');
+      w.innerHTML='🎉 แก้ได้! เปิด Firewall แล้ว ping ทะลุ เครื่องพิมพ์ทำงาน<br>📋 จดสมุด 3 ข้อ: อาการ (Request timed out) · สาเหตุ (Firewall บล็อก) · วิธีแก้ (เปิด Allow File and Printer Sharing) · 📸 แคปจังหวะ ping สำเร็จ ส่ง Classroom';
+      w.classList.add('show'); printFly(); confetti();
+      setTimeout(function(){ w.classList.remove('show'); }, 8000);
+    }
+    function save(){ try{ localStorage.setItem(LS,JSON.stringify({studentNo:studentNo,nickname:nickname,sawBlock:sawBlock,pingOk:pingOk,won:won,L:L})); }catch(e){} }
+    function load(){ try{ var d=JSON.parse(localStorage.getItem(LS)); if(!d||!d.studentNo) return false; studentNo=d.studentNo; nickname=d.nickname||''; sawBlock=!!d.sawBlock; pingOk=!!d.pingOk; won=!!d.won; if(d.L&&d.L.length===4) L=d.L; return true; }catch(e){ return false; } }
+
+    var fx=document.getElementById('fx'), fxc=fx.getContext('2d');
+    function sizeFx(){ fx.width=innerWidth; fx.height=innerHeight; } addEventListener('resize',sizeFx); sizeFx();
+    function confetti(){ var cols=['#39c2ff','#3ddc97','#ffcf5d','#ff6b81','#a855f7'],bits=[],i; for(i=0;i<70;i++) bits.push({x:innerWidth/2,y:innerHeight*0.25,r:4+Math.random()*5,c:cols[i%cols.length],vx:(Math.random()-0.5)*9,vy:-4-Math.random()*8,rot:Math.random()*6}); var f=0; (function d(){ fxc.clearRect(0,0,fx.width,fx.height); bits.forEach(function(b){ b.x+=b.vx; b.y+=b.vy; b.vy+=0.32; b.vx*=0.99; b.rot+=0.25; fxc.save(); fxc.translate(b.x,b.y); fxc.rotate(b.rot); fxc.fillStyle=b.c; fxc.fillRect(-b.r,-b.r,b.r*2,b.r*1.2); fxc.restore(); }); if(f++<110) requestAnimationFrame(d); else fxc.clearRect(0,0,fx.width,fx.height); })(); }
+    function printFly(){ var p=document.getElementById('printFly'); p.classList.remove('go'); void p.offsetWidth; p.classList.add('go'); }
+
+    function applySeatIp(){ if(studentNo) E.setNodeIP('โต๊ะเธอ','192.168.1.'+studentNo); refreshTerm(); }
+    function openNameModal(){ document.getElementById('noOverlay').classList.add('show'); setTimeout(function(){document.getElementById('noInput').focus();},60); }
+    function saveName(){
+      var v=(document.getElementById('noInput').value||'').trim();
+      if(!/^\d+$/.test(v)||+v<1||+v>99){ document.getElementById('noErr').textContent='กรอกเลขที่ 1–99'; return; }
+      studentNo=+v; nickname=(document.getElementById('noNick').value||'').trim();
+      document.getElementById('noOverlay').classList.remove('show');
+      showMe(); applySeatIp(); save(); update();
+      showToast('โต๊ะเธอ IP = 192.168.1.'+studentNo+' · ลอง ping เครื่องพิมพ์ .100 ดู', 'ok');
+    }
+    return {
+      onFirewallBlock:function(target,ip){ if(!sawBlock){ sawBlock=true; showToast('🕵️ เจอกับดัก! จดอาการ+สาเหตุลงสมุด แล้วไปเปิด Firewall ที่เครื่องนั้น','ok'); } update(); },
+      onPingOk:function(target,ip){ if(ip==='192.168.1.100'){ pingOk=true; } update(); },
+      start:function(){
+        document.getElementById('noOk').addEventListener('click',saveName);
+        document.getElementById('noInput').addEventListener('keydown',function(ev){ if(ev.key==='Enter') saveName(); });
+        document.getElementById('scnReset').addEventListener('click',function(){
+          if(!confirm('เริ่มใหม่? (ล้างชื่อ/เลขที่ + ตั้ง Firewall กลับมาบล็อก)')) return;
+          localStorage.removeItem(LS); studentNo=null; nickname=''; sawBlock=false; pingOk=false; won=false; L=[false,false,false,false];
+          seedBoard(); showMe(); update(); openNameModal();
+        });
+        if(load()){ showMe(); applySeatIp(); update(); } else openNameModal();
+      }
+    };
+  })();
+
+  /* ===== init engine (preset + settings mode = แตะเครื่องเปิด Firewall) ===== */
+  E.init(document.getElementById('canvas'), {
+    storeKey: 'netsim_1009_wk10',
+    restore: false,
+    onStatus: function(m){ statusEl.textContent = m; },
+    onChange: function(n,e){ countsEl.textContent = 'อุปกรณ์ ' + n + ' · สาย ' + e; refreshTerm(); },
+    onToast: showToast,
+    onSettings: function(id){ openFw(id); }
+  });
+  seedBoard();
+  E.setMode('settings');
+  refreshTerm();
+  SCN.start();
+})();
+</script>
+</body>
+</html>

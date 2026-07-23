@@ -85,7 +85,7 @@
   var placeType = 'pc';
   var media = 'utp';
   var sel = { connect: null, simSrc: null, delPending: null };
-  var statusCb = null, changeCb = null, toastCb = null, configCb = null, wifiCb = null;
+  var statusCb = null, changeCb = null, toastCb = null, configCb = null, wifiCb = null, settingsCb = null;
   var STORE_KEY = 'netsim_builder_v1';
 
   function fresh() {
@@ -133,6 +133,10 @@
     if (canHaveWifi(n.type) && n.wifi) {   // แม่กุญแจ = Wi-Fi มีรหัส (หลัง loadState/reload)
       var lk0 = mk('text', { 'class': 'node-lock', x: 16, y: -16, 'text-anchor': 'middle' });
       lk0.textContent = '🔒'; g.appendChild(lk0);
+    }
+    if (n.fw) {   // 🛡️ Firewall (wk10 1009): บล็อก=โล่ · เปิด Allow Sharing=กุญแจไข
+      var fwg = mk('text', { 'class': 'node-fw', x: -16, y: -16, 'text-anchor': 'middle' });
+      fwg.textContent = n.fwAllow ? '🔓' : '🛡️'; g.appendChild(fwg);
     }
     var hit = mk('circle', { 'class': 'node-hit', cx: 0, cy: 0, r: 26 });
     g.appendChild(hit);
@@ -294,6 +298,7 @@
     if (mode === 'delete') return tapDelete(id);
     if (mode === 'simulate') return tapSim(id);
     if (mode === 'config') return tapConfig(id);
+    if (mode === 'settings') return tapSettings(id);
     // place mode: แตะ node เฉยๆ ไม่ทำอะไร (ลากเพื่อย้าย)
   }
 
@@ -550,9 +555,16 @@
     var sameNet = (sp.net === tr.net);
     var path = findShortestPathBFS(buildAdj(), srcId, target.id);
     if (!path) return { ok: false, reason: 'unwired', sameNet: sameNet, target: target.id };
-    if (sameNet) return { ok: true, path: path, target: target.id, sameNet: true };
+    var fwBlock = !!(target.fw && !target.fwAllow);   // 🛡️ Firewall ปลายทางบล็อก แม้สาย+วงถูกครบ (ตอน 3)
+    if (sameNet) {
+      if (fwBlock) return { ok: false, reason: 'firewall', target: target.id, sameNet: true, path: path };
+      return { ok: true, path: path, target: target.id, sameNet: true };
+    }
     var hasRouter = path.some(function (id) { return nodeById(id).type === 'router'; });
-    if (hasRouter && src.gw) return { ok: true, path: path, target: target.id, sameNet: false, routed: true };
+    if (hasRouter && src.gw) {
+      if (fwBlock) return { ok: false, reason: 'firewall', target: target.id, sameNet: false, path: path };
+      return { ok: true, path: path, target: target.id, sameNet: false, routed: true };
+    }
     return { ok: false, reason: 'diffnet', hasRouter: hasRouter, target: target.id };
   }
   // http: ต้องส่งถึง server ได้ (reachable) + ปลายทางเป็น Server → คืน HTTP status ที่ server ตั้งไว้
@@ -563,6 +575,31 @@
     if (!target || target.type !== 'server') return { ok: false, reason: 'noserver', target: target ? target.id : null };
     return { ok: true, status: target.http || 200, path: pc.path, target: target.id };
   }
+  /* ================= 🛡️ Firewall (wk10 1009 · reusable) ================= */
+  function canHaveFirewall(type) { return type === 'pc' || type === 'server'; }   // เฉพาะเครื่องปลายทาง (PC/เครื่องพิมพ์-Server)
+  function renderFwGlyph(id) {
+    var n = nodeById(id), g = els.node[id]; if (!n || !g) return;
+    var old = g.querySelector('.node-fw'); if (old) old.remove();
+    if (n.fw) {
+      var fwg = mk('text', { 'class': 'node-fw', x: -16, y: -16, 'text-anchor': 'middle' });
+      fwg.textContent = n.fwAllow ? '🔓' : '🛡️'; g.appendChild(fwg);
+    }
+  }
+  function setFirewall(id, blocking) {   // blocking=true → บล็อก (🛡️) · false → เปิด Allow File+Printer Sharing (🔓)
+    var n = nodeById(id); if (!n) return;
+    n.fw = true; n.fwAllow = !blocking;
+    renderFwGlyph(id); save(); changed();
+  }
+  function getFirewall(id) {
+    var n = nodeById(id); if (!n) return null;
+    return { has: !!n.fw, blocking: !!(n.fw && !n.fwAllow), allow: !!(n.fw && n.fwAllow) };
+  }
+  function tapSettings(id) {
+    var n = nodeById(id); if (!n) return;
+    if (!canHaveFirewall(n.type)) { toast('⚙️ ตั้งค่า Firewall ได้เฉพาะ PC / เครื่องพิมพ์-Server (เครื่องปลายทาง)', 'bad'); return; }
+    if (settingsCb) settingsCb(id);
+  }
+
   function tapConfig(id) {
     var n = nodeById(id); if (!n) return;
     if (canHaveIP(n.type) || canHaveWifi(n.type)) { if (configCb) configCb(id); return; }
@@ -690,6 +727,7 @@
       toastCb = opts.onToast || null;
       configCb = opts.onConfig || null;
       wifiCb = opts.onWifi || null;
+      settingsCb = opts.onSettings || null;
       if (!(opts.restore !== false && load())) changed();
       return this;
     },
@@ -718,7 +756,11 @@
     canHaveWifi: function (t) { return canHaveWifi(t); },
     mask: DEFAULT_MASK,
     typeLabel: function (t) { return typeLabel(t); },
-    getNode: function (id) { var n = nodeById(id); return n ? { id: n.id, type: n.type, ip: n.ip || '', gw: n.gw || '', http: n.http || 200, wifi: n.wifi || '' } : null; },
+    getNode: function (id) { var n = nodeById(id); return n ? { id: n.id, type: n.type, ip: n.ip || '', gw: n.gw || '', http: n.http || 200, wifi: n.wifi || '', fw: !!n.fw, fwAllow: !!n.fwAllow } : null; },
+    /* ----- 🛡️ Firewall API (reusable · wk10 1009) ----- */
+    canHaveFirewall: canHaveFirewall,
+    setFirewall: function (id, blocking) { setFirewall(id, blocking); },
+    getFirewall: function (id) { return getFirewall(id); },
     setNodeWifi: function (id, pass) { setNodeWifi(id, pass); },
     connectAuth: function (a, b, m, pass) { return connectAuth(a, b, m, pass); },
     wifiChecks: function (p) { return wifiChecks(p); },

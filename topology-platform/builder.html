@@ -23,6 +23,7 @@
     <button class="btn" id="m-place"><span class="ic">📍</span> วาง</button>
     <button class="btn" id="m-connect"><span class="ic">🔗</span> เชื่อม</button>
     <button class="btn" id="m-config"><span class="ic">⚙️</span> ตั้ง IP</button>
+    <button class="btn" id="m-settings"><span class="ic">🛡️</span> Firewall</button>
     <button class="btn" id="m-cutlink"><span class="ic">✂️</span> ตัดสาย</button>
     <button class="btn" id="m-delete"><span class="ic">🗑️</span> ลบ</button>
   </div>
@@ -151,6 +152,21 @@
   </div>
 </div>
 
+<!-- 🛡️ Firewall settings dialog -->
+<div class="overlay" id="fwOverlay">
+  <div class="dialog">
+    <h3 id="fwTitle">🛡️ ตั้งค่า Firewall</h3>
+    <p class="dlg-note">ทุกเครื่อง Windows มี "รปภ.เฝ้าประตู" = Firewall · ค่าเริ่มต้น = บล็อกคนแปลกหน้า (ping/แชร์ไม่ได้) · เปิด "Allow File and Printer Sharing" ให้เพื่อนในวงเข้าถึง/พิมพ์ได้</p>
+    <div class="fw-toggle" id="fwToggle">
+      <button class="fw-opt" data-block="true">🛡️ บล็อก (ค่าเดิม)<small>รปภ.ไม่รับแขกแปลกหน้า → ping = Request timed out</small></button>
+      <button class="fw-opt" data-block="false">🔓 Allow File and Printer Sharing<small>เปิดประตูให้เพื่อนในวงเดียวกันเข้าถึง/สั่งพิมพ์ได้</small></button>
+    </div>
+    <div class="dlg-actions">
+      <button class="btn primary" id="fwCancel">เสร็จ</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script src="js/engine.js"></script>
@@ -216,11 +232,12 @@
 
   /* ---- โหมด ---- */
   var modeBtns = {
-    place:   document.getElementById('m-place'),
-    connect: document.getElementById('m-connect'),
-    config:  document.getElementById('m-config'),
-    cutlink: document.getElementById('m-cutlink'),
-    delete:  document.getElementById('m-delete')
+    place:    document.getElementById('m-place'),
+    connect:  document.getElementById('m-connect'),
+    config:   document.getElementById('m-config'),
+    settings: document.getElementById('m-settings'),
+    cutlink:  document.getElementById('m-cutlink'),
+    delete:   document.getElementById('m-delete')
   };
   var sideDevices = document.getElementById('side-devices');
   var sideMedia   = document.getElementById('side-media');
@@ -229,6 +246,7 @@
     place:   'เลือกอุปกรณ์ทางซ้าย แล้วแตะบนกระดานเพื่อวาง · ลากเพื่อย้าย',
     connect: 'เลือกสื่อกลางทางซ้าย แล้วแตะอุปกรณ์ A → อุปกรณ์ B',
     config:  '⚙️ แตะที่ พีซี (PC) หรือ เซิร์ฟเวอร์ (Server) เพื่อตั้งเลข IP',
+    settings:'🛡️ แตะที่ PC หรือ เครื่องพิมพ์-Server เพื่อเปิด/ปิด Firewall (Allow File and Printer Sharing)',
     cutlink: '✂️ โหมดตัดสาย: แตะที่ "เส้นสาย" เพื่อตัด → ลองชี้เส้นทาง/ping ดูว่ายังถึงกันไหม (สอนจุดอ่อนเครือข่าย)',
     delete:  'โหมดลบ: แตะอุปกรณ์ 1 ครั้ง แล้วแตะซ้ำเพื่อยืนยัน',
     simulate:'🧭 ชี้เส้นทาง: แตะเครื่อง "ต้นทาง" → "ปลายทาง" บนจอ (ดูข้อมูลวิ่งผ่านทางไหน)'
@@ -247,6 +265,7 @@
   modeBtns.place.addEventListener('click',   function(){ setMode('place'); });
   modeBtns.connect.addEventListener('click', function(){ setMode('connect'); });
   modeBtns.config.addEventListener('click',  function(){ setMode('config'); });
+  modeBtns.settings.addEventListener('click', function(){ setMode('settings'); });
   modeBtns.cutlink.addEventListener('click', function(){
     if (E.counts().edges < 1){ showToast('ยังไม่มีสายให้ตัด — ไปโหมด "เชื่อม" ต่อสายก่อน', 'bad'); return; }
     setMode('cutlink');
@@ -378,6 +397,34 @@
   document.getElementById('wifiCancel').addEventListener('click', function(){ document.getElementById('wifiOverlay').classList.remove('show'); wifiPending=null; });
   document.getElementById('wifiOverlay').addEventListener('click', function(e){ if(e.target===this){ this.classList.remove('show'); wifiPending=null; } });
 
+  /* ================= 🛡️ Firewall settings dialog ================= */
+  var fwOverlay = document.getElementById('fwOverlay');
+  var fwId = null;
+  function renderFwToggle(){
+    var st = E.getFirewall(fwId) || { blocking:true };
+    document.querySelectorAll('#fwToggle .fw-opt').forEach(function(b){
+      b.classList.toggle('on', (b.dataset.block==='true') === st.blocking);
+    });
+  }
+  function openFw(id){
+    fwId = id;
+    var n = E.getNode(id);
+    document.getElementById('fwTitle').textContent = '🛡️ Firewall ' + id + ' — ' + E.typeLabel(n.type);
+    if (!E.getFirewall(id).has) E.setFirewall(id, true);   // เครื่องที่ยังไม่เคยตั้ง = มี Firewall บล็อกอยู่ (ค่าจริงของ Windows)
+    renderFwToggle();
+    fwOverlay.classList.add('show');
+  }
+  document.querySelectorAll('#fwToggle .fw-opt').forEach(function(b){
+    b.addEventListener('click', function(){
+      var block = b.dataset.block === 'true';
+      E.setFirewall(fwId, block);
+      renderFwToggle();
+      showToast(block ? ('🛡️ ' + fwId + ' บล็อก — ping/แชร์ไม่ได้') : ('🔓 ' + fwId + ' เปิด Allow Sharing แล้ว — ลอง ping ใหม่'), block ? 'bad' : 'ok');
+    });
+  });
+  document.getElementById('fwCancel').addEventListener('click', function(){ fwOverlay.classList.remove('show'); });
+  fwOverlay.addEventListener('click', function(e){ if(e.target===fwOverlay) fwOverlay.classList.remove('show'); });
+
   /* ================= Terminal ================= */
   var srcSel  = document.getElementById('srcSel');
   var termOut = document.getElementById('termOut');
@@ -455,7 +502,8 @@
       self:     'นั่นคือ IP ของเครื่องตัวเอง — ลอง ping เครื่องอื่น',
       nohost:   'ไม่มีเครื่องใดใช้ IP ' + ip + ' (ยังไม่ได้ตั้ง หรือพิมพ์ผิด)',
       unwired:  'สายยังไม่เชื่อมถึงกัน — ไปโหมด "เชื่อม" ต่อสายให้ครบเส้นทางก่อน',
-      diffnet:  'คนละวง (subnet ต่างกัน) — ต้องต่อผ่าน Router + ตั้ง Default Gateway'
+      diffnet:  'คนละวง (subnet ต่างกัน) — ต้องต่อผ่าน Router + ตั้ง Default Gateway',
+      firewall: 'สาย+วงถูกครบ แต่ 🛡️ Firewall ปลายทางบล็อกอยู่ — ไปโหมด "Firewall" แตะเครื่องนั้น เปิด Allow File and Printer Sharing ก่อน'
     };
     var m = MSG[res.reason] || 'ส่งไม่ถึง';
     termPrint('✗ Request timed out — ' + m, 'bad');
@@ -510,7 +558,8 @@
     onChange: function(n,e){ countsEl.textContent = 'อุปกรณ์ ' + n + ' · สาย ' + e; refreshTerm(); },
     onToast: showToast,
     onConfig: function(id){ openCfg(id); },
-    onWifi: function(apId, a, b, m){ openWifiConnect(apId, a, b, m); }
+    onWifi: function(apId, a, b, m){ openWifiConnect(apId, a, b, m); },
+    onSettings: function(id){ openFw(id); }
   });
 
   // เริ่มที่โหมดวาง
