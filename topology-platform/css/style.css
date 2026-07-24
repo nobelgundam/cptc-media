@@ -144,6 +144,10 @@ svg.cut-on .edge{stroke-dasharray:8 5;opacity:0.85;}
 .sidebar{flex:0 0 102px;display:flex;flex-direction:column;gap:10px;}
 .main{flex:1 1 auto;min-width:0;}
 .main .canvas-box{height:52vh;min-height:320px;max-height:540px;}
+/* builder เท่านั้น (stage มี sidebar) → พื้นที่วางยืดก้นเสมอ sidebar ไม่ให้ ISP ล้นลงล่าง */
+.stage:has(.sidebar){align-items:stretch;}
+.stage:has(.sidebar) .main{display:flex;}
+.stage:has(.sidebar) .canvas-box{height:auto;min-height:320px;max-height:none;flex:1;}
 .side-h{font-size:11px;color:var(--muted);font-weight:700;margin:0 0 6px 2px;letter-spacing:.3px;}
 .sidebar .palette{grid-template-columns:1fr;gap:7px;}
 .sidebar .dev{min-height:0;padding:8px 4px;}
