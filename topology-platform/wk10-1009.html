@@ -70,9 +70,6 @@
     <div class="term-out" id="termOut"><div class="th">แตะเครื่องบนกระดานเพื่อตั้ง Firewall · พิมพ์ <b>ping 192.168.1.100</b> ทดสอบส่งไปเครื่องพิมพ์กลาง</div></div>
     <div class="term-chips">
       <button data-run="ipconfig">ipconfig</button>
-      <button data-run="ping 192.168.1.100">ping เครื่องพิมพ์</button>
-      <button data-run="ping 192.168.1.101">ping โต๊ะ2</button>
-      <button data-run="ping 192.168.1.102">ping โต๊ะ3</button>
       <button data-fill="ping ">ping…</button>
     </div>
     <div class="term-in">
@@ -148,9 +145,9 @@
       {id:'สวิตช์',    type:'switch', x:170, y:62},
       {id:'โต๊ะเธอ',   type:'pc',     x:52,  y:152},
       {id:'โต๊ะ2',     type:'pc',     x:288, y:152, ip:'192.168.1.101', fw:true, fwAllow:false},
-      {id:'โต๊ะ3',     type:'pc',     x:52,  y:280, ip:'192.168.1.102'},
-      {id:'โต๊ะ4',     type:'pc',     x:288, y:280, ip:'192.168.1.103'},
-      {id:'พิมพ์กลาง', type:'server', x:170, y:288, ip:'192.168.1.100', http:200, fw:true, fwAllow:false}
+      {id:'โต๊ะ3',     type:'pc',     x:52,  y:255, ip:'192.168.1.102'},
+      {id:'โต๊ะ4',     type:'pc',     x:288, y:255, ip:'192.168.1.103'},
+      {id:'พิมพ์กลาง', type:'server', x:170, y:255, ip:'192.168.1.100', http:200, fw:true, fwAllow:false}
     ],
     edges: [
       {id:'ed1', a:'สวิตช์', b:'โต๊ะเธอ',   media:'utp'},
