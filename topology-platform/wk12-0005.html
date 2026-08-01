@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ใบงานที่ 10 · ปิดช่องโหว่ออฟฟิศ (ความปลอดภัยระบบ+เครือข่าย) — 31909-0005</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+  @keyframes fwpulse{0%,100%{transform:scale(1);}50%{transform:scale(1.25);}}
+  .node.fw-alert .ring{stroke:#ff5d6c !important;stroke-width:4 !important;}
+  .node.fw-alert .node-fw{animation:fwpulse .45s ease 3;}
+  .scaffold{background:#10243a;border:1px solid #2c4a63;border-radius:9px;padding:9px 12px;margin-bottom:8px;font-size:.84rem;color:#cfe;line-height:1.75;}
+  .scaffold b{color:#ffd54a;}
+  .scaffold .bl{display:inline-block;min-width:110px;border-bottom:2px dotted #6b8bb0;margin:0 3px;}
+  .steps{background:#0e2033;border:1px solid #2c4a63;border-left:4px solid #ffd54a;border-radius:9px;padding:9px 12px;margin-bottom:8px;font-size:.84rem;color:#dff;line-height:1.8;}
+  .steps b{color:#ffd54a;}
+  .print-fly{position:fixed;left:50%;top:60%;transform:translate(-50%,-50%);font-size:3rem;z-index:60;pointer-events:none;opacity:0;}
+  .print-fly.go{animation:printout 1.6s ease forwards;}
+  @keyframes printout{0%{opacity:0;transform:translate(-50%,-30%) scale(.4);}25%{opacity:1;}70%{opacity:1;transform:translate(-50%,-70%) scale(1.1);}100%{opacity:0;transform:translate(-50%,-95%) scale(1);}}
+  .pw-check{list-style:none;padding:0;margin:6px 0 0;font-size:.82rem;line-height:1.9;color:#9fb6c9;}
+  .pw-check li.ok{color:#3ddc97;}
+  .speed{margin-top:8px;padding:8px 10px;border-radius:8px;background:#0e2033;border:1px solid #2c4a63;font-size:.85rem;color:#cfe;}
+  .speed b{color:#ffd54a;}
+  .acct-opt{display:block;width:100%;text-align:left;margin:6px 0;padding:10px 12px;border-radius:9px;border:1px solid #2c4a63;background:#10243a;color:#dff;font:inherit;cursor:pointer;}
+  .acct-opt small{display:block;color:#9fb6c9;font-size:.78rem;margin-top:2px;}
+  .acct-opt.on{border-color:#3ddc97;background:#12332a;}
+  .risk{margin-top:8px;font-size:.83rem;color:#ffb4b4;}
+  .risk.safe{color:#3ddc97;}
+</style>
+</head>
+<body>
+<div class="wrap wide">
+
+  <div class="topbar">
+    <span class="logo">🛡️</span>
+    <h1>ปิดช่องโหว่ออฟฟิศ <span class="th-en">(สัปดาห์ 12 · 31909-0005 · ใบงานที่ 10)</span></h1>
+    <span class="sub" id="counts">อุปกรณ์ 0 · สาย 0</span>
+  </div>
+
+  <div class="statusbar"><span class="dot"></span><span id="status">แตะอุปกรณ์บนกระดานเพื่อตั้งค่าความปลอดภัย · พิมพ์คำสั่งใน Terminal ล่างจอ</span></div>
+
+  <div class="scn-head">
+    <button class="btn-reset" id="scnReset">เริ่มใหม่</button>
+    <span class="me" id="scnMe">เลขที่ <b>—</b></span>
+  </div>
+
+  <div class="spec-box" id="scnSpec">🎯 <b>ออฟฟิศต่อสายครบแล้ว วงเดียวกันหมด (192.168.1.x)</b> — เจ้าของบ่น 3 เรื่อง:<br>
+    ① สั่งพิมพ์ไปเครื่องพิมพ์กลาง (.100) ไม่ได้ · ② คนนอกแอบเกาะ Wi-Fi เน็ตอืด · ③ เครื่องพนักงาน (.60) เด้งโฆษณา ช้า<br>
+    👷 ภารกิจช่าง: ไล่ปิดทีละช่อง แล้วจดอาการ–สาเหตุ–วิธีแก้ลงสมุด</div>
+
+  <div class="steps">🧭 <b>ทำตามลำดับนี้ (ห้ามข้าม)</b> — ขั้น 1 ใส่เลขที่ → ขั้น 2 พิมพ์ <b>ping 192.168.1.100</b> ดูอาการก่อน → ขั้น 3 แตะ <b>พิมพ์กลาง</b> เปิด Allow Sharing แล้ว ping ใหม่ → ขั้น 4 แตะ <b>Wi-Fi ออฟฟิศ</b> ตั้งรหัสให้ครบ 5 ข้อเขียว → ขั้น 5 แตะ <b>เครื่องพนักงาน</b> ลดสิทธิ์เป็น User + สแกนไวรัส</div>
+
+  <div class="mission">
+    <div class="mq" id="mq1" data-n="1"><span class="ic">1</span> ใส่เลขที่ (ตั้ง IP โต๊ะเธอ)</div>
+    <div class="mq" id="mq2" data-n="2"><span class="ic">2</span> 🕵️ ping พิมพ์กลาง (192.168.1.100) → เจอ Request timed out (จดอาการ!)</div>
+    <div class="mq" id="mq3" data-n="3"><span class="ic">3</span> 🔓 เปิด Allow Sharing ที่พิมพ์กลาง → ping ผ่าน → พิมพ์ออก</div>
+    <div class="mq" id="mq4" data-n="4"><span class="ic">4</span> 🔒 ตั้งรหัส Wi-Fi ออฟฟิศให้แข็งแรงครบ 5 ข้อ → คนนอกหลุด เน็ตเร็วขึ้น</div>
+    <div class="mq" id="mq5" data-n="5"><span class="ic">5</span> 👤 เครื่องพนักงาน: ลดสิทธิ์เป็น User + อัปเดต/สแกนไวรัส → โฆษณาหาย</div>
+  </div>
+
+  <div class="scaffold">📝 <b>จดสมุด ภารกิจที่ 2</b> (เติมคำในช่องว่าง):<br>
+    1) อาการ: ping เครื่องพิมพ์ขึ้นว่า <span class="bl"></span> ทั้งที่สายครบ วงเดียวกัน<br>
+    2) สาเหตุ: เครื่องพิมพ์มี <span class="bl"></span> (รปภ.เฝ้าประตูเครื่อง) บล็อกอยู่<br>
+    3) วิธีแก้: เข้าไปเปิด <span class="bl"></span> แล้ว ping ใหม่<br>
+    4) Wi-Fi ไม่มีรหัส = คนนอกเกาะ → ความเร็วเหลือ <span class="bl"></span> Mbps · ตั้งรหัสแล้วเหลือ <span class="bl"></span> Mbps<br>
+    5) พนักงานควรใช้สิทธิ์ <span class="bl"></span> เพราะ <span class="bl"></span></div>
+
+  <div class="stage">
+    <div class="main" style="width:100%">
+      <div class="canvas-box">
+        <svg id="canvas" xmlns="http://www.w3.org/2000/svg"></svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- Terminal -->
+  <div class="terminal">
+    <div class="term-head">
+      <span class="tt">💻 Terminal</span>
+      <label class="term-pc">เครื่อง:
+        <select id="srcSel" title="เลือกเครื่องที่จะพิมพ์คำสั่ง"></select>
+      </label>
+    </div>
+    <div class="term-out" id="termOut"><div class="th">ขั้นแรก: พิมพ์ <b>ping 192.168.1.100</b> ดูว่าส่งถึงเครื่องพิมพ์กลางไหม</div></div>
+    <div class="term-chips">
+      <button data-run="ipconfig">ipconfig</button>
+      <button data-fill="ping ">ping…</button>
+    </div>
+    <div class="term-in">
+      <span class="prompt" id="termPrompt">&gt;</span>
+      <input id="cmd" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="เช่น ping 192.168.1.100">
+      <button class="btn go" id="runBtn">รัน</button>
+    </div>
+  </div>
+
+  <div class="legend">
+    🛡️ <b>โล่ = Firewall บล็อกอยู่</b> · 🔓 = เปิด Allow Sharing แล้ว · 🔒 = Wi-Fi มีรหัสแล้ว<br>
+    💡 ความปลอดภัยมี 3 ชั้นที่ช่างต้องดู: <b>ชั้นเครื่อง</b> (Firewall + สิทธิ์ผู้ใช้ + แอนตี้ไวรัส) · <b>ชั้นเครือข่าย</b> (รหัส Wi-Fi) · <b>ชั้นคน</b> (ไม่บอกรหัสใคร)
+  </div>
+
+  <a class="back" href="../31909-0005/index.html">← สื่อวิชานี้</a>
+</div>
+
+<!-- เลขที่ modal -->
+<div class="overlay" id="noOverlay">
+  <div class="dialog">
+    <h3>👷 ช่างดูแลความปลอดภัยประจำออฟฟิศ</h3>
+    <p class="dlg-note">ใส่เลขที่ตัวเอง → IP โต๊ะเธอจะลงท้ายด้วยเลขนี้ (กันลอก ครูตรวจสด)</p>
+    <label>เลขที่ (1–99)</label>
+    <input class="full" id="noInput" type="number" inputmode="numeric" min="1" max="99" placeholder="เช่น 7">
+    <label>ชื่อเล่น (ไม่บังคับ)</label>
+    <input class="full" id="noNick" type="text" placeholder="เช่น ก้อง" autocomplete="off">
+    <div class="dlg-err" id="noErr"></div>
+    <div class="dlg-actions">
+      <button class="btn primary" id="noOk">เริ่มภารกิจ</button>
+    </div>
+  </div>
+</div>
+
+<!-- 🛡️ Firewall dialog -->
+<div class="overlay" id="fwOverlay">
+  <div class="dialog">
+    <h3 id="fwTitle">🛡️ ตั้งค่า Firewall</h3>
+    <p class="dlg-note">ทุกเครื่องมี "รปภ.เฝ้าประตู" = Firewall · ค่าเดิม = ไม่รับแขกแปลกหน้า (ping/แชร์/พิมพ์ไม่ได้) · เปิด "Allow File and Printer Sharing" ให้เพื่อนในวงเดียวกันใช้งานได้</p>
+    <div class="fw-toggle" id="fwToggle">
+      <button class="fw-opt" data-block="true">🛡️ บล็อก (ค่าเดิม)<small>ไม่รับแขกแปลกหน้า → ping = Request timed out</small></button>
+      <button class="fw-opt" data-block="false">🔓 Allow File and Printer Sharing<small>เปิดประตูให้เครื่องในวงเดียวกันเข้าถึง/สั่งพิมพ์</small></button>
+    </div>
+    <div class="dlg-actions">
+      <button class="btn primary" id="fwCancel">เสร็จ</button>
+    </div>
+  </div>
+</div>
+
+<!-- 🔒 Wi-Fi dialog -->
+<div class="overlay" id="wfOverlay">
+  <div class="dialog">
+    <h3>🔒 ตั้งรหัส Wi-Fi ออฟฟิศ (WPA2)</h3>
+    <p class="dlg-note">Wi-Fi ที่ไม่ตั้งรหัส = ใครเดินผ่านก็เกาะได้ เน็ตถูกแบ่งจนอืด · ตั้งรหัสให้ครบ 5 ข้อถึงจะแข็งแรงพอ</p>
+    <label>รหัส Wi-Fi</label>
+    <input class="full" id="wfPass" type="text" autocomplete="off" spellcheck="false" placeholder="เช่น Office#2569chum">
+    <ul class="pw-check" id="pwCheck">
+      <li data-k="len">☐ ยาว 10 ตัวขึ้นไป</li>
+      <li data-k="up">☐ มีพิมพ์ใหญ่ A-Z</li>
+      <li data-k="low">☐ มีพิมพ์เล็ก a-z</li>
+      <li data-k="dig">☐ มีตัวเลข 0-9</li>
+      <li data-k="sym">☐ มีสัญลักษณ์ ! @ # $</li>
+    </ul>
+    <div class="speed" id="wfSpeed">ความเร็วที่เครื่องได้ตอนนี้: <b>—</b></div>
+    <div class="dlg-err" id="wfErr"></div>
+    <div class="dlg-actions">
+      <button class="btn" id="wfCancel">ปิด</button>
+      <button class="btn primary" id="wfSave">บันทึกรหัส</button>
+    </div>
+  </div>
+</div>
+
+<!-- 👤 บัญชีผู้ใช้ + แอนตี้ไวรัส dialog -->
+<div class="overlay" id="acOverlay">
+  <div class="dialog">
+    <h3 id="acTitle">👤 บัญชีผู้ใช้ + ความปลอดภัยเครื่อง</h3>
+    <p class="dlg-note">สิทธิ์ Admin = เจ้าของร้าน (ลงโปรแกรมอะไรก็ได้) · User = พนักงานพาร์ทไทม์ (ใช้งานได้ แต่ลงโปรแกรมมั่วไม่ได้)</p>
+    <button class="acct-opt" id="acAdmin" data-role="admin">👑 Administrator<small>ลงโปรแกรมได้ทุกอย่าง — พนักงานเผลอลงตัวอันตรายได้</small></button>
+    <button class="acct-opt" id="acUser" data-role="user">👤 Standard User<small>ใช้งานได้ปกติ แต่ลงโปรแกรมต้องขอรหัสผู้ดูแล</small></button>
+    <button class="btn" id="acScan" style="width:100%;margin-top:8px">🛡️ อัปเดตระบบ + สแกนไวรัส</button>
+    <div class="risk" id="acRisk"></div>
+    <div class="dlg-actions">
+      <button class="btn primary" id="acClose">เสร็จ</button>
+    </div>
+  </div>
+</div>
+
+<div class="win-msg" id="winMsg"></div>
+<div class="print-fly" id="printFly">🖨️📄</div>
+<canvas id="fx"></canvas>
+<div class="toast" id="toast"></div>
+
+<script src="js/engine.js"></script>
+<script>
+(function(){
+  var E = window.NetSimEngine;
+
+  var statusEl = document.getElementById('status');
+  var countsEl = document.getElementById('counts');
+  var toastEl  = document.getElementById('toast');
+  var toastT;
+  function showToast(msg, kind){
+    toastEl.textContent = msg;
+    toastEl.className = 'toast show ' + (kind||'');
+    clearTimeout(toastT);
+    toastT = setTimeout(function(){ toastEl.className = 'toast'; }, 2800);
+  }
+
+  /* ===== ผังออฟฟิศ preset (วงเดียวกัน สายครบ · ปัญหาอยู่ที่ "การตั้งค่า" ไม่ใช่สาย) ===== */
+  var AP_ID = 'ไวไฟออฟฟิศ', STAFF_ID = 'เครื่องพนักงาน', PRN_ID = 'พิมพ์กลาง', ME_ID = 'โต๊ะเธอ';
+  var PRESET = {
+    nodes: [
+      {id:'สวิตช์',   type:'switch', x:170, y:58},
+      {id:ME_ID,      type:'pc',     x:50,  y:150},
+      {id:STAFF_ID,   type:'pc',     x:290, y:150, ip:'192.168.1.60'},
+      {id:PRN_ID,     type:'server', x:170, y:248, ip:'192.168.1.100', http:200, fw:true, fwAllow:false},
+      {id:AP_ID,      type:'ap',     x:50,  y:248}
+    ],
+    edges: [
+      {id:'ed1', a:'สวิตช์', b:ME_ID,    media:'utp'},
+      {id:'ed2', a:'สวิตช์', b:STAFF_ID, media:'utp'},
+      {id:'ed3', a:'สวิตช์', b:PRN_ID,   media:'utp'},
+      {id:'ed4', a:'สวิตช์', b:AP_ID,    media:'utp'}
+    ]
+  };
+  function seedBoard(){ E.loadState(JSON.parse(JSON.stringify(PRESET))); }
+
+  /* ===== 🛡️ Firewall dialog ===== */
+  var fwOverlay = document.getElementById('fwOverlay');
+  var fwId = null;
+  function renderFwToggle(){
+    var st = E.getFirewall(fwId) || { blocking:true };
+    document.querySelectorAll('#fwToggle .fw-opt').forEach(function(b){
+      b.classList.toggle('on', (b.dataset.block==='true') === st.blocking);
+    });
+  }
+  function openFw(id){
+    fwId = id;
+    var n = E.getNode(id);
+    document.getElementById('fwTitle').textContent = '🛡️ Firewall ' + id + ' — ' + E.typeLabel(n.type);
+    if (!E.getFirewall(id).has) E.setFirewall(id, true);
+    renderFwToggle();
+    fwOverlay.classList.add('show');
+  }
+  document.querySelectorAll('#fwToggle .fw-opt').forEach(function(b){
+    b.addEventListener('click', function(){
+      var block = b.dataset.block === 'true';
+      E.setFirewall(fwId, block);
+      renderFwToggle();
+      showToast(block ? ('🛡️ ' + fwId + ' บล็อก — ping/แชร์ไม่ได้') : ('🔓 ' + fwId + ' เปิด Allow Sharing แล้ว — ลอง ping ใหม่'), block ? 'bad' : 'ok');
+    });
+  });
+  document.getElementById('fwCancel').addEventListener('click', function(){ fwOverlay.classList.remove('show'); });
+  fwOverlay.addEventListener('click', function(e){ if(e.target===fwOverlay) fwOverlay.classList.remove('show'); });
+
+  /* ===== 🔒 Wi-Fi dialog ===== */
+  var wfOverlay = document.getElementById('wfOverlay');
+  var PW_LABELS = { len:'ยาว 10 ตัวขึ้นไป', up:'มีพิมพ์ใหญ่ A-Z', low:'มีพิมพ์เล็ก a-z', dig:'มีตัวเลข 0-9', sym:'มีสัญลักษณ์ ! @ # $' };
+  function refreshPw(v){
+    var c = E.wifiChecks(v);
+    ['len','up','low','dig','sym'].forEach(function(k){
+      var li = document.querySelector('#pwCheck [data-k="'+k+'"]');
+      if (li){ li.classList.toggle('ok', c[k]); li.textContent = (c[k] ? '✅ ' : '☐ ') + PW_LABELS[k]; }
+    });
+  }
+  function showSpeed(){
+    var sp = E.wifiSpeed(AP_ID);
+    var n  = E.getNode(AP_ID);
+    var box = document.getElementById('wfSpeed');
+    if (sp == null){ box.innerHTML = 'ความเร็วที่เครื่องได้ตอนนี้: <b>—</b>'; return; }
+    var speed = (typeof sp === 'object') ? (sp.perDevice || sp.speed || sp.mbps) : sp;
+    box.innerHTML = 'ความเร็วที่แต่ละเครื่องได้: <b>' + speed + ' Mbps</b>' +
+      (n.wifi ? ' 🔒 (มีรหัสแล้ว — คนนอกเกาะไม่ได้)' : ' ⚠️ (ยังไม่มีรหัส — คนนอกแอบเกาะอยู่ 3 เครื่อง)');
+  }
+  function openWifi(id){
+    var n = E.getNode(id);
+    document.getElementById('wfPass').value = n.wifi || '';
+    document.getElementById('wfErr').textContent = '';
+    refreshPw(n.wifi || '');
+    showSpeed();
+    wfOverlay.classList.add('show');
+    setTimeout(function(){ document.getElementById('wfPass').focus(); }, 60);
+  }
+  document.getElementById('wfPass').addEventListener('input', function(){ refreshPw(this.value); });
+  document.getElementById('wfCancel').addEventListener('click', function(){ wfOverlay.classList.remove('show'); });
+  wfOverlay.addEventListener('click', function(e){ if(e.target===wfOverlay) wfOverlay.classList.remove('show'); });
+  document.getElementById('wfSave').addEventListener('click', function(){
+    var pass = (document.getElementById('wfPass').value || '').trim();
+    if (!pass){ document.getElementById('wfErr').textContent = '❌ ยังไม่ได้ใส่รหัส — Wi-Fi เปิดโล่ง ใครก็เกาะได้'; return; }
+    if (!E.wifiStrong(pass)){ document.getElementById('wfErr').textContent = '❌ รหัสยังไม่แข็งแรงพอ — ทำให้ครบ 5 ข้อสีเขียวก่อน'; return; }
+    E.setNodeWifi(AP_ID, pass);
+    document.getElementById('wfErr').textContent = '';
+    showSpeed();
+    showToast('🔒 ตั้งรหัส Wi-Fi แล้ว — คนนอก 3 เครื่องหลุดออก เน็ตเร็วขึ้น', 'ok');
+    SCN.onWifiSet();
+  });
+
+  /* ===== 👤 บัญชีผู้ใช้ + แอนตี้ไวรัส (state ของหน้านี้เอง ไม่แตะ engine) ===== */
+  var acOverlay = document.getElementById('acOverlay');
+  var acct = { role:'admin', scanned:false };
+  function renderAcct(){
+    document.getElementById('acAdmin').classList.toggle('on', acct.role === 'admin');
+    document.getElementById('acUser').classList.toggle('on', acct.role === 'user');
+    var r = document.getElementById('acRisk');
+    if (acct.role === 'user' && acct.scanned){
+      r.className = 'risk safe';
+      r.textContent = '✅ ปลอดภัยแล้ว: พนักงานลงโปรแกรมมั่วไม่ได้ + ระบบอัปเดต/สแกนไวรัสเรียบร้อย โฆษณาหยุดเด้ง';
+    } else {
+      r.className = 'risk';
+      r.textContent = '⚠️ ยังเสี่ยง: ' + (acct.role === 'admin' ? 'สิทธิ์ Admin — พนักงานลงโปรแกรมอะไรก็ได้ ' : '') + (acct.scanned ? '' : '· ยังไม่ได้อัปเดต/สแกนไวรัส');
+    }
+  }
+  function openAcct(id){
+    document.getElementById('acTitle').textContent = '👤 ' + id + ' — บัญชีผู้ใช้ + ความปลอดภัยเครื่อง';
+    renderAcct();
+    acOverlay.classList.add('show');
+  }
+  document.querySelectorAll('.acct-opt').forEach(function(b){
+    b.addEventListener('click', function(){
+      acct.role = b.dataset.role;
+      renderAcct();
+      showToast(acct.role === 'user' ? '👤 ลดสิทธิ์เป็น Standard User แล้ว' : '👑 ตั้งเป็น Administrator (เสี่ยง)', acct.role === 'user' ? 'ok' : 'bad');
+      SCN.onAcct();
+    });
+  });
+  document.getElementById('acScan').addEventListener('click', function(){
+    acct.scanned = true;
+    renderAcct();
+    showToast('🛡️ อัปเดตระบบ + สแกนไวรัสเสร็จ — เจอโปรแกรมโฆษณา 2 ตัว ลบแล้ว', 'ok');
+    SCN.onAcct();
+  });
+  document.getElementById('acClose').addEventListener('click', function(){ acOverlay.classList.remove('show'); });
+  acOverlay.addEventListener('click', function(e){ if(e.target===acOverlay) acOverlay.classList.remove('show'); });
+
+  /* ===== ชี้เป้าโล่แดงเด้ง ===== */
+  function alertNode(id){
+    var g = document.querySelector('#canvas [data-id="'+id+'"]');
+    if(!g) return;
+    g.classList.add('fw-alert');
+    setTimeout(function(){ g.classList.remove('fw-alert'); }, 1500);
+  }
+
+  /* ===== Terminal ===== */
+  var srcSel  = document.getElementById('srcSel');
+  var termOut = document.getElementById('termOut');
+  var cmdIn   = document.getElementById('cmd');
+
+  function refreshTerm(){
+    var list = E.nodesWithIP();
+    var prev = srcSel.value;
+    srcSel.innerHTML = '';
+    if (!list.length){
+      var o = document.createElement('option'); o.textContent='— ยังไม่มีเครื่อง —'; o.value=''; srcSel.appendChild(o);
+      document.getElementById('termPrompt').textContent='>'; return;
+    }
+    list.forEach(function(n){
+      var op = document.createElement('option');
+      op.value = n.id;
+      op.textContent = n.id + (n.ip ? ' · ' + n.ip : ' · (ยังไม่ตั้ง IP)');
+      srcSel.appendChild(op);
+    });
+    if (prev && list.some(function(n){return n.id===prev;})) srcSel.value = prev;
+    else { var you = list.filter(function(n){return n.id===ME_ID;})[0]; if(you) srcSel.value=ME_ID; }
+    updatePrompt();
+  }
+  function updatePrompt(){ document.getElementById('termPrompt').textContent = (srcSel.value||'') + '>'; }
+  srcSel.addEventListener('change', updatePrompt);
+
+  function termPrint(text, cls){
+    var d = document.createElement('div'); if (cls) d.className = cls;
+    d.textContent = text; termOut.appendChild(d); termOut.scrollTop = termOut.scrollHeight;
+  }
+
+  function runCmd(raw){
+    raw = (raw||'').trim(); if (!raw) return;
+    var srcId = srcSel.value;
+    if (!srcId){ termPrint('ยังไม่มีเครื่อง — ใส่เลขที่ก่อน', 'bad'); return; }
+    termPrint(srcId + '> ' + raw, 'cmd');
+    var p = raw.split(/\s+/), cmd = p[0].toLowerCase();
+    if (cmd === 'ipconfig'){
+      var n = E.getNode(srcId);
+      termPrint('IPv4 Address . . : ' + (n.ip || '(ยังไม่ตั้ง)'));
+      termPrint('Subnet Mask  . . : ' + (n.ip ? E.mask : '-'));
+      return;
+    }
+    if (cmd === 'ping'){
+      if (!p[1]){ termPrint('ใช้: ping <IP> เช่น ping 192.168.1.100', 'th'); return; }
+      doPing(srcId, p[1]); return;
+    }
+    termPrint("'" + cmd + "' ไม่รองรับ — ใช้: ping, ipconfig", 'th');
+  }
+
+  function doPing(srcId, ip){
+    var res = E.ping(srcId, ip, function(r, hops){
+      termPrint('ตอบกลับจาก ' + ip + ': สำเร็จ (' + hops + ' hop)', 'ok');
+      termPrint('📋 จด: ' + srcId + ' ping ' + ip + ' = ได้ (วงเดียวกัน + Firewall เปิดให้แล้ว)', 'note');
+      showToast('✅ ' + srcId + ' ส่งถึง ' + ip + ' แล้ว', 'ok');
+      SCN.onPingOk(r.target, ip);
+    });
+    if (res.ok){ termPrint('กำลัง ping ' + ip + ' ...'); return; }
+    if (res.reason === 'firewall'){
+      termPrint('✗ Request timed out — สาย+วงถูกครบ แต่ 🛡️ Firewall ที่ ' + res.target + ' บล็อกอยู่ (ยังไม่เปิด Allow File and Printer Sharing)', 'bad');
+      showToast('🛡️ ' + res.target + ' บล็อกด้วย Firewall — แตะเครื่องนั้นเปิด Allow Sharing', 'bad');
+      alertNode(res.target);
+      SCN.onFirewallBlock(res.target, ip);
+      return;
+    }
+    var MSG = {
+      srcnoip:'เครื่องต้นทางยังไม่ตั้ง IP — ใส่เลขที่ก่อน', srcbad:'IP ต้นทางผิดกฎ',
+      badtarget:'รูปแบบ IP ผิด เช่น ping 192.168.1.100', self:'นั่นคือ IP เครื่องตัวเอง',
+      nohost:'ไม่มีเครื่องใดใช้ IP ' + ip, unwired:'สายยังไม่เชื่อมถึงกัน',
+      diffnet:'คนละวง ต้องผ่าน Router'
+    };
+    termPrint('✗ Request timed out — ' + (MSG[res.reason]||'ส่งไม่ถึง'), 'bad');
+    showToast('⛔ ปิงไม่สำเร็จ', 'bad');
+  }
+
+  document.getElementById('runBtn').addEventListener('click', function(){ runCmd(cmdIn.value); cmdIn.value=''; });
+  cmdIn.addEventListener('keydown', function(e){ if (e.key==='Enter'){ runCmd(cmdIn.value); cmdIn.value=''; } });
+  document.querySelectorAll('.term-chips button').forEach(function(b){
+    b.addEventListener('click', function(){
+      if (b.dataset.run){ runCmd(b.dataset.run); }
+      else if (b.dataset.fill){ cmdIn.value = b.dataset.fill; cmdIn.focus(); }
+    });
+  });
+
+  /* ===== Scenario / Mission (auto-tick แบบ latch) ===== */
+  var SCN = (function(){
+    var LS = 'netsim_0005_wk12_meta';
+    var studentNo = null, nickname = '', sawBlock = false, pingPrn = false, wifiOk = false, acctOk = false, won = false;
+    var me = document.getElementById('scnMe');
+    function showMe(){ me.innerHTML = (nickname?('<b>'+nickname+'</b> · '):'') + 'เลขที่ <b>'+(studentNo||'—')+'</b>'; }
+    function setQ(id,v){ var el=document.getElementById(id); if(!el) return; el.classList.toggle('done',v); el.querySelector('.ic').textContent = v?'✓':el.dataset.n; }
+    var L=[false,false,false,false,false,false];
+    function update(){
+      if(studentNo) L[1]=true;
+      if(sawBlock)  L[2]=true;
+      if(pingPrn)   L[3]=true;
+      if(wifiOk)    L[4]=true;
+      if(acctOk)    L[5]=true;
+      setQ('mq1',L[1]); setQ('mq2',L[2]); setQ('mq3',L[3]); setQ('mq4',L[4]); setQ('mq5',L[5]);
+      var justWon = (L[1]&&L[2]&&L[3]&&L[4]&&L[5]&&!won);
+      if(justWon) won=true;
+      save();
+      if(justWon) winNow();
+    }
+    function winNow(){
+      var w=document.getElementById('winMsg');
+      w.innerHTML='🎉 ปิดครบ 3 ช่องโหว่! ชั้นเครื่อง (Firewall + สิทธิ์ผู้ใช้ + สแกนไวรัส) · ชั้นเครือข่าย (รหัส Wi-Fi)<br>📋 จดสมุดให้ครบ: อาการ · สาเหตุ · วิธีแก้ ทั้ง 3 เรื่อง · 📸 แคปจังหวะ ping สำเร็จ + หน้าตั้งรหัส Wi-Fi ส่ง Classroom';
+      w.classList.add('show'); confetti();
+      setTimeout(function(){ w.classList.remove('show'); }, 9000);
+    }
+    function save(){ try{ localStorage.setItem(LS,JSON.stringify({studentNo:studentNo,nickname:nickname,sawBlock:sawBlock,pingPrn:pingPrn,wifiOk:wifiOk,acctOk:acctOk,acct:acct,won:won,L:L})); }catch(e){} }
+    function load(){ try{ var d=JSON.parse(localStorage.getItem(LS)); if(!d||!d.studentNo) return false; studentNo=d.studentNo; nickname=d.nickname||''; sawBlock=!!d.sawBlock; pingPrn=!!d.pingPrn; wifiOk=!!d.wifiOk; acctOk=!!d.acctOk; if(d.acct) acct=d.acct; won=!!d.won; if(d.L&&d.L.length===6) L=d.L; return true; }catch(e){ return false; } }
+
+    var fx=document.getElementById('fx'), fxc=fx.getContext('2d');
+    function sizeFx(){ fx.width=innerWidth; fx.height=innerHeight; } addEventListener('resize',sizeFx); sizeFx();
+    function confetti(){ var cols=['#39c2ff','#3ddc97','#ffcf5d','#ff6b81','#a855f7'],bits=[],i; for(i=0;i<70;i++) bits.push({x:innerWidth/2,y:innerHeight*0.25,r:4+Math.random()*5,c:cols[i%cols.length],vx:(Math.random()-0.5)*9,vy:-4-Math.random()*8,rot:Math.random()*6}); var f=0; (function d(){ fxc.clearRect(0,0,fx.width,fx.height); bits.forEach(function(b){ b.x+=b.vx; b.y+=b.vy; b.vy+=0.32; b.vx*=0.99; b.rot+=0.25; fxc.save(); fxc.translate(b.x,b.y); fxc.rotate(b.rot); fxc.fillStyle=b.c; fxc.fillRect(-b.r,-b.r,b.r*2,b.r*1.2); fxc.restore(); }); if(f++<110) requestAnimationFrame(d); else fxc.clearRect(0,0,fx.width,fx.height); })(); }
+    function printFly(){ var p=document.getElementById('printFly'); p.classList.remove('go'); void p.offsetWidth; p.classList.add('go'); }
+
+    function applySeatIp(){ if(studentNo) E.setNodeIP(ME_ID,'192.168.1.'+studentNo); refreshTerm(); }
+    function openNameModal(){ document.getElementById('noOverlay').classList.add('show'); setTimeout(function(){document.getElementById('noInput').focus();},60); }
+    function saveName(){
+      var v=(document.getElementById('noInput').value||'').trim();
+      if(!/^\d+$/.test(v)||+v<1||+v>99){ document.getElementById('noErr').textContent='กรอกเลขที่ 1–99'; return; }
+      if(+v===60||+v===100){ document.getElementById('noErr').textContent='เลข 60 กับ 100 มีเครื่องใช้อยู่แล้ว — ใช้เลขที่จริงของเธอ ถ้าตรงพอดีบอกครู'; return; }
+      studentNo=+v; nickname=(document.getElementById('noNick').value||'').trim();
+      document.getElementById('noOverlay').classList.remove('show');
+      showMe(); applySeatIp(); save(); update();
+      showToast('โต๊ะเธอ IP = 192.168.1.'+studentNo+' · ลอง ping เครื่องพิมพ์กลาง .100 ดู', 'ok');
+    }
+    return {
+      onFirewallBlock:function(){ if(!sawBlock){ sawBlock=true; showToast('🕵️ เจอกับดัก! จดอาการ+สาเหตุลงสมุด แล้วไปเปิด Firewall ที่เครื่องนั้น','ok'); } update(); },
+      onPingOk:function(target,ip){
+        if(ip==='192.168.1.100' && !pingPrn){ pingPrn=true; printFly(); showToast('🖨️ สั่งพิมพ์ผ่านแล้ว! Firewall คือด่านราย "เครื่อง"','ok'); }
+        update();
+      },
+      onWifiSet:function(){ if(!wifiOk){ wifiOk=true; } update(); },
+      onAcct:function(){ if(acct.role==='user' && acct.scanned && !acctOk){ acctOk=true; showToast('✅ เครื่องพนักงานปลอดภัยแล้ว — สิทธิ์ User + สแกนไวรัสครบ','ok'); } update(); },
+      start:function(){
+        document.getElementById('noOk').addEventListener('click',saveName);
+        document.getElementById('noInput').addEventListener('keydown',function(ev){ if(ev.key==='Enter') saveName(); });
+        document.getElementById('scnReset').addEventListener('click',function(){
+          if(!confirm('เริ่มใหม่? (ล้างชื่อ/เลขที่ + คืนค่าความปลอดภัยกลับเป็นแบบมีช่องโหว่)')) return;
+          localStorage.removeItem(LS); studentNo=null; nickname=''; sawBlock=false; pingPrn=false; wifiOk=false; acctOk=false; won=false;
+          acct={role:'admin',scanned:false}; L=[false,false,false,false,false,false];
+          seedBoard(); refreshTerm(); showMe(); update(); openNameModal();
+        });
+        var had = load();
+        seedBoard();
+        if (had){ applySeatIp(); }
+        showMe(); refreshTerm(); update();
+        if (!studentNo) openNameModal();
+      }
+    };
+  })();
+
+  /* ===== init (ท้ายสุด หลังประกาศ DOM/fn ครบ) ===== */
+  E.init(document.getElementById('canvas'), {
+    storeKey: 'netsim_0005_wk12',
+    restore: false,
+    onStatus: function(m){ statusEl.textContent = m; },
+    onChange: function(n, e){ countsEl.textContent = 'อุปกรณ์ ' + n + ' · สาย ' + e; refreshTerm(); },
+    onToast: showToast,
+    onConfig: function(id){          // แตะอุปกรณ์ → เลือก dialog ตามชนิด
+      var n = E.getNode(id);
+      if (!n) return;
+      if (E.canHaveWifi(n.type)){ openWifi(id); return; }
+      if (id === STAFF_ID){ openAcct(id); return; }
+      openFw(id);
+    }
+  });
+  E.setMode('config');
+  SCN.start();
+  statusEl.textContent = 'แตะอุปกรณ์เพื่อตั้งค่า · เริ่มที่ ping 192.168.1.100 ดูอาการก่อน';
+})();
+</script>
+</body>
+</html>
