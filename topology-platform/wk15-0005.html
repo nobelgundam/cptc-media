@@ -42,7 +42,7 @@
     <div class="mi" data-k="m2"><b>②</b> ตั้ง IP + Gateway ครบ ไม่ซ้ำ · มีเครื่องลงท้ายเลขที่เธอ</div>
     <div class="mi" data-k="m3"><b>③</b> ping แคชเชียร์ ↔ หลังร้าน = <b>ได้</b></div>
     <div class="mi" data-k="m4"><b>④</b> ping 8.8.8.8 = <b>ออกเน็ตได้</b></div>
-    <div class="mi" data-k="m5"><b>⑤</b> ping เครื่องลูกค้า → แคชเชียร์ = <u>ต้องไม่ได้</u></div>
+    <div class="mi" data-k="m5"><b>⑤</b> ยืนที่เครื่อง<b>ลูกค้า</b> ping ไปที่<b>แคชเชียร์</b> แล้วต้องขึ้น <u>Request timed out</u> (ลูกค้าเข้าเครื่องเงินไม่ได้ = ปลอดภัย)</div>
     <div class="mi" data-k="m6"><b>⑥</b> ipconfig อ่านค่าเครื่อง (จดลงสมุดข้อ 1)</div>
   </div>
 
@@ -519,7 +519,7 @@
       termPrint('IPv4 Address . . : ' + (n.ip || '(ยังไม่ตั้ง)'));
       termPrint('Subnet Mask  . . : ' + (n.ip ? E.mask : '-'));
       termPrint('Default Gateway  : ' + (n.gw || '(ยังไม่ตั้ง)'));
-      if (n.ip) missionHit('m6');
+      if (n.ip && inMyNet(srcId)) missionHit('m6');
       return;
     }
     if (cmd === 'ping'){
@@ -555,7 +555,8 @@
     }
     if (res.ok){
       // ติ๊กภารกิจทันทีที่ผลตัดสินแล้ว — ไม่รอ animation (เด็กสลับแอป/ล็อกจอ = rAF หยุด ติ๊กจะไม่ขึ้น)
-      missionHit(net ? 'm4' : 'm3');
+      if (net){ if (inMyNet(srcId)) missionHit('m4'); }
+      else if (inMyNet(srcId) && inMyNet(res.target)) missionHit('m3');
       termPrint('กำลัง ping ' + ip + ' ...'); statusEl.textContent = '📦 กำลัง ping ' + ip + ' จาก ' + srcId + ' ...'; return;
     }
     var MSG = {
@@ -576,7 +577,7 @@
     termPrint('✗ Request timed out — ' + m, 'bad');
     showToast('⛔ ปิงไม่สำเร็จ: ' + m, 'bad');
     // ⑤ ping ที่ "ต้องไม่ผ่าน" — นับเฉพาะกันได้ถูกหลัก (แยกวง / Firewall) ไม่นับผังพัง
-    if (!net && (res.reason === 'diffnet' || res.reason === 'firewall')){
+    if (!net && (res.reason === 'diffnet' || res.reason === 'firewall') && !inMyNet(srcId) && inMyNet(res.target)){
       termPrint('🔐 ข้อนี้ถูกแล้วถ้านี่คือเครื่องลูกค้า ping แคชเชียร์ — จดลงสมุดว่ากันด้วยวิธีไหน (' + (res.reason === 'diffnet' ? 'แยกวง' : 'Firewall') + ')', 'note');
       missionHit('m5');
     }
@@ -639,6 +640,10 @@
       if (d.hit) { hit.m3 = !!d.hit.m3; hit.m4 = !!d.hit.m4; hit.m5 = !!d.hit.m5; hit.m6 = !!d.hit.m6; }
       return true;
     }catch(e){ return false; }
+  }
+  function inMyNet(id){
+    var n = E.getNode(id);
+    return !!(studentNo && n && n.ip && n.ip.indexOf('192.168.' + studentNo + '.') === 0);
   }
   function missionHit(k){ if (hit[k]) return; hit[k] = true; msave(); missionSync(); }
 
