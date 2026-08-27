@@ -543,14 +543,12 @@
         termPrint('ตอบกลับจาก ' + net.ip + ': เวลา ' + net.ms + 'ms TTL=' + net.ttl + ' (' + net.note + ')', 'ok');
         termPrint('📋 จดสมุด: ' + srcId + ' ping ' + ip + ' = ได้ — ออกอินเทอร์เน็ตผ่าน Router', 'note');
         showToast('✅ ออกเน็ตได้ (' + net.ms + 'ms)', 'ok');
-        missionHit('m4');
       });
     } else {
       res = E.ping(srcId, ip, function(r, hops){
         termPrint('ตอบกลับจาก ' + ip + ': สำเร็จ (' + hops + ' hop' + (r.routed ? ' · ข้ามวงผ่าน Router' : '') + ')', 'ok');
         termPrint('📋 จดสมุด: ' + srcId + ' ping ' + ip + ' = ได้ — ' + (r.sameNet ? 'วงเดียวกัน (subnet เดียวกัน)' : 'คนละวง ต้องผ่าน Router'), 'note');
         showToast('✅ ' + srcId + ' ส่งถึง ' + ip + ' แล้ว (' + hops + ' hop)', 'ok');
-        missionHit('m3');
       });
     }
     if (res.ok){
@@ -664,7 +662,9 @@
     var seen = {}, mine = 0, seat = false, i, ip;
     for (i = 0; i < hosts.length; i++){
       ip = hosts[i].ip || '';
-      if (!ip || !hosts[i].gw) return false;                     // ต้องมี IP + Gateway ครบทุกเครื่อง
+      // Gateway บังคับเฉพาะเครื่องฝั่งพนักงาน — เครื่องฝั่งลูกค้าจงใจไม่ใส่ Gateway ก็เป็นวิธีกันที่ถูกต้อง
+      if (!ip) return false;
+      if (ip.indexOf('192.168.' + studentNo + '.') === 0 && !hosts[i].gw) return false;
       if (seen[ip]) return false;                                 // IP ซ้ำ = ไม่ผ่าน
       seen[ip] = 1;
       if (ip.indexOf('192.168.' + studentNo + '.') === 0) mine++; // อยู่วงพนักงานของเลขที่ตัวเอง
