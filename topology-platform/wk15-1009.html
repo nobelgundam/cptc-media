@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ใบงานที่ 14 · ด่านสุดท้ายช่างเครือข่าย ร้านเกม — 21909-1009 สัปดาห์ 15</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .steps{background:#0e2033;border:1px solid #2c4a63;border-left:4px solid #ffd54a;border-radius:9px;padding:9px 12px;margin-bottom:8px;font-size:.84rem;color:#dff;line-height:1.8;}
+  .steps b{color:#ffd54a;}
+  .cases{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:8px;}
+  .case{background:#10243a;border:1px solid #2c4a63;border-radius:9px;padding:8px 10px;font-size:.82rem;color:#cfe;line-height:1.6;}
+  .case b{color:#ffd54a;display:block;margin-bottom:2px;}
+  .case.done{border-color:#3ddc97;background:#12332a;}
+  .case.done b{color:#3ddc97;}
+  @media(max-width:640px){ .cases{grid-template-columns:1fr;} }
+  .modebar{display:flex;gap:6px;margin-bottom:8px;}
+  .modebar button{flex:1;padding:9px 6px;border-radius:9px;border:1px solid #2c4a63;background:#10243a;color:#dff;font:inherit;font-size:.82rem;cursor:pointer;}
+  .modebar button.on{border-color:#39c2ff;background:#123048;color:#8fd8ff;}
+  .ipdlg label{display:block;margin-top:8px;font-size:.85rem;color:#9fb6c9;}
+  .hintbox{background:#0e2033;border:1px dashed #6b8bb0;border-radius:8px;padding:8px 10px;margin-top:8px;font-size:.8rem;color:#9fb6c9;line-height:1.7;}
+  .hintbox b{color:#ffd54a;}
+  .ghost{background:#10243a;border:1px solid #2c4a63;border-radius:9px;padding:8px 10px;margin-bottom:8px;font-size:.82rem;color:#9fb6c9;line-height:1.7;display:none;}
+  .ghost.show{display:block;}
+  .ghost b{color:#8fd8ff;}
+  .diag{margin-top:8px;font-size:.83rem;line-height:1.7;color:#ffb4b4;}
+  .diag.ok{color:#3ddc97;}
+  .target{background:#0e2033;border:1px solid #2c4a63;border-radius:9px;padding:8px 11px;margin-bottom:8px;font-size:.83rem;color:#cfe;line-height:1.8;}
+  .target b{color:#ffd54a;}
+</style>
+</head>
+<body>
+<div class="wrap wide">
+
+  <div class="topbar">
+    <span class="logo">🎮</span>
+    <h1>ร้านเกม ชค.เกมมิ่ง <span class="th-en">(สัปดาห์ 15 · 21909-1009 · ใบงานที่ 14)</span></h1>
+    <span class="sub" id="counts">อุปกรณ์ 0 · สาย 0</span>
+  </div>
+
+  <div class="statusbar"><span class="dot"></span><span id="status">แตะเครื่องที่ลูกค้าบ่นเพื่อดูผลตรวจ · พิมพ์คำสั่งใน Terminal ล่างจอ</span></div>
+
+  <div class="scn-head">
+    <button class="btn-reset" id="scnReset">เริ่มใหม่</button>
+    <span class="me" id="scnMe">เลขที่ <b>—</b></span>
+  </div>
+
+  <div class="spec-box">🎮 <b>เปิดร้านวันแรก ลูกค้าบ่นพร้อมกันหลายเรื่อง</b> — 6 เครื่องต่อสวิตช์ตัวเดียว ออกเราเตอร์ <b>192.168.1.1</b> วง <b>192.168.1.x</b><br>
+    👷 หน้าที่ช่าง: แยกให้ออกว่าปัญหาอยู่ที่ <b>เครื่อง</b> หรืออยู่ที่ <b>เส้นทางเชื่อมต่อ</b> แล้วซ่อมให้ครบ 3 เคส</div>
+
+  <div class="steps">🧭 <b>ลำดับที่ต้องทำ</b> — ① ใส่เลขที่ก่อน → ② แตะเครื่องที่บ่นเพื่อ <b>ตรวจสภาพ</b> → ③ พิมพ์ <b>ipconfig</b> กับ <b>ping</b> ก่อน–หลังทุกครั้ง → ④ ซ่อมจบเคสไหน <b>จดลงสมุดเคสนั้นทันที</b> (สาเหตุ + วิธีแก้ อย่างละบรรทัด)</div>
+
+  <div class="target" id="targetBox">🔢 <b>เลข IP ที่ต้องใช้ซ่อม (คิดจากเลขที่ของเธอ — ห้ามใช้ของเพื่อน)</b><br>
+    เครื่อง 5 ตั้งใหม่เป็น <b id="ip5">—</b> · เครื่อง 6 เปลี่ยนเป็น <b id="ip6">—</b> · Gateway ทั้งคู่ = <b>192.168.1.1</b></div>
+
+  <div class="cases">
+    <div class="case" id="cA" data-n="A"><b>เคส A · เครื่อง 4</b>เข้าเกมออนไลน์ไม่ได้ แต่เปิดเว็บของร้านในเครื่อง 1 ได้</div>
+    <div class="case" id="cB" data-n="B"><b>เคส B · เครื่อง 5</b>เข้าอะไรไม่ได้เลย ไฟช่อง LAN ไม่ติด · IP ขึ้น 169.254.8.77</div>
+    <div class="case" id="cC" data-n="C"><b>เคส C · เครื่อง 6</b>เดี๋ยวได้เดี๋ยวหลุด — <b style="display:inline">มี 2 ปัญหาซ้อนกัน</b> เจอทั้งคู่ถึงจะจบ</div>
+  </div>
+
+  <div class="modebar">
+    <button id="mConfig" class="on">⚙️ ตรวจ/ตั้งค่า</button>
+    <button id="mLink">🔗 ต่อสาย</button>
+    <button id="mCut">✂️ ตัดสาย</button>
+    <button id="mGhost">👁️ ดูผังที่ถูก</button>
+  </div>
+
+  <div class="ghost" id="ghostBox">📐 <b>ผังที่ถูกต้องของร้านเกมนี้</b><br>
+    เน็ตผู้ให้บริการ (ISP) → <b>เราเตอร์ (192.168.1.1)</b> → <b>สวิตช์</b> → แตกออกไปครบทั้ง 6 เครื่อง<br>
+    ทุกเครื่องต้องมี IP <b>ไม่ซ้ำกัน</b> ในวง 192.168.1.x + <b>Gateway = 192.168.1.1</b> ครบทุกเครื่อง<br>
+    ⚠️ สายที่ <b>หลวม</b> ต้องตัดทิ้งแล้วต่อใหม่ (เหมือนเข้าหัว RJ45 ใหม่ในใบงานที่ 12) — ขยับแล้วหลุดคือยังไม่จบงาน</div>
+
+  <div class="stage">
+    <div class="main" style="width:100%">
+      <div class="canvas-box">
+        <svg id="canvas" xmlns="http://www.w3.org/2000/svg"></svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- Terminal -->
+  <div class="terminal">
+    <div class="term-head">
+      <span class="tt">💻 Terminal</span>
+      <label class="term-pc">เครื่อง:
+        <select id="srcSel" title="เลือกเครื่องที่จะพิมพ์คำสั่ง"></select>
+      </label>
+    </div>
+    <div class="term-out" id="termOut"><div class="th">เริ่มจาก <b>ipconfig</b> ดูค่าเครื่องก่อน แล้วค่อย <b>ping</b> — ping ในวงใช้ IP เครื่องอื่น · ออกเน็ตใช้ <b>ping 8.8.8.8</b></div></div>
+    <div class="term-chips">
+      <button data-run="ipconfig">ipconfig</button>
+      <button data-run="ping 8.8.8.8">ping 8.8.8.8</button>
+    </div>
+    <div class="term-in">
+      <span class="prompt" id="termPrompt">&gt;</span>
+      <input id="cmd" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="เช่น ping 192.168.1.11">
+      <button class="btn go" id="runBtn">รัน</button>
+    </div>
+  </div>
+
+  <div class="legend">
+    🔴 วงแดง = เครื่องที่ลูกค้าบ่น · ⚠️ = ค่าผิดปกติ · เครื่องที่ไม่มีสาย = ไฟช่อง LAN ไม่ติด<br>
+    💡 <b>โพยช่าง:</b> IP ขึ้นต้น <b>169.254.</b> = ขอ IP ไม่ได้เลย (สาย/พอร์ต) · ไม่มี Gateway = ในวงคุยได้ ออกเน็ตไม่ได้ · IP ซ้ำ = สลับกันหลุด
+  </div>
+
+  <a class="back" href="../21909-1009/index.html">← สื่อวิชานี้</a>
+</div>
+
+<!-- เลขที่ modal -->
+<div class="overlay" id="noOverlay">
+  <div class="dialog">
+    <h3>👷 ช่างที่เจ้าของร้านโทรตาม</h3>
+    <p class="dlg-note">ใส่เลขที่ตัวเอง → เลข IP ที่ใช้ซ่อมเครื่อง 5 กับ 6 จะคิดจากเลขนี้ (กันลอก ครูตรวจสด)</p>
+    <label>เลขที่ (1–99)</label>
+    <input class="full" id="noInput" type="number" inputmode="numeric" min="1" max="99" placeholder="เช่น 7">
+    <label>ชื่อเล่น (ไม่บังคับ)</label>
+    <input class="full" id="noNick" type="text" placeholder="เช่น ก้อง" autocomplete="off">
+    <div class="dlg-err" id="noErr"></div>
+    <div class="dlg-actions">
+      <button class="btn primary" id="noOk">รับงาน</button>
+    </div>
+  </div>
+</div>
+
+<!-- ⚙️ ตรวจสภาพ / ตั้งค่าเครื่อง -->
+<div class="overlay" id="ipOverlay">
+  <div class="dialog ipdlg">
+    <h3 id="ipTitle">⚙️ ตรวจสภาพเครื่อง</h3>
+    <p class="dlg-note" id="ipNote"></p>
+    <label>IP Address</label>
+    <input class="full" id="ipVal" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="192.168.1.x">
+    <label>Default Gateway (ประตูออกนอกวง)</label>
+    <input class="full" id="gwVal" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="192.168.1.1">
+    <div class="hintbox">🩺 <b>ผลตรวจ</b><div class="diag" id="ipDiag">—</div></div>
+    <div class="dlg-err" id="ipErr"></div>
+    <div class="dlg-actions">
+      <button class="btn" id="ipCancel">ปิด</button>
+      <button class="btn primary" id="ipSave">บันทึกค่า</button>
+    </div>
+  </div>
+</div>
+
+<div class="win-msg" id="winMsg"></div>
+<canvas id="fx"></canvas>
+<div class="toast" id="toast"></div>
+
+<script src="js/engine.js"></script>
+<script>
+(function(){
+  var E = window.NetSimEngine;
+  var NET = '192.168.1', GW = '192.168.1.1';
+  var ISP_ID = 'เน็ตร้าน', RT_ID = 'เราเตอร์', SW_ID = 'สวิตช์';
+  var P1='เครื่อง1', P2='เครื่อง2', P3='เครื่อง3', P4='เครื่อง4', P5='เครื่อง5', P6='เครื่อง6';
+  var LOOSE = 'e-loose';          // สายเส้นที่ "หลวม" ของเครื่อง 6 — ต้องตัดทิ้งแล้วต่อใหม่
+
+  var statusEl = document.getElementById('status');
+  var countsEl = document.getElementById('counts');
+  var toastEl  = document.getElementById('toast');
+  var toastT;
+  function showToast(msg, kind){
+    toastEl.textContent = msg;
+    toastEl.className = 'toast show ' + (kind||'');
+    clearTimeout(toastT);
+    toastT = setTimeout(function(){ toastEl.className = 'toast'; }, 2800);
+  }
+
+  /* ===== ผังร้านเกมพร้อมอาการ 3 เคส (ตรงตารางในใบงานที่ 14) =====
+     เครื่อง 4 ไม่มี Gateway · เครื่อง 5 ไม่มีสาย + IP 169.254 · เครื่อง 6 IP ซ้ำเครื่อง 2 + สายหลวม */
+  var PRESET = {
+    nodes: [
+      {id:ISP_ID, type:'isp',    x:50,  y:35},
+      {id:RT_ID,  type:'router', x:170, y:35, ip:GW},
+      {id:SW_ID,  type:'switch', x:170, y:120},
+      {id:P1, type:'pc', x:30,  y:205, ip:NET+'.11', gw:GW},
+      {id:P2, type:'pc', x:135, y:205, ip:NET+'.12', gw:GW},
+      {id:P3, type:'pc', x:240, y:205, ip:NET+'.13', gw:GW},
+      {id:P4, type:'pc', x:30,  y:290, ip:NET+'.14'},
+      {id:P5, type:'pc', x:135, y:290, ip:'169.254.8.77'},
+      {id:P6, type:'pc', x:240, y:290, ip:NET+'.12', gw:GW}
+    ],
+    edges: [
+      {id:'e1', a:ISP_ID, b:RT_ID, media:'utp'},
+      {id:'e2', a:RT_ID,  b:SW_ID, media:'utp'},
+      {id:'e3', a:SW_ID,  b:P1, media:'utp'},
+      {id:'e4', a:SW_ID,  b:P2, media:'utp'},
+      {id:'e5', a:SW_ID,  b:P3, media:'utp'},
+      {id:'e6', a:SW_ID,  b:P4, media:'utp'},
+      /* เครื่อง 5 ไม่มีสาย = ไฟช่อง LAN ไม่ติด */
+      {id:LOOSE, a:SW_ID, b:P6, media:'utp'}
+    ]
+  };
+  function seedBoard(){ E.loadState(JSON.parse(JSON.stringify(PRESET))); }
+
+  /* ===== state ภารกิจ ===== */
+  var studentNo = 0, nickname = '', won = false;
+  var LS = 'wk15-1009-mission';
+  var done = { A:false, B:false, C:false };
+
+  function ip5(){ return studentNo ? NET + '.' + (studentNo + 20)  : ''; }
+  function ip6(){ return studentNo ? NET + '.' + (studentNo + 120) : ''; }
+
+  function save(){ if (!studentNo) return; try{ localStorage.setItem(LS, JSON.stringify({studentNo:studentNo, nickname:nickname, done:done, won:won})); }catch(e){} }
+  function load(){
+    try{ var d = JSON.parse(localStorage.getItem(LS)); if(!d || !d.studentNo) return false;
+      studentNo = d.studentNo; nickname = d.nickname||''; if(d.done) done = d.done; won = !!d.won; return true;
+    }catch(e){ return false; }
+  }
+
+  function paintCases(){
+    ['A','B','C'].forEach(function(k){
+      var el = document.getElementById('c'+k);
+      if (done[k]) el.classList.add('done'); else el.classList.remove('done');
+    });
+  }
+
+  function wiredTo(id, edges){
+    return edges.some(function(e){ return (e.a===id && e.b===SW_ID) || (e.a===SW_ID && e.b===id); });
+  }
+  function dupIpOf(id, nodes){
+    var n = E.getNode(id); if (!n || !n.ip) return null;
+    var hit = null;
+    nodes.forEach(function(o){ if (o.id !== id && o.ip && o.ip === n.ip) hit = o.id; });
+    return hit;
+  }
+
+  /* ===== เงื่อนไขผ่านของแต่ละเคส (latch — ผ่านแล้วค้าง) ===== */
+  function checkCases(){
+    var st = E.exportState ? JSON.parse(E.exportState()) : {nodes:[], edges:[]};
+    var p4 = E.getNode(P4), p5 = E.getNode(P5), p6 = E.getNode(P6);
+
+    // A: เครื่อง 4 ตั้ง Gateway ถูก (ของเดิมมี IP ในวงอยู่แล้ว ขาดแค่ประตูออก)
+    if (!done.A && p4 && p4.gw === GW && p4.ip && p4.ip.indexOf(NET + '.') === 0){
+      done.A = true; showToast('✅ เคส A ผ่าน — ใส่ Gateway ให้เครื่อง 4 แล้ว ออกเน็ตได้', 'ok');
+    }
+    // B: เครื่อง 5 ต่อสายเข้าสวิตช์ + ออกจากวง 169.254 มาอยู่วงร้าน + มี Gateway
+    if (!done.B && p5 && wiredTo(P5, st.edges) && p5.ip === ip5()
+        && p5.gw === GW && !dupIpOf(P5, st.nodes)){
+      done.B = true; showToast('✅ เคส B ผ่าน — ต่อสาย + ตั้ง IP ในวงร้านให้เครื่อง 5 แล้ว', 'ok');
+    }
+    // C: เครื่อง 6 ต้องแก้ครบ 2 อย่าง — IP ไม่ซ้ำใครแล้ว + เปลี่ยนสายเส้นที่หลวมทิ้ง (ตัดแล้วต่อใหม่)
+    if (!done.C && p6 && p6.ip === ip6() && p6.gw === GW
+        && !dupIpOf(P6, st.nodes)
+        && wiredTo(P6, st.edges)
+        && !st.edges.some(function(e){ return e.id === LOOSE; })){
+      done.C = true; showToast('✅ เคส C ผ่าน — แก้ IP ซ้ำ + เปลี่ยนสายที่หลวมแล้ว', 'ok');
+    }
+    paintCases(); save();
+    if (!won && done.A && done.B && done.C) winNow();
+  }
+
+  function winNow(){
+    won = true; save();
+    var m = document.getElementById('winMsg');
+    m.innerHTML = '🎉 ซ่อมครบ 3 เคสแล้ว<br><span style="font-size:.62em">จดข้อ 1-3 ลงสมุดให้ครบ (สาเหตุ + วิธีแก้) แล้วทำข้อ 4-5 ต่อ</span>';
+    m.classList.add('show');
+    confetti();
+    setTimeout(function(){ m.classList.remove('show'); }, 5200);
+  }
+
+  /* ===== ⚙️ dialog ตรวจ/ตั้งค่าเครื่อง ===== */
+  var ipOverlay = document.getElementById('ipOverlay');
+  var curId = null;
+
+  var SYMPTOM = {};
+  SYMPTOM[P1] = 'ลูกค้าแจ้ง: เล่นได้ปกติ (เครื่องนี้ไม่มีปัญหา — ใช้เทียบค่าที่ถูกต้องได้)';
+  SYMPTOM[P2] = 'ลูกค้าแจ้ง: เล่นได้ปกติ (แต่ลองดูว่า IP เครื่องนี้ไปซ้ำกับใครหรือเปล่า)';
+  SYMPTOM[P3] = 'ลูกค้าแจ้ง: เล่นได้ปกติ';
+  SYMPTOM[P4] = 'ลูกค้าแจ้ง: เข้าเกมออนไลน์ไม่ได้ แต่เปิดเว็บของร้านที่อยู่ในเครื่อง 1 ได้';
+  SYMPTOM[P5] = 'ลูกค้าแจ้ง: เข้าอะไรไม่ได้เลย ไฟที่ช่องเสียบสาย LAN ไม่ติด';
+  SYMPTOM[P6] = 'ลูกค้าแจ้ง: เข้าได้บ้างไม่ได้บ้าง เดี๋ยวหลุดเดี๋ยวมา (ขยับสายแล้วหลุด)';
+
+  // โชว์ "ทุกปัญหาที่เจอ" เรียงตามบันได: กายภาพ → ที่อยู่ → ประตูออก
+  function diagOf(id){
+    var n = E.getNode(id); if (!n) return { txt:'—', ok:true };
+    var st = JSON.parse(E.exportState());
+    var found = [];
+    if (!st.edges.some(function(e){ return e.a===id || e.b===id; }))
+      found.push('❌ ขั้นที่ 1 กายภาพ: ไม่พบสายเชื่อมกับสวิตช์ — ไฟช่อง LAN ไม่ติด');
+    else if (st.edges.some(function(e){ return e.id === LOOSE && (e.a===id || e.b===id); }))
+      found.push('⚠️ ขั้นที่ 1 กายภาพ: สายเส้นนี้ "หลวม" ขยับแล้วหลุด — ต้องตัดทิ้งแล้วต่อเส้นใหม่');
+    if (!n.ip) found.push('❌ ขั้นที่ 2 ที่อยู่: ยังไม่ได้ตั้ง IP');
+    else if (n.ip.indexOf('169.254.') === 0)
+      found.push('❌ ขั้นที่ 2 ที่อยู่: IP ขึ้นต้น 169.254 = เครื่องตั้งเลขให้ตัวเอง เพราะขอจากเราเตอร์ไม่ได้');
+    else if (n.ip.indexOf(NET + '.') !== 0)
+      found.push('❌ ขั้นที่ 2 ที่อยู่: IP อยู่คนละวงกับร้าน (ต้องขึ้นต้น ' + NET + '.)');
+    else {
+      var dup = dupIpOf(id, st.nodes);
+      if (dup) found.push('⚠️ ขั้นที่ 2 ที่อยู่: IP ซ้ำกับ "' + dup + '" — ทั้งคู่จะสลับกันหลุด (IP conflict)');
+    }
+    if (studentNo && id === P5 && n.ip && n.ip.indexOf(NET + '.') === 0 && n.ip !== ip5())
+      found.push('⚠️ เลขไม่ใช่ของเธอ: เครื่อง 5 ของเลขที่ ' + studentNo + ' ต้องเป็น ' + ip5());
+    if (studentNo && id === P6 && n.ip && n.ip.indexOf(NET + '.') === 0 && n.ip !== ip6())
+      found.push('⚠️ เลขไม่ใช่ของเธอ: เครื่อง 6 ของเลขที่ ' + studentNo + ' ต้องเป็น ' + ip6());
+    if (!n.gw) found.push('⚠️ ขั้นที่ 3 ประตูออก: ไม่ได้ตั้ง Gateway — คุยในร้านได้ แต่ออกเน็ต/เข้าเกมออนไลน์ไม่ได้');
+    else if (n.gw !== GW) found.push('⚠️ ขั้นที่ 3 ประตูออก: Gateway ผิด (ประตูจริงคือ ' + GW + ')');
+    if (!found.length) return { txt:'✅ ค่าพื้นฐานครบถูกต้อง (สาย · IP · Gateway)', ok:true };
+    return { txt: found.join(String.fromCharCode(10)), ok:false };
+  }
+
+  function openCfg(id){
+    var n = E.getNode(id); if (!n) return;
+    curId = id;
+    document.getElementById('ipTitle').textContent = '⚙️ ' + id + ' — ' + E.typeLabel(n.type);
+    document.getElementById('ipNote').textContent = SYMPTOM[id] || 'อุปกรณ์ในระบบ';
+    document.getElementById('ipVal').value = n.ip || '';
+    document.getElementById('gwVal').value = n.gw || '';
+    var d = diagOf(id);
+    var dg = document.getElementById('ipDiag');
+    dg.innerHTML = d.txt.split(String.fromCharCode(10))
+      .map(function(x){ return x.replace(/&/g,'&amp;').replace(/</g,'&lt;'); }).join('<br>');
+    dg.className = 'diag' + (d.ok ? ' ok' : '');
+    document.getElementById('ipErr').textContent = '';
+    ipOverlay.classList.add('show');
+  }
+  document.getElementById('ipCancel').onclick = function(){ ipOverlay.classList.remove('show'); };
+  document.getElementById('ipSave').onclick = function(){
+    var ip = document.getElementById('ipVal').value.trim();
+    var gw = document.getElementById('gwVal').value.trim();
+    var err = document.getElementById('ipErr');
+    var wasIp = E.getNode(curId).ip || '';
+    if (ip){
+      var e1 = E.ipError(ip);
+      if (e1){ err.textContent = '❌ ' + e1; return; }
+      // ค่าเดิมซ้ำอยู่แล้วต้องบันทึกได้ (ไม่งั้นเครื่อง 6 ติดตาย) · บล็อกเฉพาะตอนเปลี่ยนไปชนใหม่
+      if (ip !== wasIp && E.ipConflict(curId, ip)){
+        err.textContent = '❌ IP นี้ซ้ำกับเครื่องอื่นในวง — Windows จะเตือน IP conflict'; return;
+      }
+    }
+    if (gw){
+      var e2 = E.ipError(gw);
+      if (e2){ err.textContent = '❌ Gateway: ' + e2; return; }
+    }
+    E.setNodeIP(curId, ip, gw, E.getNode(curId).http);
+    ipOverlay.classList.remove('show');
+    showToast('บันทึกค่า ' + curId + ' แล้ว', 'ok');
+    refreshTerm(); checkCases();
+  };
+
+  /* ===== Terminal ===== */
+  var srcSel = document.getElementById('srcSel');
+  function refreshTerm(){
+    var list = E.nodesWithIP();
+    var cur = srcSel.value;
+    srcSel.innerHTML = '';
+    list.forEach(function(o){
+      var op = document.createElement('option');
+      op.value = o.id; op.textContent = o.id + ' (' + o.ip + ')';
+      srcSel.appendChild(op);
+    });
+    if (cur && list.some(function(o){ return o.id === cur; })) srcSel.value = cur;
+    else if (list.length) srcSel.value = list[0].id;
+    updatePrompt();
+  }
+  function updatePrompt(){ document.getElementById('termPrompt').textContent = (srcSel.value||'') + '>'; }
+  srcSel.addEventListener('change', updatePrompt);
+
+  var termOut = document.getElementById('termOut');
+  function termPrint(text, cls){
+    var d = document.createElement('div');
+    if (cls) d.className = cls;
+    d.textContent = text;
+    termOut.appendChild(d);
+    termOut.scrollTop = termOut.scrollHeight;
+  }
+
+  function maskOf(ip){
+    if (!ip) return '-';
+    return ip.indexOf('169.254.') === 0 ? '255.255.0.0' : E.mask;   // APIPA ใช้ /16 ตรงตารางในใบงาน
+  }
+
+  function runCmd(raw){
+    var cmd = (raw||'').trim();
+    if (!cmd) return;
+    var srcId = srcSel.value;
+    if (!srcId){ termPrint('ยังไม่มีเครื่องที่ตั้ง IP ในระบบ', 'bad'); return; }
+    termPrint(srcId + '> ' + cmd, 'cmd');
+
+    if (/^ipconfig$/i.test(cmd)){
+      var n = E.getNode(srcId);
+      termPrint('Windows IP Configuration');
+      termPrint('   IPv4 Address . . : ' + (n.ip || '(ไม่ได้ตั้ง)'));
+      termPrint('   Subnet Mask  . . : ' + maskOf(n.ip));
+      termPrint('   Default Gateway  : ' + (n.gw || '(ไม่ได้ตั้ง)'));
+      if (n.ip && n.ip.indexOf('169.254.') === 0)
+        termPrint('   📋 จดสมุด: 169.254 = ขอ IP จากเราเตอร์ไม่ได้เลย ให้ไปไล่ขั้นที่ 1 สายก่อน', 'note');
+      return;
+    }
+    var m = cmd.match(/^ping\s+(\S+)$/i);
+    if (m){ doPing(srcId, m[1]); return; }
+    termPrint("คำสั่งนี้ยังไม่รองรับ — ใช้ได้: ipconfig · ping <ไอพี>", 'bad');
+  }
+
+  var PING_WHY = {
+    srcnoip:  '→ เครื่องต้นทางยังไม่ได้ตั้ง IP (ขั้นที่ 2)',
+    srcbad:   '→ IP ของเครื่องต้นทางผิดรูปแบบ (ขั้นที่ 2)',
+    badtarget:'→ ไอพีปลายทางที่พิมพ์ผิดรูปแบบ',
+    self:     '→ นี่คือ IP ของเครื่องตัวเอง',
+    nohost:   '→ ไม่พบเครื่องที่ใช้ IP นี้ในร้าน',
+    unwired:  '→ ไม่มีสายเชื่อมถึงกัน (ขั้นที่ 1 กายภาพ — ไฟช่อง LAN ไม่ติด)',
+    diffnet:  '→ ปลายทางอยู่คนละวง หรือยังไม่ได้ตั้ง Gateway (ขั้นที่ 2-3)',
+    firewall: '→ สายครบ วงเดียวกัน แต่ Firewall ปลายทางบล็อกอยู่',
+    dns:      '→ ระบบยังไม่รู้จักชื่อปลายทางนี้ — ลอง ping 8.8.8.8',
+    noisp:    '→ ร้านไม่มีเน็ตผู้ให้บริการเชื่อมอยู่',
+    norouter: '→ เส้นทางออกเน็ตไม่ผ่านเราเตอร์',
+    nogw:     '→ ไม่มี Default Gateway = ไม่มีประตูออกนอกวง (ขั้นที่ 3) — นี่คืออาการของเครื่อง 4'
+  };
+  function doPing(srcId, ip){
+    var src = E.getNode(srcId);
+    if (!src || !src.ip){ termPrint('เครื่องต้นทางยังไม่ได้ตั้ง IP', 'bad'); return; }
+    termPrint('Pinging ' + ip + ' with 32 bytes of data:');
+    var res;
+    if (E.netTarget(ip)){
+      var t = E.netTarget(ip);
+      res = E.pingNet(srcId, ip, function(){
+        termPrint('Reply from ' + t.ip + ': bytes=32 time=' + t.ms + 'ms TTL=' + t.ttl, 'ok');
+        termPrint('Reply from ' + t.ip + ': bytes=32 time=' + t.ms + 'ms TTL=' + t.ttl, 'ok');
+        termPrint('📋 จดสมุด: เครื่องนี้ออกอินเทอร์เน็ตได้แล้ว (เข้าเกมออนไลน์ได้)', 'note');
+      });
+    } else {
+      res = E.ping(srcId, ip, function(){
+        termPrint('Reply from ' + ip + ': bytes=32 time=1ms TTL=128', 'ok');
+        termPrint('Reply from ' + ip + ': bytes=32 time=1ms TTL=128', 'ok');
+      });
+    }
+    if (!res || !res.ok){
+      termPrint('Request timed out.', 'bad');
+      termPrint('Request timed out.', 'bad');
+      var why = res && PING_WHY[res.reason];
+      if (why) termPrint(why, 'bad');
+    }
+  }
+
+  document.getElementById('runBtn').onclick = function(){
+    var i = document.getElementById('cmd');
+    runCmd(i.value); i.value = '';
+  };
+  document.getElementById('cmd').addEventListener('keydown', function(ev){
+    if (ev.key === 'Enter'){ runCmd(this.value); this.value = ''; }
+  });
+  document.querySelectorAll('.term-chips button').forEach(function(b){
+    b.onclick = function(){ if (b.dataset.run) runCmd(b.dataset.run); };
+  });
+
+  /* ===== เลขที่ผู้เรียน ===== */
+  var meEl = document.getElementById('scnMe');
+  function showMe(){
+    meEl.innerHTML = (nickname?('<b>'+nickname+'</b> · '):'') + 'เลขที่ <b>'+(studentNo||'—')+'</b>';
+    document.getElementById('ip5').textContent = ip5() || '—';
+    document.getElementById('ip6').textContent = ip6() || '—';
+  }
+  function openNameModal(){ document.getElementById('noOverlay').classList.add('show'); setTimeout(function(){ document.getElementById('noInput').focus(); }, 60); }
+  document.getElementById('noOk').onclick = function(){
+    var v = parseInt(document.getElementById('noInput').value, 10);
+    var err = document.getElementById('noErr');
+    if (!(v >= 1 && v <= 99)){ err.textContent = 'ใส่เลขที่ 1–99'; return; }
+    studentNo = v; nickname = document.getElementById('noNick').value.trim();
+    document.getElementById('noOverlay').classList.remove('show');
+    showMe(); save();
+    showToast('เลข IP ที่ต้องใช้: เครื่อง 5 = ' + ip5() + ' · เครื่อง 6 = ' + ip6(), 'ok');
+  };
+
+  /* ===== confetti ===== */
+  var fx = document.getElementById('fx'), fxc = fx.getContext('2d');
+  function sizeFx(){ fx.width = innerWidth; fx.height = innerHeight; }
+  addEventListener('resize', sizeFx); sizeFx();
+  function confetti(){
+    var cols = ['#39c2ff','#3ddc97','#ffcf5d','#ff6b81','#a855f7'], bits = [], i;
+    for (i=0;i<70;i++) bits.push({x:innerWidth/2, y:innerHeight*0.25, r:4+Math.random()*5, c:cols[i%cols.length], vx:(Math.random()-0.5)*9, vy:-4-Math.random()*8, rot:Math.random()*6});
+    var f = 0;
+    (function draw(){
+      fxc.clearRect(0,0,fx.width,fx.height);
+      bits.forEach(function(b){ b.x+=b.vx; b.y+=b.vy; b.vy+=0.32; b.vx*=0.99; b.rot+=0.25;
+        fxc.save(); fxc.translate(b.x,b.y); fxc.rotate(b.rot); fxc.fillStyle=b.c; fxc.fillRect(-b.r,-b.r,b.r*2,b.r*1.2); fxc.restore(); });
+      if (f++ < 110) requestAnimationFrame(draw); else fxc.clearRect(0,0,fx.width,fx.height);
+    })();
+  }
+
+  /* ===== โหมด ===== */
+  var mCfg = document.getElementById('mConfig'), mLink = document.getElementById('mLink'),
+      mCut = document.getElementById('mCut'), mGhost = document.getElementById('mGhost');
+  function setModeUI(which){
+    mCfg.classList.toggle('on', which === 'config');
+    mLink.classList.toggle('on', which === 'connect');
+    mCut.classList.toggle('on', which === 'cutlink');
+    E.setMode(which);
+    if (which === 'config') statusEl.textContent = 'แตะเครื่องที่ลูกค้าบ่นเพื่อดูผลตรวจ + แก้ค่า';
+    else if (which === 'connect') statusEl.textContent = '🔗 แตะอุปกรณ์ 2 ตัวที่ต้องการเชื่อมสาย (เช่น สวิตช์ กับ เครื่องที่ไฟ LAN ไม่ติด)';
+    else statusEl.textContent = '✂️ แตะเส้นสายที่ต้องการตัดทิ้ง (สายหลวมต้องตัดแล้วต่อใหม่)';
+  }
+  mCfg.onclick  = function(){ setModeUI('config'); };
+  mLink.onclick = function(){ setModeUI('connect'); };
+  mCut.onclick  = function(){ setModeUI('cutlink'); };
+  mGhost.onclick = function(){
+    var g = document.getElementById('ghostBox');
+    g.classList.toggle('show');
+    mGhost.classList.toggle('on', g.classList.contains('show'));
+  };
+
+  document.getElementById('scnReset').onclick = function(){
+    if (!confirm('เริ่มภารกิจใหม่ทั้งหมด (อาการเสียจะกลับมาครบ 3 เคส)')) return;
+    done = { A:false, B:false, C:false }; won = false;
+    seedBoard(); paintCases(); save(); refreshTerm();
+    showToast('รีเซ็ตแล้ว — เริ่มไล่ตรวจใหม่ได้เลย');
+  };
+
+  /* ===== init ===== */
+  var restored = load();   // อ่านก่อน E.init เพราะ engine ยิง onChange ทันทีที่ init
+  E.init(document.getElementById('canvas'), {
+    storeKey: 'wk15-1009-board',
+    restore: restored,     // ทำค้างไว้ = กู้ผังที่ซ่อมไปแล้ว · เปิดครั้งแรก = ผังที่เสีย 3 เคส
+    onStatus: function(msg){ statusEl.textContent = msg; },
+    onToast: function(msg, kind){ showToast(msg, kind); },
+    onChange: function(){
+      var c = E.counts();
+      countsEl.textContent = 'อุปกรณ์ ' + c.nodes + ' · สาย ' + c.edges;
+      refreshTerm(); checkCases();
+    },
+    onConfig: function(id){ openCfg(id); }
+  });
+  E.setMedia('utp');
+  if (!restored || E.counts().nodes === 0) seedBoard();
+  setModeUI('config');
+
+  if (restored){ showMe(); paintCases(); }
+  else { openNameModal(); }
+  refreshTerm();
+})();
+</script>
+</body>
+</html>
