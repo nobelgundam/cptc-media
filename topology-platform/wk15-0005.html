@@ -3,20 +3,48 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>สร้างเครือข่าย — Builder</title>
+<title>ใบงานที่ 13 · ส่งมอบร้านกาแฟ — 31909-0005 สัปดาห์ 15</title>
 <link rel="stylesheet" href="css/style.css">
+<style>
+  .miss{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;}
+  .mi{background:#10243a;border:1px solid #2c4a63;border-radius:9px;padding:7px 9px;font-size:.8rem;color:#cfe;line-height:1.55;}
+  .mi b{color:#ffd54a;margin-right:3px;}
+  .mi.done{border-color:#3ddc97;background:#12332a;color:#8ff0c8;}
+  .mi.done b{color:#3ddc97;}
+  .mi u{color:#ffb4b4;text-decoration:none;border-bottom:1px dashed #ffb4b4;}
+  .mi.done u{color:#8ff0c8;border-color:#8ff0c8;}
+  @media(max-width:520px){ .miss{grid-template-columns:1fr;} }
+</style>
 </head>
 <body>
 <div class="wrap wide">
 
   <div class="topbar">
-    <span class="logo">🛠️</span>
-    <h1>สร้างเครือข่าย <span class="th-en">(Network Builder)</span></h1>
+    <span class="logo">☕</span>
+    <h1>ส่งมอบร้านกาแฟ <span class="th-en">(สัปดาห์ 15 · 31909-0005 · ใบงานที่ 13)</span></h1>
     <span class="sub" id="counts">อุปกรณ์ 0 · สาย 0</span>
   </div>
 
   <!-- แถบสถานะ/คำแนะนำ (Signaling — Mayer) -->
   <div class="statusbar"><span class="dot"></span><span id="status">เลือกอุปกรณ์ทางซ้าย แล้วแตะบนกระดานเพื่อวาง</span></div>
+
+  <div class="scn-head">
+    <button class="btn-reset" id="scnReset">เปลี่ยนเลขที่</button>
+    <span class="me" id="scnMe">เลขที่ <b>—</b> · ภารกิจ <b id="missCount">0/6</b></span>
+  </div>
+
+  <div class="spec-box">☕ <b>ลูกค้ามาตรวจรับงาน</b> — สร้างระบบร้านกาแฟตามแบบร่างที่จองไว้ (ใบงานที่ 12) ครบ 3 จุด: แคชเชียร์ · หลังร้าน/สต๊อก · Wi-Fi ลูกค้า<br>
+    🔢 วงพนักงานของเธอ = <b id="myNet">192.168.—.0</b> · Gateway = <b id="myGw">—</b> · Wi-Fi ลูกค้า <b>ต้องแยกวง</b> เช่น <b id="myGuest">—</b><br>
+    🪤 กับดักที่ทั้งห้องเคยพลาด: Gateway ผิด · ไม่ใส่ Gateway · IP ซ้ำกัน — ตรวจ 3 จุดนี้ก่อนไปต่อ</div>
+
+  <div class="miss" id="miss">
+    <div class="mi" data-k="m1"><b>①</b> วางเครื่อง ≥ 3 จุด ต่อสายครบทุกเครื่อง</div>
+    <div class="mi" data-k="m2"><b>②</b> ตั้ง IP + Gateway ครบ ไม่ซ้ำ · มีเครื่องลงท้ายเลขที่เธอ</div>
+    <div class="mi" data-k="m3"><b>③</b> ping แคชเชียร์ ↔ หลังร้าน = <b>ได้</b></div>
+    <div class="mi" data-k="m4"><b>④</b> ping 8.8.8.8 = <b>ออกเน็ตได้</b></div>
+    <div class="mi" data-k="m5"><b>⑤</b> ping เครื่องลูกค้า → แคชเชียร์ = <u>ต้องไม่ได้</u></div>
+    <div class="mi" data-k="m6"><b>⑥</b> ipconfig อ่านค่าเครื่อง (จดลงสมุดข้อ 1)</div>
+  </div>
 
   <!-- โหมด 4 ปุ่ม -->
   <div class="modebar">
@@ -88,10 +116,11 @@
     <span style="color:var(--utp)">■</span> UTP &nbsp;
     <span style="color:var(--fiber)">■</span> ไฟเบอร์ (Fiber) &nbsp;
     <span style="color:var(--wireless)">▦</span> ไร้สาย (Wireless)<br>
-    💡 ขั้นตอน: วางอุปกรณ์ → เชื่อมสาย → <b>ตั้ง IP</b> ที่ PC/Server → <b>ping</b> ใน Terminal · ตั้ง IP ผิดชนิดสื่อจะเชื่อมไม่ได้ (ดู "ต่อได้" ใต้อุปกรณ์)
+    💡 ขั้นตอน: วางอุปกรณ์ → เชื่อมสาย → <b>ตั้ง IP</b> ที่ PC/Server → <b>ping</b> ใน Terminal<br>
+    📸 <b>ส่งงาน:</b> แคปหน้าจอตอนภารกิจครบ (ต้องเห็น IP ที่ลงท้ายด้วยเลขที่ตัวเอง) ส่ง Classroom + จดผลลงสมุดข้อ 1–2
   </div>
 
-  <a class="back" href="index.html">← กลับหน้าหลัก</a>
+  <a class="back" href="../31909-0005/index.html">← สื่อวิชานี้</a>
 </div>
 
 <!-- IP config dialog -->
@@ -164,6 +193,22 @@
     </div>
     <div class="dlg-actions">
       <button class="btn primary" id="fwCancel">เสร็จ</button>
+    </div>
+  </div>
+</div>
+
+<!-- เลขที่ modal -->
+<div class="overlay" id="noOverlay">
+  <div class="dialog">
+    <h3>☕ ช่างที่ไปวางระบบร้านกาแฟ</h3>
+    <p class="dlg-note">ใส่เลขที่ตัวเอง → วง IP พนักงานของเธอ = 192.168.&lt;เลขที่&gt;.0 (กันลอก ครูตรวจจากภาพแคป)</p>
+    <label>เลขที่ (1–99)</label>
+    <input class="full" id="noInput" type="number" inputmode="numeric" min="1" max="99" placeholder="เช่น 7">
+    <label>ชื่อเล่น (ไม่บังคับ)</label>
+    <input class="full" id="noNick" type="text" placeholder="เช่น ก้อง" autocomplete="off">
+    <div class="dlg-err" id="noErr"></div>
+    <div class="dlg-actions">
+      <button class="btn primary" id="noOk">เริ่มงาน</button>
     </div>
   </div>
 </div>
@@ -474,6 +519,7 @@
       termPrint('IPv4 Address . . : ' + (n.ip || '(ยังไม่ตั้ง)'));
       termPrint('Subnet Mask  . . : ' + (n.ip ? E.mask : '-'));
       termPrint('Default Gateway  : ' + (n.gw || '(ยังไม่ตั้ง)'));
+      if (n.ip) missionHit('m6');
       return;
     }
     if (cmd === 'ping'){
@@ -490,22 +536,28 @@
   }
 
   function doPing(srcId, ip){
-    var net = E.netTarget(ip);      // 8.8.8.8 / google.com … = ปลายทางนอกวง (ออกอินเทอร์เน็ต)
+    var net = E.netTarget(ip);      // 8.8.8.8 / google.com … = ปลายทางนอกร้าน
     var res;
     if (net){
       res = E.pingNet(srcId, ip, function(){
         termPrint('ตอบกลับจาก ' + net.ip + ': เวลา ' + net.ms + 'ms TTL=' + net.ttl + ' (' + net.note + ')', 'ok');
         termPrint('📋 จดสมุด: ' + srcId + ' ping ' + ip + ' = ได้ — ออกอินเทอร์เน็ตผ่าน Router', 'note');
         showToast('✅ ออกเน็ตได้ (' + net.ms + 'ms)', 'ok');
+        missionHit('m4');
       });
     } else {
       res = E.ping(srcId, ip, function(r, hops){
         termPrint('ตอบกลับจาก ' + ip + ': สำเร็จ (' + hops + ' hop' + (r.routed ? ' · ข้ามวงผ่าน Router' : '') + ')', 'ok');
         termPrint('📋 จดสมุด: ' + srcId + ' ping ' + ip + ' = ได้ — ' + (r.sameNet ? 'วงเดียวกัน (subnet เดียวกัน)' : 'คนละวง ต้องผ่าน Router'), 'note');
         showToast('✅ ' + srcId + ' ส่งถึง ' + ip + ' แล้ว (' + hops + ' hop)', 'ok');
+        missionHit('m3');
       });
     }
-    if (res.ok){ termPrint('กำลัง ping ' + ip + ' ...'); statusEl.textContent = '📦 กำลัง ping ' + ip + ' จาก ' + srcId + ' ...'; return; }
+    if (res.ok){
+      // ติ๊กภารกิจทันทีที่ผลตัดสินแล้ว — ไม่รอ animation (เด็กสลับแอป/ล็อกจอ = rAF หยุด ติ๊กจะไม่ขึ้น)
+      missionHit(net ? 'm4' : 'm3');
+      termPrint('กำลัง ping ' + ip + ' ...'); statusEl.textContent = '📦 กำลัง ping ' + ip + ' จาก ' + srcId + ' ...'; return;
+    }
     var MSG = {
       srcnoip:  'เครื่องต้นทางยังไม่ได้ตั้ง IP — ไปโหมด "ตั้ง IP" แล้วแตะเครื่องนี้ก่อน',
       srcbad:   'IP ของเครื่องต้นทางผิดกฎ — ตั้งใหม่ก่อน',
@@ -514,7 +566,7 @@
       nohost:   'ไม่มีเครื่องใดใช้ IP ' + ip + ' (ยังไม่ได้ตั้ง หรือพิมพ์ผิด)',
       unwired:  'สายยังไม่เชื่อมถึงกัน — ไปโหมด "เชื่อม" ต่อสายให้ครบเส้นทางก่อน',
       diffnet:  'คนละวง (subnet ต่างกัน) — ต้องต่อผ่าน Router + ตั้ง Default Gateway',
-      firewall: 'สาย+วงถูกครบ แต่ 🛡️ Firewall ปลายทางบล็อกอยู่ — ไปโหมด "Firewall" แตะเครื่องนั้น เปิด Allow File and Printer Sharing ก่อน',
+      firewall: 'สาย+วงถูกครบ แต่ 🛡️ Firewall ปลายทางบล็อกอยู่ — ไปโหมด "Firewall" แตะเครื่องนั้นเพื่อเปิด/ปิด',
       noisp:    'ยังไม่มีเน็ตผู้ให้บริการ (ISP) บนผัง — วาง ISP แล้วต่อเข้า Router ก่อน',
       norouter: 'เส้นทางออกเน็ตไม่มี Router — ต้องผ่าน Router ถึงออกนอกวงได้',
       nogw:     'เครื่องนี้ยังไม่ได้ตั้ง Default Gateway — ออกนอกวงไม่ได้',
@@ -522,7 +574,12 @@
     };
     var m = MSG[res.reason] || 'ส่งไม่ถึง';
     termPrint('✗ Request timed out — ' + m, 'bad');
-    showToast('⛔ ปิงไม่สำเร็จ: ' + m, 'bad');   // เด้งเด่นกลางจอ — กันครู/เด็กมองไม่เห็นใน Terminal
+    showToast('⛔ ปิงไม่สำเร็จ: ' + m, 'bad');
+    // ⑤ ping ที่ "ต้องไม่ผ่าน" — นับเฉพาะกันได้ถูกหลัก (แยกวง / Firewall) ไม่นับผังพัง
+    if (!net && (res.reason === 'diffnet' || res.reason === 'firewall')){
+      termPrint('🔐 ข้อนี้ถูกแล้วถ้านี่คือเครื่องลูกค้า ping แคชเชียร์ — จดลงสมุดว่ากันด้วยวิธีไหน (' + (res.reason === 'diffnet' ? 'แยกวง' : 'Firewall') + ')', 'note');
+      missionHit('m5');
+    }
   }
 
   // HTTP status ที่เจอบ่อย — ไทย/อังกฤษคู่ (2xx สำเร็จ · 4xx Client Error · 5xx Server Error)
@@ -567,10 +624,84 @@
     });
   });
 
+  /* ===== ใบงานที่ 13 · เลขที่ + ภารกิจ 6 ข้อ ===== */
+  var LS = 'wk15-0005-mission';
+  var studentNo = 0, nickname = '', hit = { m3:false, m4:false, m5:false, m6:false };
+  var missEls = {};
+  Array.prototype.forEach.call(document.querySelectorAll('#miss .mi'), function(el){ missEls[el.dataset.k] = el; });
+
+  function msave(){ if (!studentNo) return; try{ localStorage.setItem(LS, JSON.stringify({ no:studentNo, nick:nickname, hit:hit })); }catch(e){} }
+  function mload(){
+    try{
+      var d = JSON.parse(localStorage.getItem(LS));
+      if (!d || !d.no) return false;
+      studentNo = d.no; nickname = d.nick || '';
+      if (d.hit) { hit.m3 = !!d.hit.m3; hit.m4 = !!d.hit.m4; hit.m5 = !!d.hit.m5; hit.m6 = !!d.hit.m6; }
+      return true;
+    }catch(e){ return false; }
+  }
+  function missionHit(k){ if (hit[k]) return; hit[k] = true; msave(); missionSync(); }
+
+  // ① ② คิดสดจากผังปัจจุบัน (แก้ผังแล้วติ๊กหายได้) · ③–⑥ จำจากผลทดสอบที่สำเร็จแล้ว
+  function structOk(){
+    var st = JSON.parse(E.exportState());
+    var pcs = st.nodes.filter(function(n){ return n.type === 'pc'; });
+    if (pcs.length < 3) return false;
+    var wired = {};
+    st.edges.forEach(function(e){ wired[e.a] = 1; wired[e.b] = 1; });
+    return pcs.every(function(n){ return !!wired[n.id]; });
+  }
+  function ipOk(){
+    if (!studentNo) return false;
+    var st = JSON.parse(E.exportState());
+    var hosts = st.nodes.filter(function(n){ return n.type === 'pc' || n.type === 'server'; });
+    if (hosts.length < 3) return false;
+    var seen = {}, mine = 0, seat = false, i, ip;
+    for (i = 0; i < hosts.length; i++){
+      ip = hosts[i].ip || '';
+      if (!ip || !hosts[i].gw) return false;                     // ต้องมี IP + Gateway ครบทุกเครื่อง
+      if (seen[ip]) return false;                                 // IP ซ้ำ = ไม่ผ่าน
+      seen[ip] = 1;
+      if (ip.indexOf('192.168.' + studentNo + '.') === 0) mine++; // อยู่วงพนักงานของเลขที่ตัวเอง
+      if (ip.split('.')[3] === String(studentNo)) seat = true;    // มีเครื่องลงท้ายเลขที่ (ครูตรวจจากภาพแคป)
+    }
+    return mine >= 2 && seat;
+  }
+  function missionSync(){
+    var ok = { m1: structOk(), m2: ipOk(), m3: hit.m3, m4: hit.m4, m5: hit.m5, m6: hit.m6 };
+    var n = 0;
+    Object.keys(missEls).forEach(function(k){
+      missEls[k].classList.toggle('done', !!ok[k]);
+      if (ok[k]) n++;
+    });
+    document.getElementById('missCount').textContent = n + '/6';
+  }
+
+  var meEl = document.getElementById('scnMe');
+  function showMe(){
+    meEl.innerHTML = (nickname ? ('<b>' + nickname + '</b> · ') : '') + 'เลขที่ <b>' + (studentNo || '—') + '</b> · ภารกิจ <b id="missCount">0/6</b>';
+    document.getElementById('myNet').textContent = studentNo ? ('192.168.' + studentNo + '.0') : '192.168.—.0';
+    document.getElementById('myGw').textContent  = studentNo ? ('192.168.' + studentNo + '.1') : '—';
+    document.getElementById('myGuest').textContent = studentNo ? ('192.168.' + (studentNo + 100) + '.0') : '—';
+    missionSync();
+  }
+  var noOverlay = document.getElementById('noOverlay');
+  function askNo(){ noOverlay.classList.add('show'); document.getElementById('noInput').value = studentNo || ''; }
+  document.getElementById('noOk').addEventListener('click', function(){
+    var v = parseInt(document.getElementById('noInput').value, 10);
+    var err = document.getElementById('noErr');
+    if (!(v >= 1 && v <= 99)){ err.textContent = 'ใส่เลขที่ 1–99'; return; }
+    err.textContent = '';
+    studentNo = v; nickname = (document.getElementById('noNick').value || '').trim().slice(0, 20);
+    noOverlay.classList.remove('show'); msave(); showMe();
+  });
+  document.getElementById('scnReset').addEventListener('click', askNo);
+
   // init engine ท้ายสุด (หลังประกาศ DOM refs + ฟังก์ชันครบ — callback onChange/refreshTerm เรียกได้ปลอดภัย)
   E.init(document.getElementById('canvas'), {
+    storeKey: 'wk15-0005-board',
     onStatus: function(m){ statusEl.textContent = m; },
-    onChange: function(n,e){ countsEl.textContent = 'อุปกรณ์ ' + n + ' · สาย ' + e; refreshTerm(); },
+    onChange: function(n,e){ countsEl.textContent = 'อุปกรณ์ ' + n + ' · สาย ' + e; refreshTerm(); missionSync(); },
     onToast: showToast,
     onConfig: function(id){ openCfg(id); },
     onWifi: function(apId, a, b, m){ openWifiConnect(apId, a, b, m); },
@@ -580,6 +711,7 @@
   // เริ่มที่โหมดวาง
   setMode('place');
   refreshTerm();
+  if (mload()) showMe(); else askNo();
 })();
 </script>
 </body>
