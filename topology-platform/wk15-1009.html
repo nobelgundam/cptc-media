@@ -283,7 +283,7 @@
     lines.push('Subnet Mask : ' + maskOf(n.ip));
     lines.push('Default Gateway : ' + (n.gw || '(ไม่ได้ตั้ง)'));
     var dup = dupIpOf(id, st.nodes);
-    if (dup) lines.push('ข้อความจาก Windows : พบ IP ซ้ำกับ "' + dup + '" ในวงเดียวกัน');
+    if (dup) lines.push('ข้อความจาก Windows : ตรวจพบ IP ซ้ำในวงนี้ (ไม่บอกว่าเครื่องไหน — ไล่เทียบเอง)');
     var okAll = wired && !loose && n.ip && n.ip.indexOf(NET + '.') === 0 && n.gw === GW && !dup;
     if (okAll) lines.push('— ค่าครบถูกต้องแล้ว ลอง ping ยืนยันอีกที —');
     return { txt: lines.join(String.fromCharCode(10)), ok: okAll };
@@ -403,8 +403,8 @@
     badtarget:'→ ไอพีปลายทางที่พิมพ์ผิดรูปแบบ',
     self:     '→ นี่คือ IP ของเครื่องตัวเอง',
     nohost:   '→ ไม่พบเครื่องที่ใช้ IP นี้ในร้าน',
-    unwired:  '→ ไม่มีสายเชื่อมถึงกัน (ขั้นที่ 1 กายภาพ — ไฟช่อง LAN ไม่ติด)',
-    diffnet:  '→ ปลายทางอยู่คนละวง หรือยังไม่ได้ตั้ง Gateway (ขั้นที่ 2-3)',
+    unwired:  '→ ส่งไม่ถึงปลายทาง — ไล่ตั้งแต่ขั้นที่ 1 กายภาพก่อน',
+    diffnet:  '→ ออกไปหาปลายทางนี้ไม่ได้ — เทียบค่า IP กับ Gateway ของสองเครื่องดู',
     firewall: '→ สายครบ วงเดียวกัน แต่ Firewall ปลายทางบล็อกอยู่',
     dns:      '→ ระบบยังไม่รู้จักชื่อปลายทางนี้ — ลอง ping 8.8.8.8',
     noisp:    '→ ร้านไม่มีเน็ตผู้ให้บริการเชื่อมอยู่',
