@@ -89,8 +89,9 @@
     </div>
     <div class="term-out" id="termOut"><div class="th">เริ่มจาก <b>ipconfig</b> ดูค่าเครื่องก่อน แล้วค่อย <b>ping</b> — ping ในวงใช้ IP เครื่องอื่น · ออกเน็ตใช้ <b>ping 8.8.8.8</b></div></div>
     <div class="term-chips">
-      <button data-run="ipconfig">ipconfig</button>
-      <button data-run="ping 8.8.8.8">ping 8.8.8.8</button>
+      <button data-run="ipconfig">ipconfig (ดูค่าเครื่องนี้)</button>
+      <button data-run="ping 8.8.8.8">ping 8.8.8.8 (ออกเน็ต)</button>
+      <button data-run="ping 192.168.1.11">ping เครื่อง 1 (ในร้าน)</button>
     </div>
     <div class="term-in">
       <span class="prompt" id="termPrompt">&gt;</span>
@@ -132,7 +133,9 @@
     <input class="full" id="ipVal" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="192.168.1.x">
     <label>Default Gateway (ประตูออกนอกวง)</label>
     <input class="full" id="gwVal" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="192.168.1.1">
-    <div class="hintbox">🩺 <b>ผลตรวจ</b><div class="diag" id="ipDiag">—</div></div>
+    <div class="hintbox">🩺 <b>ค่าที่อ่านได้จากหน้าเครื่อง</b> (แปลเองด้วยโพยช่างท้ายจอ)<div class="diag" id="ipDiag">—</div></div>
+    <button class="btn" id="hintBtn" style="width:100%;margin-top:8px">💡 ขอคำใบ้ (เป็นคำถามชวนคิด ไม่ใช่คำตอบ)</button>
+    <div class="hintbox" id="hintBox" style="display:none"></div>
     <div class="dlg-err" id="ipErr"></div>
     <div class="dlg-actions">
       <button class="btn" id="ipCancel">ปิด</button>
@@ -270,33 +273,33 @@
   SYMPTOM[P5] = 'ลูกค้าแจ้ง: เข้าอะไรไม่ได้เลย ไฟที่ช่องเสียบสาย LAN ไม่ติด';
   SYMPTOM[P6] = 'ลูกค้าแจ้ง: เข้าได้บ้างไม่ได้บ้าง เดี๋ยวหลุดเดี๋ยวมา (ขยับสายแล้วหลุด)';
 
-  // โชว์ "ทุกปัญหาที่เจอ" เรียงตามบันได: กายภาพ → ที่อยู่ → ประตูออก
+  // 🩺 ผลตรวจ = "ค่าที่ช่างอ่านได้จากหน้าเครื่อง" เท่านั้น — ห้ามตีความ/ห้ามบอกวิธีแก้
+  // ข้อ 1-3 ในใบงาน (6 คะแนน) คือให้เด็กแปลค่าพวกนี้เอง โดยเทียบกับโพยช่าง ถ้าจอเฉลย = ลอกจอลงสมุด
   function diagOf(id){
     var n = E.getNode(id); if (!n) return { txt:'—', ok:true };
     var st = JSON.parse(E.exportState());
-    var found = [];
-    if (!st.edges.some(function(e){ return e.a===id || e.b===id; }))
-      found.push('❌ ขั้นที่ 1 กายภาพ: ไม่พบสายเชื่อมกับสวิตช์ — ไฟช่อง LAN ไม่ติด');
-    else if (st.edges.some(function(e){ return e.id === LOOSE && (e.a===id || e.b===id); }))
-      found.push('⚠️ ขั้นที่ 1 กายภาพ: สายเส้นนี้ "หลวม" ขยับแล้วหลุด — ต้องตัดทิ้งแล้วต่อเส้นใหม่');
-    if (!n.ip) found.push('❌ ขั้นที่ 2 ที่อยู่: ยังไม่ได้ตั้ง IP');
-    else if (n.ip.indexOf('169.254.') === 0)
-      found.push('❌ ขั้นที่ 2 ที่อยู่: IP ขึ้นต้น 169.254 = เครื่องตั้งเลขให้ตัวเอง เพราะขอจากเราเตอร์ไม่ได้');
-    else if (n.ip.indexOf(NET + '.') !== 0)
-      found.push('❌ ขั้นที่ 2 ที่อยู่: IP อยู่คนละวงกับร้าน (ต้องขึ้นต้น ' + NET + '.)');
-    else {
-      var dup = dupIpOf(id, st.nodes);
-      if (dup) found.push('⚠️ ขั้นที่ 2 ที่อยู่: IP ซ้ำกับ "' + dup + '" — ทั้งคู่จะสลับกันหลุด (IP conflict)');
-    }
-    if (studentNo && id === P5 && n.ip && n.ip.indexOf(NET + '.') === 0 && n.ip !== ip5())
-      found.push('⚠️ เลขไม่ใช่ของเธอ: เครื่อง 5 ของเลขที่ ' + studentNo + ' ต้องเป็น ' + ip5());
-    if (studentNo && id === P6 && n.ip && n.ip.indexOf(NET + '.') === 0 && n.ip !== ip6())
-      found.push('⚠️ เลขไม่ใช่ของเธอ: เครื่อง 6 ของเลขที่ ' + studentNo + ' ต้องเป็น ' + ip6());
-    if (!n.gw) found.push('⚠️ ขั้นที่ 3 ประตูออก: ไม่ได้ตั้ง Gateway — คุยในร้านได้ แต่ออกเน็ต/เข้าเกมออนไลน์ไม่ได้');
-    else if (n.gw !== GW) found.push('⚠️ ขั้นที่ 3 ประตูออก: Gateway ผิด (ประตูจริงคือ ' + GW + ')');
-    if (!found.length) return { txt:'✅ ค่าพื้นฐานครบถูกต้อง (สาย · IP · Gateway)', ok:true };
-    return { txt: found.join(String.fromCharCode(10)), ok:false };
+    var wired = st.edges.some(function(e){ return e.a===id || e.b===id; });
+    var loose = st.edges.some(function(e){ return e.id === LOOSE && (e.a===id || e.b===id); });
+    var lines = [];
+    lines.push('ไฟช่อง LAN : ' + (!wired ? 'ไม่ติด' : (loose ? 'ติด แต่ขยับสายแล้วดับ' : 'ติดปกติ')));
+    lines.push('IP Address : ' + (n.ip || '(ไม่ได้ตั้ง)'));
+    lines.push('Subnet Mask : ' + maskOf(n.ip));
+    lines.push('Default Gateway : ' + (n.gw || '(ไม่ได้ตั้ง)'));
+    var dup = dupIpOf(id, st.nodes);
+    if (dup) lines.push('ข้อความจาก Windows : พบ IP ซ้ำกับ "' + dup + '" ในวงเดียวกัน');
+    var okAll = wired && !loose && n.ip && n.ip.indexOf(NET + '.') === 0 && n.gw === GW && !dup;
+    if (okAll) lines.push('— ค่าครบถูกต้องแล้ว ลอง ping ยืนยันอีกที —');
+    return { txt: lines.join(String.fromCharCode(10)), ok: okAll };
   }
+
+  // 💡 คำใบ้ = คำถามชวนคิด ไม่ใช่คำตอบ (ปวช.1 พื้นอ่อน — scaffold ที่ "ขั้นตอน" ไม่ใช่ที่ "เฉลย")
+  var HINT = {};
+  HINT[P4] = 'เครื่องนี้ ping เครื่อง 1 ในร้านได้ไหม แล้ว ping 8.8.8.8 ได้ไหม · สองอันนี้ต่างกันตรงไหน ค่าไหนบนหน้าจอที่หายไป';
+  HINT[P5] = 'IP ขึ้นต้นด้วยอะไร เปิดโพยดูว่าเลขแบบนี้แปลว่าอะไร · แล้วไฟช่อง LAN บอกอะไรเรื่องสาย';
+  HINT[P6] = 'ลองเทียบ IP เครื่องนี้กับเครื่อง 1-5 ทีละตัว · แล้วอ่านบรรทัดไฟ LAN ให้ดี ที่นี่ไม่ได้พังอย่างเดียว';
+  HINT[P1] = 'เครื่องนี้ปกติ ใช้เป็นตัวเทียบว่า "ค่าที่ถูก" หน้าตาเป็นยังไง';
+  HINT[P2] = 'เครื่องนี้เล่นได้ปกติ แต่ IP ของมันไปพัวพันกับเครื่องอื่นหรือเปล่า';
+  HINT[P3] = 'เครื่องนี้ปกติ ใช้เป็นตัวเทียบได้';
 
   function openCfg(id){
     var n = E.getNode(id); if (!n) return;
@@ -311,8 +314,14 @@
       .map(function(x){ return x.replace(/&/g,'&amp;').replace(/</g,'&lt;'); }).join('<br>');
     dg.className = 'diag' + (d.ok ? ' ok' : '');
     document.getElementById('ipErr').textContent = '';
+    document.getElementById('hintBox').style.display = 'none';   // คำใบ้ต้องกดขอใหม่ทุกเครื่อง
     ipOverlay.classList.add('show');
   }
+  document.getElementById('hintBtn').onclick = function(){
+    var hb = document.getElementById('hintBox');
+    hb.innerHTML = '💡 ' + (HINT[curId] || 'ไล่ตามลำดับ: สาย → IP → Gateway');
+    hb.style.display = 'block';
+  };
   document.getElementById('ipCancel').onclick = function(){ ipOverlay.classList.remove('show'); };
   document.getElementById('ipSave').onclick = function(){
     var ip = document.getElementById('ipVal').value.trim();
