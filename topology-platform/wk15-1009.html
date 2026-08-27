@@ -409,7 +409,7 @@
     dns:      '→ ระบบยังไม่รู้จักชื่อปลายทางนี้ — ลอง ping 8.8.8.8',
     noisp:    '→ ร้านไม่มีเน็ตผู้ให้บริการเชื่อมอยู่',
     norouter: '→ เส้นทางออกเน็ตไม่ผ่านเราเตอร์',
-    nogw:     '→ ไม่มี Default Gateway = ไม่มีประตูออกนอกวง (ขั้นที่ 3) — นี่คืออาการของเครื่อง 4'
+    nogw:     '→ เครื่องนี้ไม่มี Default Gateway'
   };
   function doPing(srcId, ip){
     var src = E.getNode(srcId);
@@ -492,7 +492,7 @@
     E.setMode(which);
     if (which === 'config') statusEl.textContent = 'แตะเครื่องที่ลูกค้าบ่นเพื่อดูผลตรวจ + แก้ค่า';
     else if (which === 'connect') statusEl.textContent = '🔗 แตะอุปกรณ์ 2 ตัวที่ต้องการเชื่อมสาย (เช่น สวิตช์ กับ เครื่องที่ไฟ LAN ไม่ติด)';
-    else statusEl.textContent = '✂️ แตะเส้นสายที่ต้องการตัดทิ้ง (สายหลวมต้องตัดแล้วต่อใหม่)';
+    else statusEl.textContent = '✂️ แตะเส้นสายที่ต้องการตัดทิ้ง';
   }
   mCfg.onclick  = function(){ setModeUI('config'); };
   mLink.onclick = function(){ setModeUI('connect'); };
