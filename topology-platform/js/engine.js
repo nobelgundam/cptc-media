@@ -448,17 +448,27 @@
     });
   }
 
+  /* ⚠️ requestAnimationFrame หยุดสนิทเมื่อแท็บถูกซ่อน/ล็อกจอ (verify บนเครื่องจริง 29 ส.ค.:
+   * visibilityState=hidden → 0 เฟรมใน 1.5 วิ) — เด็กสลับไปเปิด Classroom กลางคาบแล้วกลับมา
+   * จะค้างที่ "กำลัง ping ..." ไม่มีบรรทัดผลลัพธ์ให้จด · จึงต้องมีนาฬิกาสำรองปิดงานให้เสมอ */
   function animatePacketAlongPath(pathEl, packetEl, durationMs, onComplete) {
-    var total = pathEl.getTotalLength(), start = null;
+    var total = pathEl.getTotalLength(), start = null, finished = false;
+    function finish() {
+      if (finished) return;
+      finished = true;
+      if (typeof onComplete === 'function') onComplete();
+    }
     function step(ts) {
+      if (finished) return;
       if (start === null) start = ts;
       var t = (ts - start) / durationMs; if (t > 1) t = 1;
       var pt = pathEl.getPointAtLength(t * total);
       packetEl.setAttribute('cx', pt.x); packetEl.setAttribute('cy', pt.y);
       if (t < 1) requestAnimationFrame(step);
-      else if (typeof onComplete === 'function') onComplete();
+      else finish();
     }
     requestAnimationFrame(step);
+    setTimeout(finish, durationMs + 400);     // จอดับ/สลับแอปก็ยังได้ผลลัพธ์
   }
 
   /* ================= IP / Terminal subsystem (ปวช.1/ปวส.1 เบื้องต้น) ================= */

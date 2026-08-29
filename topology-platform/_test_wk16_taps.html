@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="th">
+<head><meta charset="UTF-8"><title>test wk16 — เด็กกดจริงบนจอ</title></head>
+<body>
+<iframe id="fr" src="wk16-1009.html" style="width:900px;height:1400px;border:1px solid #ccc"></iframe>
+<pre id="out">running…</pre>
+<script>
+/* เทสนี้ไม่เรียก API ของ engine ตรง ๆ เลย — แตะบนจอ กรอกช่อง กดปุ่ม เหมือนเด็กทำจริงทุกขั้น
+ * เพื่อพิสูจน์ว่า "เด็กทำภารกิจจนจบได้ด้วยการกดอย่างเดียว" */
+var log = [], pass = 0, fail = 0, steps = 0;
+function ok(n, c, x){ (c ? pass++ : fail++); log.push((c ? 'PASS ' : 'FAIL ') + n + (x ? ' | ' + x : '')); }
+function finish(){
+  document.getElementById('out').textContent = log.join('\n') + '\nกดทั้งหมด ' + steps + ' ครั้ง\nRESULT pass=' + pass + ' fail=' + fail;
+  document.title = 'RESULT pass=' + pass + ' fail=' + fail;
+}
+var NO = 7, NET = '192.168.1', GW = NET + '.1', PRN_IP = NET + '.200';
+var ACC='บัญชี', SALE='ขาย', TECH='ช่าง', PRN='เครื่องพิมพ์กลาง';
+var IP_ACC = NET + '.' + (NO + 10), IP_SALE = NET + '.' + (NO + 40), IP_TECH = NET + '.' + (NO + 70);
+var w, d;
+
+function tapNode(id){
+  var g = d.querySelector('.node[data-id="' + id + '"]');
+  if (!g) return false;
+  var hit = g.querySelector('.node-hit');
+  var r = hit.getBoundingClientRect();
+  var opt = { bubbles:true, cancelable:true, pointerId:1, clientX:r.left + r.width/2, clientY:r.top + r.height/2 };
+  hit.dispatchEvent(new PointerEvent('pointerdown', opt));
+  hit.dispatchEvent(new PointerEvent('pointerup', opt));
+  steps++;
+  return true;
+}
+function click(id){ var el = d.getElementById(id); if (el){ el.click(); steps++; return true; } return false; }
+function type(id, v){ var el = d.getElementById(id); if (el){ el.value = v; steps++; return true; } return false; }
+function doneCount(){ return d.querySelectorAll('.case.done').length; }
+function shown(id){ var el = d.getElementById(id); return !!el && el.classList.contains('show'); }
+
+document.getElementById('fr').addEventListener('load', function(){
+  var fr = document.getElementById('fr'); w = fr.contentWindow; d = fr.contentDocument;
+  try { w.localStorage.clear(); } catch(e){}
+  setTimeout(start, 350);
+});
+
+function start(){
+  /* ① ใส่เลขที่ */
+  type('noInput', String(NO)); click('noOk');
+  ok('1 กรอกเลขที่แล้วเข้าภารกิจได้', !shown('noOverlay'));
+  ok('1b ผังขึ้นบนจอ ครบ 7 อุปกรณ์', d.querySelectorAll('#canvas .node').length === 7,
+     'nodes บนจอ=' + d.querySelectorAll('#canvas .node').length);
+
+  /* ② เคส A — แตะเครื่องแผนกขาย กรอก IP ใหม่ กดบันทึก */
+  ok('2 แตะเครื่องแผนกขายแล้วหน้าต่างตั้งค่าเปิด', tapNode(SALE) && shown('ipOverlay'));
+  ok('2b หน้าต่างโชว์ค่าเดิมที่ผิดให้เห็น', (d.getElementById('ipVal').value || '').indexOf('192.168.2.') === 0,
+     d.getElementById('ipVal').value);
+  type('ipVal', IP_SALE); type('gwVal', GW); click('ipSave');
+  ok('2c กดบันทึกแล้วหน้าต่างปิด', !shown('ipOverlay'), d.getElementById('ipErr').textContent);
+  ok('2d ระบบเลือกเครื่องที่เพิ่งแก้ใน Terminal ให้เลย', d.getElementById('srcSel').value === SALE,
+     d.getElementById('srcSel').value);
+
+  /* ③ เคส B — แตะเครื่องพิมพ์ (อยู่ในโหมดตั้ง IP) ต้องเด้งหน้า Firewall ให้เอง */
+  ok('3 แตะเครื่องพิมพ์ในโหมดตั้ง IP แล้วเด้งหน้า Firewall ให้', tapNode(PRN) && shown('fwOverlay'));
+  var openBtn = d.querySelector('#fwRow button[data-block="false"]');
+  openBtn.click(); steps++;
+  ok('3b กดเปิด Allow File and Printer Sharing แล้วหน้าต่างปิด', !shown('fwOverlay'));
+
+  /* ④ เคส C — แตะเครื่องแผนกช่าง ตั้ง IP + Gateway */
+  ok('4 แตะเครื่องแผนกช่างแล้วหน้าต่างเปิด', tapNode(TECH) && shown('ipOverlay'));
+  ok('4b เครื่องนี้ยังไม่มีค่าอะไรเลย', !d.getElementById('ipVal').value);
+  type('ipVal', IP_TECH); type('gwVal', GW); click('ipSave');
+  ok('4c บันทึกผ่าน', !shown('ipOverlay'), d.getElementById('ipErr').textContent);
+
+  setTimeout(afterFix, 1600);
+}
+
+function afterFix(){
+  ok('5 แก้ครบแล้วแต่ยังไม่ยิง ping = ยังไม่ติ๊กสักเคส', doneCount() === 0, 'done=' + doneCount());
+
+  /* ⑤ ยิง ping ทีละเครื่อง ด้วยปุ่มลัด + ปุ่มรัน เหมือนเด็กจริง */
+  pingVia(SALE, IP_ACC);
+  setTimeout(function(){ pingVia(ACC, PRN_IP); }, 700);
+  setTimeout(function(){ pingViaChip(TECH); }, 1400);
+  setTimeout(done, 3200);
+}
+function pingVia(src, target){
+  d.getElementById('srcSel').value = src; steps++;
+  type('cmd', 'ping ' + target); click('runBtn');
+}
+function pingViaChip(src){
+  d.getElementById('srcSel').value = src; steps++;
+  var chip = d.querySelector('.term-chips [data-fill="ping 8.8.8.8"]');
+  chip.click(); steps++;                       // ปุ่มลัดเติมคำสั่งให้
+  click('runBtn');                             // เด็กต้องกดรันเอง
+}
+
+function done(){
+  ok('6 ยิง ping ครบ 3 เครื่องแล้ว ติ๊กครบ 3 เคส', doneCount() === 3, 'done=' + doneCount());
+  ok('6b ตัวนับหัวข้อขึ้น 3/3', (d.getElementById('caseCount')||{}).textContent === '(3/3)',
+     (d.getElementById('caseCount')||{}).textContent);
+  ok('6c ข้อความฉลองขึ้น', /ใช้งานได้ครบ/.test(d.getElementById('winMsg').textContent || ''),
+     (d.getElementById('winMsg').textContent || '').slice(0, 40));
+  var saved = {};
+  try { saved = JSON.parse(w.localStorage.getItem('wk16-1009-mission') || '{}'); } catch(e){}
+  ok('6d ผลถูกบันทึก กลับมาเปิดใหม่ยังอยู่', saved.done && saved.done.A && saved.done.B && saved.done.C,
+     JSON.stringify(saved.done || {}));
+  ok('6e Terminal มีบรรทัดผลลัพธ์ให้เด็กจดลงสมุด',
+     /ตอบกลับจาก/.test(d.getElementById('termOut').textContent || ''));
+  finish();
+}
+setTimeout(function(){ if (!/RESULT/.test(document.title)){ ok('เทสจบทัน', false, 'timeout'); finish(); } }, 15000);
+</script>
+</body>
+</html>
