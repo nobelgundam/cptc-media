@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="th">
+<head><meta charset="UTF-8"><title>test wk16 mission</title></head>
+<body>
+<iframe id="fr" src="wk16-1009.html" style="width:1000px;height:900px;border:1px solid #ccc"></iframe>
+<pre id="out">running…</pre>
+<script>
+var log = [], pass = 0, fail = 0;
+function ok(n, c, x){ (c ? pass++ : fail++); log.push((c ? 'PASS ' : 'FAIL ') + n + (x ? ' | ' + x : '')); }
+function finish(){
+  document.getElementById('out').textContent = log.join('\n') + '\nRESULT pass=' + pass + ' fail=' + fail;
+  document.title = 'RESULT pass=' + pass + ' fail=' + fail;
+}
+var NO = 7, NET = '192.168.1', GW = NET + '.1', PRN_IP = NET + '.200';
+var ACC='บัญชี', SALE='ขาย', TECH='ช่าง', PRN='เครื่องพิมพ์กลาง';
+var IP_ACC = NET + '.' + (NO + 10), IP_SALE = NET + '.' + (NO + 40), IP_TECH = NET + '.' + (NO + 70);
+var w, d, E;
+
+function pingFrom(src, target){
+  d.getElementById('srcSel').value = src;
+  d.getElementById('cmd').value = 'ping ' + target;
+  d.getElementById('runBtn').click();
+}
+function doneCount(){ return d.querySelectorAll('.case.done').length; }
+
+document.getElementById('fr').addEventListener('load', function(){
+  var fr = document.getElementById('fr'); w = fr.contentWindow; d = fr.contentDocument;
+  try { w.localStorage.clear(); } catch(e){}
+  setTimeout(step1, 300);
+});
+
+function step1(){
+  var ov = d.getElementById('noOverlay');
+  ok('1 ถามเลขที่ก่อนเริ่ม', ov && ov.classList.contains('show'));
+  d.getElementById('noInput').value = String(NO);
+  d.getElementById('noOk').click();
+  ok('1b กรอกแล้วเข้าภารกิจ', !ov.classList.contains('show'));
+
+  E = w.NetSimEngine;
+  var st = JSON.parse(E.exportState());
+  ok('2 ผังตั้งต้น 7 อุปกรณ์ · สาย 6 เส้น', st.nodes.length === 7 && st.edges.length === 6,
+     'nodes=' + st.nodes.length + ' edges=' + st.edges.length);
+
+  ok('3 ตั้งต้น: ขายอยู่คนละวง คุยกับบัญชีไม่ได้', !E.canPing(SALE, IP_ACC).ok, E.canPing(SALE, IP_ACC).reason);
+  ok('3b ตั้งต้น: บัญชี ping เครื่องพิมพ์ไม่ได้ (Firewall)', !E.canPing(ACC, PRN_IP).ok, E.canPing(ACC, PRN_IP).reason);
+  ok('3c ตั้งต้น: ช่างยังไม่มี IP', !(E.getNode(TECH) || {}).ip);
+  ok('3d ตั้งต้น: ไม่มีเคสไหนติ๊กเขียว', doneCount() === 0);
+  ok('3e กล่องเป้าหมายบอกเป็นสูตร ไม่ใช่เลขสำเร็จ',
+     d.getElementById('targetBox').textContent.indexOf(IP_SALE) === -1, 'ไม่ควรมี ' + IP_SALE + ' โผล่บนจอ');
+
+  /* ---- แก้ค่าทั้ง 3 เคสให้ถูก แต่ยังไม่ยิง ping ---- */
+  E.setNodeIP(SALE, IP_SALE, GW);
+  ok('4 ขายย้ายวงแล้วคุยกับบัญชีได้ (ไม่ต้องรอแก้ Firewall)', E.canPing(SALE, IP_ACC).ok);
+  ok('4b แต่ยังถึงเครื่องพิมพ์ไม่ได้ เพราะ Firewall ยังบล็อก', !E.canPing(SALE, PRN_IP).ok, E.canPing(SALE, PRN_IP).reason);
+  E.setFirewall(PRN, false);
+  E.setNodeIP(TECH, IP_TECH, GW);
+  ok('5 ค่าถูกครบแล้ว: บัญชีถึงเครื่องพิมพ์ · ช่างออกเน็ตได้', E.canPing(ACC, PRN_IP).ok && E.canReachNet(TECH).ok);
+
+  setTimeout(step2, 1800);   // ปล่อยให้ตัวตรวจอัตโนมัติ (ทุก 1.2 วิ) หมุนไปอย่างน้อย 1 รอบ
+}
+
+function step2(){
+  ok('6 แก้ถูกแล้วแต่ยังไม่ยิง ping = ยังไม่ติ๊กสักเคส (กันก๊อปเลขใส่แล้วผ่าน)', doneCount() === 0, 'done=' + doneCount());
+  pingFrom(SALE, IP_ACC);
+  setTimeout(function(){ pingFrom(ACC, PRN_IP); }, 900);
+  setTimeout(function(){ pingFrom(TECH, '8.8.8.8'); }, 1800);
+  setTimeout(step3, 5200);
+}
+
+function step3(){
+  ok('7 ยิง ping ครบ 3 เครื่องแล้ว ติ๊กครบ 3 เคส', doneCount() === 3, 'done=' + doneCount());
+  var saved = {};
+  try { saved = JSON.parse(w.localStorage.getItem('wk16-1009-mission') || '{}'); } catch(e){}
+  ok('7b ผลถูกบันทึกไว้ ไม่หายเวลารีเฟรช', saved.done && saved.done.A && saved.done.B && saved.done.C,
+     JSON.stringify(saved.done || {}));
+  ok('7c ตัวนับบนหัวข้อขึ้น 3/3', (d.getElementById('caseCount') || {}).textContent === '(3/3)',
+     (d.getElementById('caseCount') || {}).textContent);
+
+  /* ---- องค์ประกอบที่ครู/เด็กต้องใช้ ---- */
+  ok('8 มีปุ่มโหมด Firewall', !!d.getElementById('mFw'));
+  ok('8b มีปุ่มเริ่มใหม่', !!d.getElementById('scnReset'));
+  ok('8c ปุ่มลัด terminal เป็นแบบเติมคำสั่ง', d.querySelectorAll('.term-chips [data-run]').length === 0);
+  ok('8d มีคำสั่ง tracert ให้ใช้', !!d.querySelector('.term-chips [data-fill^="tracert"]'));
+  ok('8e กล่องเคสพับเก็บได้ (ประหยัดจอมือถือ)', !!d.querySelector('details.casewrap'));
+  ok('8f ช่อง Gateway ไม่ใบ้คำตอบใน placeholder',
+     (d.getElementById('gwVal').getAttribute('placeholder') || '').indexOf('192.168') === -1,
+     d.getElementById('gwVal').getAttribute('placeholder'));
+  finish();
+}
+setTimeout(function(){ if (!/RESULT/.test(document.title)){ ok('เทสจบทัน', false, 'timeout'); finish(); } }, 16000);
+</script>
+</body>
+</html>

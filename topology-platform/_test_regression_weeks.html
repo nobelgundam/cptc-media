@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="th">
+<head><meta charset="UTF-8"><title>regression: ไฟล์ภารกิจรายสัปดาห์</title></head>
+<body>
+<div id="host"></div>
+<pre id="out">running…</pre>
+<script>
+/* ตรวจว่าไฟล์ภารกิจเก่าที่แชร์ js/engine.js ยังทำงานถูกหลังแก้ engine
+ * (BFS ห้ามทะลุ PC · router ตั้ง IP ได้ · ข้อความ error ใหม่) */
+var log = [], pass = 0, fail = 0;
+function ok(name, cond, extra){ (cond ? pass++ : fail++); log.push((cond ? 'PASS ' : 'FAIL ') + name + (extra ? ' | ' + extra : '')); }
+function done(){
+  document.getElementById('out').textContent = log.join('\n') + '\nRESULT pass=' + pass + ' fail=' + fail;
+  document.title = 'RESULT pass=' + pass + ' fail=' + fail;
+}
+
+var FILES = [
+  { f: 'wk8-1009.html',  no: 7 },
+  { f: 'wk10-1009.html', no: 7 },
+  { f: 'wk12-1009.html', no: 7 },
+  { f: 'wk15-1009.html', no: 7 },
+  { f: 'wk9-0005.html',  no: 7 },
+  { f: 'wk10-0005.html', no: 7 },
+  { f: 'wk12-0005.html', no: 7 },
+  { f: 'wk13-0005.html', no: 7 },
+  { f: 'wk15-0005.html', no: 7 }
+];
+var idx = 0;
+
+function checkOne(spec, w, d){
+  var E = w.NetSimEngine;
+  var name = spec.f;
+  if (!E){ ok(name + ' : engine โหลดได้', false); return; }
+  ok(name + ' : engine โหลดได้', true);
+
+  var st = { nodes: [], edges: [] };
+  try { st = JSON.parse(E.exportState()) || st; } catch(e){}
+  st.nodes = st.nodes || []; st.edges = st.edges || [];
+  var hasPreset = /PRESET/.test(spec.src || '');
+  if (hasPreset) ok(name + ' : ผังตั้งต้นยังโหลดขึ้นกระดาน', st.nodes.length > 0, 'nodes=' + st.nodes.length);
+  else ok(name + ' : ภารกิจแบบสร้างผังเอง (ไม่มี preset) — กระดานว่างถูกต้อง', st.nodes.length === 0, 'nodes=' + st.nodes.length);
+
+  // ทุกโหนดที่เป็น PC/Server ต้องต่อผ่านอุปกรณ์กลาง ไม่ใช่ต่อ PC-PC ตรง (ไม่งั้น BFS ใหม่จะทำภารกิจพัง)
+  var typeOf = {};
+  st.nodes.forEach(function(n){ typeOf[n.id] = n.type; });
+  var endpoint = { pc:1, server:1 };
+  var badEdge = (st.edges || []).filter(function(e){ return endpoint[typeOf[e.a]] && endpoint[typeOf[e.b]]; });
+  ok(name + ' : ไม่มีสาย PC-PC ต่อตรง (ผังตั้งต้นยังใช้ได้กับ BFS ใหม่)', badEdge.length === 0,
+     badEdge.map(function(e){ return e.a + '-' + e.b; }).join(','));
+
+  // เครื่องที่ตั้ง IP ถูกและอยู่วงเดียวกัน + ต่อผ่านสวิตช์ ต้อง ping กันได้อย่างน้อย 1 คู่
+  var withIp = st.nodes.filter(function(n){ return n.ip && endpoint[n.type]; });
+  var okPair = false, tried = 0, sample = '';
+  for (var i = 0; i < withIp.length && !okPair; i++){
+    for (var j = 0; j < withIp.length; j++){
+      if (i === j) continue;
+      tried++;
+      var r = E.ping(withIp[i].id, withIp[j].ip);
+      if (r && r.ok){ okPair = true; sample = withIp[i].id + '→' + withIp[j].ip; break; }
+    }
+  }
+  ok(name + ' : ยังมีคู่ที่ ping ถึงกันได้', okPair || withIp.length < 2, sample || ('ลอง ' + tried + ' คู่'));
+
+  // router (ถ้ามีในผัง) ต้องมี IP ตั้งไว้ได้จริง
+  var routers = st.nodes.filter(function(n){ return n.type === 'router'; });
+  if (routers.length){
+    ok(name + ' : router ในผังมี IP', !!routers[0].ip, 'ip=' + routers[0].ip);
+  }
+}
+
+function next(){
+  if (idx >= FILES.length){ done(); return; }
+  var spec = FILES[idx++];
+  var fr = document.createElement('iframe');
+  fr.style.cssText = 'width:900px;height:500px;border:0;position:absolute;left:-9999px';
+  fr.src = spec.f;
+  var settled = false;
+  fr.addEventListener('load', function(){
+    setTimeout(function(){
+      if (settled) return; settled = true;
+      try { spec.src = fr.contentDocument.documentElement.innerHTML; checkOne(spec, fr.contentWindow, fr.contentDocument); }
+      catch (e){ ok(spec.f + ' : รันได้ไม่มี exception', false, String(e).slice(0, 90)); }
+      fr.remove();
+      next();
+    }, 350);
+  });
+  document.getElementById('host').appendChild(fr);
+  setTimeout(function(){ if (!settled){ settled = true; ok(spec.f + ' : โหลดหน้าได้', false, 'timeout'); fr.remove(); next(); } }, 4000);
+}
+next();
+</script>
+</body>
+</html>

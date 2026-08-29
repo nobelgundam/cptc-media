@@ -145,7 +145,12 @@
     attachNode(hit, g, n);
   }
 
+  var MAX_NODES = 40;              // กันเด็กแตะรัวจนกระดานรก/ลากหนืด (ภารกิจจริงใช้ 5-12 ตัว)
   function addNode(type, x, y) {
+    if (state.nodes.length >= MAX_NODES) {
+      toast('กระดานเต็มแล้ว (สูงสุด ' + MAX_NODES + ' ตัว) — ลบตัวที่ไม่ใช้ก่อน', 'bad');
+      return null;
+    }
     var n = { id: nextId(type), type: type, x: Math.round(x), y: Math.round(y) };
     state.nodes.push(n);
     renderNode(n);
@@ -317,7 +322,7 @@
       if (res.ok) {
         var op = openAp(first, id, media);
         toast('เชื่อม ' + first + ' ↔ ' + id + (op ? ' ⚠️ Wi-Fi ไม่มีรหัส ใครก็เกาะได้!' : ' (' + MEDIA_LABEL[media] + ')'), op ? 'bad' : 'ok');
-        status(op ? 'Wi-Fi เปิด (ไม่ปลอดภัย) — ไปโหมด "ตั้ง IP" แตะ AP/Router ตั้งรหัส Wi-Fi กันคนเกาะ' : 'เชื่อมสำเร็จ — แตะอุปกรณ์ตัวแรกเพื่อเชื่อมเส้นต่อไป');
+        status(op ? '📶 Wi-Fi วงนี้ยังเปิดโล่ง ใครก็เกาะได้' : 'เชื่อมสำเร็จ — แตะอุปกรณ์ตัวแรกเพื่อเชื่อมเส้นต่อไป');
       } else if (res.reason === 'wifi') {
         if (wifiCb) { wifiCb(res.node.id, first, id, media); }
         else { toast('🔒 Wi-Fi มีรหัส — ใส่รหัสก่อนถึงเชื่อมได้', 'bad'); }
@@ -373,6 +378,9 @@
     state.edges.forEach(function (e) { g[e.a].push(e.b); g[e.b].push(e.a); });
     return g;
   }
+  /* อุปกรณ์ที่ "ส่งต่อ" แพ็กเก็ตให้เครื่องอื่นได้ — PC/Server เป็นปลายทางเท่านั้น
+   * (แก้ 29 ส.ค. 69: เดิม BFS มองทุกโหนดเป็นทางผ่าน แพ็กเก็ตจึงทะลุ PC เครื่องกลางได้ = ผิดหลัก) */
+  var FORWARDERS = { switch: 1, router: 1, ap: 1, isp: 1 };
   function findShortestPathBFS(graph, startNode, targetNode) {
     var queue = [startNode], visited = {}, parent = {};
     visited[startNode] = true; parent[startNode] = null;
@@ -385,7 +393,13 @@
       }
       var nb = graph[cur] || [];
       for (var i = 0; i < nb.length; i++) {
-        if (!visited[nb[i]]) { visited[nb[i]] = true; parent[nb[i]] = cur; queue.push(nb[i]); }
+        var nid = nb[i];
+        if (visited[nid]) continue;
+        if (nid !== targetNode) {                       // ปลายทางเข้าได้เสมอ
+          var nt = (nodeById(nid) || {}).type;
+          if (!FORWARDERS[nt]) continue;                // ตัวกลางต้องเป็นสวิตช์/เราเตอร์/AP/ISP
+        }
+        visited[nid] = true; parent[nid] = cur; queue.push(nid);
       }
     }
     return null;   // ไม่มีเส้นทาง -> ส่งไม่ถึง
@@ -403,7 +417,7 @@
     var path = findShortestPathBFS(buildAdj(), src, dst);
     if (!path) {
       toast('⛔ ส่งไม่ถึง — ' + src + ' ยังไม่ได้เชื่อมถึง ' + dst, 'bad');
-      status('ส่งไม่ถึง: ลองสลับไปโหมด "เชื่อม" ต่อสายให้ครบเส้นทางก่อน');
+      status('ส่งไม่ถึง — เส้นทางจากต้นทางไปปลายทางยังขาดตอน');
       return;
     }
     animateAlong(path, null);
@@ -778,6 +792,9 @@
     ipError: function (ip) { return ipError(ip); },
     ipConflict: function (id, ip) { return ipConflict(id, ip); },
     // ping: ส่ง onArrive(res, hops) เมื่อแพ็กเก็ตถึงปลายทาง · คืน res ทันทีสำหรับ pre-check
+    /* ตรวจอย่างเดียว ไม่ยิงแพ็กเก็ต — หน้าภารกิจใช้เช็คเงื่อนไขผ่านซ้ำ ๆ ได้โดยจอไม่กระพริบ */
+    canPing: function (srcId, targetIp) { return pingCheck(srcId, targetIp); },
+    canReachNet: function (srcId) { return reachInternet(srcId); },
     ping: function (srcId, targetIp, onArrive) {
       var res = pingCheck(srcId, targetIp);
       if (res.ok) animateAlong(res.path, function (hops) { if (onArrive) onArrive(res, hops); });

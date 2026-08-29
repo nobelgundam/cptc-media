@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="th">
+<head><meta charset="UTF-8"><title>stress test</title></head>
+<body>
+<svg id="canvas" xmlns="http://www.w3.org/2000/svg"></svg>
+<pre id="out">running…</pre>
+<script src="js/engine.js"></script>
+<script>
+var E = window.NetSimEngine, log = [], pass = 0, fail = 0;
+function ok(n, c, x){ (c ? pass++ : fail++); log.push((c ? 'PASS ' : 'FAIL ') + n + (x ? ' | ' + x : '')); }
+E.init(document.getElementById('canvas'), { storeKey: 'netsim_stress_' + Date.now() });
+
+/* ---------- 60 อุปกรณ์ (เด็กวางมั่วเยอะ ๆ) ---------- */
+var nodes = [{ id:'SW1', type:'switch', x:400, y:300 }], edges = [];
+for (var i = 1; i <= 59; i++){
+  nodes.push({ id:'PC' + i, type:'pc', x:(i%12)*70 + 20, y:Math.floor(i/12)*70 + 20, ip:'192.168.1.' + (i+10) });
+  edges.push({ id:'e' + i, a:'PC' + i, b:'SW1', media:'utp' });
+}
+var t0 = performance.now();
+E.loadState({ nodes: nodes, edges: edges });
+var tLoad = performance.now() - t0;
+ok('1 โหลดผัง 60 อุปกรณ์', tLoad < 1500, tLoad.toFixed(0) + ' ms');
+
+t0 = performance.now();
+var r = E.ping('PC1', '192.168.1.69');
+var tPing = performance.now() - t0;
+ok('2 ping ปลายสุดของผังใหญ่ยังผ่าน', r.ok, r.reason || '');
+ok('2b ping คำนวณเร็ว', tPing < 300, tPing.toFixed(0) + ' ms');
+
+t0 = performance.now();
+var tr = E.tracePath('PC1', '192.168.1.69');
+ok('3 tracert บนผังใหญ่', tr.ok, (performance.now() - t0).toFixed(0) + ' ms');
+
+/* ---------- ข้อมูลใน localStorage เสีย ต้องไม่ทำหน้าพัง ---------- */
+try {
+  localStorage.setItem('netsim_broken_test', '{ นี่ไม่ใช่ json');
+  var boom = false;
+  try { E.init(document.getElementById('canvas'), { storeKey: 'netsim_broken_test' }); }
+  catch (e){ boom = true; }
+  ok('4 localStorage พัง แต่ init ไม่ระเบิด', !boom);
+} catch (e){ ok('4 localStorage พัง แต่ init ไม่ระเบิด', false, String(e)); }
+
+/* ---------- IP ซ้ำทั้งห้อง ---------- */
+E.init(document.getElementById('canvas'), { storeKey: 'netsim_dup_' + Date.now() });
+E.loadState({ nodes:[
+  { id:'PC1', type:'pc', x:50, y:50, ip:'192.168.1.10' },
+  { id:'SW1', type:'switch', x:150, y:50 },
+  { id:'PC2', type:'pc', x:250, y:50, ip:'192.168.1.10' }
+], edges:[ {id:'e1',a:'PC1',b:'SW1',media:'utp'}, {id:'e2',a:'SW1',b:'PC2',media:'utp'} ] });
+ok('5 ตรวจ IP ซ้ำได้แม้ผังโหลดมาซ้ำอยู่แล้ว', E.ipConflict('PC1','192.168.1.10') === 'PC2', 'got=' + E.ipConflict('PC1','192.168.1.10'));
+
+/* ---------- ping ตัวเองผ่าน hostname/IP แปลก ๆ ---------- */
+ok('6 ping ค่าว่างไม่ระเบิด', (function(){ try { E.ping('PC1',''); return true; } catch(e){ return false; } })());
+ok('6b ping ข้อความมั่วไม่ระเบิด', (function(){ try { E.ping('PC1','abc.def'); return true; } catch(e){ return false; } })());
+ok('6c ping เครื่องที่ไม่มีจริงไม่ระเบิด', (function(){ try { E.ping('ไม่มีเครื่องนี้','192.168.1.10'); return true; } catch(e){ return false; } })());
+
+document.getElementById('out').textContent = log.join('\n') + '\nRESULT pass=' + pass + ' fail=' + fail;
+document.title = 'RESULT pass=' + pass + ' fail=' + fail;
+</script>
+</body>
+</html>

@@ -125,7 +125,7 @@ svg.cut-on .edge{stroke-dasharray:8 5;opacity:0.85;}
 .sw-wireless{background:repeating-linear-gradient(90deg,var(--wireless) 0 6px,transparent 6px 11px);}
 .actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;}
 .legend{font-size:11.5px;color:var(--muted);margin-top:8px;line-height:1.6;}
-.back{display:inline-block;text-decoration:none;color:var(--muted);font-size:13px;margin-top:14px;}
+.back{display:inline-block;text-decoration:none;color:var(--muted);font-size:14px;margin-top:14px;padding:12px 14px;min-height:44px;}
 .hidden{display:none!important;}
 
 /* toast feedback */
@@ -186,9 +186,12 @@ svg.cut-on .edge{stroke-dasharray:8 5;opacity:0.85;}
   color:#cfe3d8;white-space:pre-wrap;}
 .term-out .cmd{color:#7fe0ff;font-weight:700;} .term-out .ok{color:#5ff0b0;font-weight:700;}
 .term-out .bad{color:#ff8a98;font-weight:700;} .term-out .note{color:#ffd54a;} .term-out .th{color:var(--muted);}
-.term-chips{display:flex;flex-wrap:wrap;gap:6px;padding:0 12px 8px;}
-.term-chips button{font-family:inherit;font-size:12px;font-weight:600;background:#13283c;color:var(--ink);
-  border:1px solid #2c456a;border-radius:999px;padding:6px 12px;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.term-chips{display:flex;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;gap:9px;padding:0 12px 10px;scrollbar-width:none;}
+.term-chips::-webkit-scrollbar{display:none;}
+.term-chips button{flex:0 0 auto;}
+/* ปุ่มลัดต้องสูงพอให้นิ้วโป้งกดบนมือถือ (เกณฑ์ 44px) — เดิมสูงราว 30px กดพลาดบ่อย */
+.term-chips button{font-family:inherit;font-size:13px;font-weight:600;background:#13283c;color:var(--ink);
+  border:1px solid #2c456a;border-radius:999px;padding:11px 15px;min-height:44px;cursor:pointer;-webkit-tap-highlight-color:transparent;}
 .term-chips button:active{transform:scale(.96);}
 .term-in{display:flex;align-items:center;gap:7px;padding:8px 10px;border-top:1px solid #173049;background:#0a1a28;}
 .term-in .prompt{font-family:'Consolas',monospace;font-size:13px;color:#5ff0b0;font-weight:700;flex:0 0 auto;}

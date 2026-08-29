@@ -13,6 +13,12 @@
     <span class="logo">🛠️</span>
     <h1>สร้างเครือข่าย <span class="th-en">(Network Builder)</span></h1>
     <span class="sub" id="counts">อุปกรณ์ 0 · สาย 0</span>
+    <button class="btn" id="meBadge" title="เปลี่ยนเลขที่">เลขที่ —</button>
+  </div>
+
+  <!-- ขั้นตอนใช้งาน: ย้ายขึ้นมาบนสุด (เดิมอยู่ท้ายหน้า บนมือถือต้องไถหา) -->
+  <div class="statusbar" style="background:#eef4ff;border-color:#b9cdf5">
+    <span>💡 <b>ลำดับ:</b> วางอุปกรณ์ → เชื่อมสาย → ตั้ง IP ที่ PC/Server → พิมพ์ <b>ping</b> ใน Terminal ล่างสุด</span>
   </div>
 
   <!-- แถบสถานะ/คำแนะนำ (Signaling — Mayer) -->
@@ -62,12 +68,13 @@
         <select id="srcSel" title="เลือกเครื่องที่จะพิมพ์คำสั่ง"></select>
       </label>
     </div>
-    <div class="term-out" id="termOut"><div class="th">พิมพ์ <b>ipconfig</b> ดูเลข IP · <b>ping &lt;IP&gt;</b> ทดสอบส่งข้อมูล · <b>http &lt;IP&gt;</b> เปิดเว็บที่ Server (ตั้ง IP ที่เครื่องก่อนนะ)</div></div>
+    <div class="term-out" id="termOut"><div class="th">พิมพ์ <b>ipconfig</b> ดูเลข IP · <b>ping &lt;IP&gt;</b> ทดสอบส่งข้อมูล · <b>http &lt;IP&gt;</b> เปิดเว็บที่ Server · <b>tracert &lt;IP&gt;</b> ดูว่าผ่านอุปกรณ์อะไรบ้าง (ตั้ง IP ที่เครื่องก่อนนะ)</div></div>
     <div class="term-chips">
-      <button data-run="ipconfig">ipconfig</button>
+      <button data-fill="ipconfig">ipconfig</button>
       <button data-fill="ping ">ping…</button>
       <button data-fill="ping 8.8.8.8">ping เน็ต</button>
       <button data-fill="http ">http…</button>
+      <button data-fill="tracert ">tracert…</button>
     </div>
     <div class="term-in">
       <span class="prompt" id="termPrompt">&gt;</span>
@@ -88,10 +95,26 @@
     <span style="color:var(--utp)">■</span> UTP &nbsp;
     <span style="color:var(--fiber)">■</span> ไฟเบอร์ (Fiber) &nbsp;
     <span style="color:var(--wireless)">▦</span> ไร้สาย (Wireless)<br>
-    💡 ขั้นตอน: วางอุปกรณ์ → เชื่อมสาย → <b>ตั้ง IP</b> ที่ PC/Server → <b>ping</b> ใน Terminal · ตั้ง IP ผิดชนิดสื่อจะเชื่อมไม่ได้ (ดู "ต่อได้" ใต้อุปกรณ์)
+    ⚠️ ตั้งสายผิดชนิดจะเชื่อมไม่ได้ (ดู "ต่อได้" ใต้อุปกรณ์)
   </div>
 
   <a class="back" href="index.html">← กลับหน้าหลัก</a>
+</div>
+
+<!-- ถามเลขที่ก่อนเริ่ม (ผูกงานกับคน + แยกที่เก็บงานของแต่ละคน) -->
+<div class="overlay show" id="noOverlay">
+  <div class="dialog">
+    <h3>🛠️ เริ่มสร้างเครือข่าย</h3>
+    <p class="dlg-note">ใส่เลขที่ของตัวเองก่อน — งานที่ทำจะถูกเก็บแยกตามเลขที่ ถ้าใช้มือถือเครื่องเดียวกันหลายคน งานจะไม่ปนกัน</p>
+    <label>เลขที่ของฉัน (1–99)</label>
+    <input class="full" id="noInput" type="text" inputmode="numeric" placeholder="เช่น 7" autocomplete="off">
+    <p class="dlg-note hidden" id="noSwitchNote">🔄 เปลี่ยนเลขที่ = สลับไปดูงานของเลขที่นั้น · <b>งานของเลขที่เดิมไม่หาย</b> ระบบเก็บแยกไว้ให้ กลับมาใส่เลขเดิมก็เจอเหมือนเดิม</p>
+    <div class="dlg-err" id="noErr"></div>
+    <div class="dlg-actions">
+      <button class="btn hidden" id="noCancel">ยกเลิก</button>
+      <button class="btn primary" id="noOk">เริ่มเลย</button>
+    </div>
+  </div>
 </div>
 
 <!-- IP config dialog -->
@@ -101,7 +124,7 @@
     <div id="cfgIpWrap">
       <p class="dlg-note">กรอกเลข IP 4 ชุด (0–255) · ห้ามลงท้าย .0 / .255 · ห้ามซ้ำเครื่องอื่นในวงเดียวกัน</p>
       <label>IP Address (ไอพีแอดเดรส)</label>
-      <input class="full" id="cfgIp" type="text" inputmode="decimal" placeholder="192.168.1.10" autocomplete="off">
+      <input class="full" id="cfgIp" type="text" placeholder="192.168.1.10" autocomplete="off" autocapitalize="off" spellcheck="false">
       <label>Subnet Mask (ซับเน็ตมาสก์)</label>
       <input class="full" id="cfgSub" type="text" value="255.255.255.0" readonly>
       <label>Default Gateway (เกตเวย์ — ถ้าต้องออกข้ามวง)</label>
@@ -268,7 +291,7 @@
   modeBtns.config.addEventListener('click',  function(){ setMode('config'); });
   modeBtns.settings.addEventListener('click', function(){ setMode('settings'); });
   modeBtns.cutlink.addEventListener('click', function(){
-    if (E.counts().edges < 1){ showToast('ยังไม่มีสายให้ตัด — ไปโหมด "เชื่อม" ต่อสายก่อน', 'bad'); return; }
+    if (E.counts().edges < 1){ showToast('ยังไม่มีสายบนผังให้ตัด', 'bad'); return; }
     setMode('cutlink');
   });
   modeBtns.delete.addEventListener('click',  function(){ setMode('delete'); });
@@ -326,18 +349,25 @@
     cfgId = id;
     var n = E.getNode(id);
     cfgErr.textContent = '';
-    var isWifi = E.canHaveWifi(n.type);
-    document.getElementById('cfgIpWrap').classList.toggle('hidden', isWifi);
-    document.getElementById('cfgWifiWrap').classList.toggle('hidden', !isWifi);
-    if (isWifi){
-      cfgTitle.textContent = '🔒 ตั้งรหัส Wi-Fi ' + id + ' — ' + E.typeLabel(n.type);
+    /* router = ตั้งได้ทั้ง IP และรหัส Wi-Fi · AP = รหัส Wi-Fi อย่างเดียว · ที่เหลือ = IP อย่างเดียว
+     * (แก้ 29 ส.ค. 69: เดิม router ตกเงื่อนไข Wi-Fi แล้ว return ทำให้ตั้ง IP ให้ router ไม่ได้เลย) */
+    var isRouter = (n.type === 'router');
+    var wifiOnly = E.canHaveWifi(n.type) && !isRouter;
+    document.getElementById('cfgIpWrap').classList.toggle('hidden', wifiOnly);
+    document.getElementById('cfgWifiWrap').classList.toggle('hidden', !(wifiOnly || isRouter));
+    if (wifiOnly || isRouter){
       document.getElementById('cfgWifi').value = n.wifi || '';
       refreshPw(n.wifi || '');
+    }
+    if (wifiOnly){
+      cfgTitle.textContent = '🔒 ตั้งรหัส Wi-Fi ' + id + ' — ' + E.typeLabel(n.type);
       overlay.classList.add('show');
       setTimeout(function(){ var w=document.getElementById('cfgWifi'); w.focus(); }, 50);
       return;
     }
-    cfgTitle.textContent = '⚙️ ตั้งค่า IP ' + id + ' — ' + E.typeLabel(n.type);
+    cfgTitle.textContent = isRouter
+      ? '⚙️ ตั้งค่า ' + id + ' — IP + รหัส Wi-Fi'
+      : '⚙️ ตั้งค่า IP ' + id + ' — ' + E.typeLabel(n.type);
     cfgIp.value = n.ip || '192.168.1.';
     cfgGw.value = n.gw || '';
     var httpWrap = document.getElementById('cfgHttpWrap');
@@ -349,20 +379,27 @@
   document.getElementById('cfgCancel').addEventListener('click', function(){ overlay.classList.remove('show'); });
   overlay.addEventListener('click', function(e){ if (e.target===overlay) overlay.classList.remove('show'); });
   document.getElementById('cfgSave').addEventListener('click', function(){
-    // โหมดตั้งรหัส Wi-Fi (AP/Router)
-    if (!document.getElementById('cfgWifiWrap').classList.contains('hidden')){
-      var pass = document.getElementById('cfgWifi').value.trim();
+    // ส่วนรหัส Wi-Fi (AP = อย่างเดียว · Router = ทำคู่กับ IP แล้วไปต่อ)
+    var wifiShown = !document.getElementById('cfgWifiWrap').classList.contains('hidden');
+    var ipShown   = !document.getElementById('cfgIpWrap').classList.contains('hidden');
+    var pass = null;
+    if (wifiShown){
+      pass = document.getElementById('cfgWifi').value.trim();
       if (pass && !E.wifiStrong(pass)){ cfgErr.textContent = '❌ รหัสยังไม่แข็งแรงพอ — ทำให้ครบ 5 ข้อสีเขียวก่อน'; return; }
-      E.setNodeWifi(cfgId, pass);
-      overlay.classList.remove('show');
-      showToast(pass ? '🔒 ตั้งรหัส Wi-Fi ' + cfgId + ' แล้ว (แข็งแรง)' : '⚠️ ' + cfgId + ' เปิด Wi-Fi ไม่มีรหัส (เน็ตช้า ไม่ปลอดภัย)', pass ? 'ok' : 'bad');
-      return;
+      if (!ipShown){                       // AP = มีแต่ Wi-Fi บันทึกได้เลย
+        E.setNodeWifi(cfgId, pass);
+        overlay.classList.remove('show');
+        showToast(pass ? '🔒 ตั้งรหัส Wi-Fi ' + cfgId + ' แล้ว (แข็งแรง)' : '⚠️ ' + cfgId + ' เปิด Wi-Fi ไม่มีรหัส (เน็ตช้า ไม่ปลอดภัย)', pass ? 'ok' : 'bad');
+        return;
+      }
     }
     var ip = cfgIp.value.trim(), gw = cfgGw.value.trim();
     var err = E.ipError(ip);
     if (err){ cfgErr.textContent = '❌ ' + err; return; }
     var conflict = E.ipConflict(cfgId, ip);
     if (conflict){ cfgErr.textContent = '❌ IP ซ้ำกับ ' + conflict + ' (ในวงเดียวกันห้ามซ้ำ)'; return; }
+    // router: ผ่าน validate ครบแล้วค่อยบันทึก Wi-Fi พร้อมกัน (กันเคสกรอก IP ผิดแล้วรหัสถูกเขียนไปก่อน)
+    if (wifiShown && ipShown) E.setNodeWifi(cfgId, pass);
     var isServer = !document.getElementById('cfgHttpWrap').classList.contains('hidden');
     var http = isServer ? document.getElementById('cfgHttp').value : undefined;
     E.setNodeIP(cfgId, ip, gw, http);
@@ -486,7 +523,55 @@
       doHttp(srcId, p[1]);
       return;
     }
-    termPrint("'" + cmd + "' ไม่ใช่คำสั่งที่รองรับ — ใช้ได้: ping, ipconfig, http", 'th');
+    if (cmd === 'tracert' || cmd === 'traceroute'){
+      if (!p[1]){ termPrint('ใช้: tracert <IP หรือชื่อเว็บ> เช่น tracert 8.8.8.8', 'th'); return; }
+      doTracert(srcId, p[1]);
+      return;
+    }
+    termPrint("'" + cmd + "' ไม่ใช่คำสั่งที่รองรับ — ใช้ได้: ping, ipconfig, http, tracert", 'th');
+  }
+
+  /* tracert — เดินทีละ hop ให้เห็นว่าแพ็กเก็ตผ่านอุปกรณ์อะไรบ้าง (engine มี tracePath อยู่แล้ว) */
+  function doTracert(srcId, host){
+    var r = E.tracePath(srcId, host);
+    if (!r.ok){
+      termPrint('✗ ไล่เส้นทางไม่ได้ — ' + (TRACE_MSG[r.reason] || 'ส่งไม่ถึงปลายทาง'), 'bad');
+      return;
+    }
+    termPrint('Tracing route to ' + (r.target && r.target.ip ? r.target.ip : host) + ' :');
+    var hopNo = 0;
+    r.nodes.forEach(function(id, i){
+      if (i === 0) return;                       // ข้ามตัวเอง
+      hopNo++;
+      var n = E.getNode(id) || {};
+      var ms = 1 + Math.round(Math.random() * 4) + hopNo * 2;
+      termPrint('  ' + hopNo + '   ' + ms + ' ms   ' + id + (n.ip ? ' [' + n.ip + ']' : '') + ' — ' + E.typeLabel(n.type || ''), 'ok');
+    });
+    if (r.kind === 'net' && r.target){
+      hopNo++;
+      termPrint('  ' + hopNo + '   ' + r.target.ms + ' ms   ' + r.target.ip + ' — ปลายทางบนอินเทอร์เน็ต', 'ok');
+    }
+    termPrint('Trace complete. รวม ' + hopNo + ' hop', 'note');
+    termPrint('📋 จดสมุด: ping บอกแค่ "ถึงหรือไม่ถึง" · tracert บอกว่า "ไปตกที่ hop ไหน"', 'note');
+  }
+  var TRACE_MSG = {
+    srcnoip:'เครื่องต้นทางยังไม่มี IP', srcbad:'IP ต้นทางผิดกฎ', nohost:'ไม่มีเครื่องใดใช้เลขนี้',
+    unwired:'สายยังไม่ถึงกัน', diffnet:'คนละวง ยังข้ามไม่ได้', firewall:'ปลายทางกันไว้อยู่',
+    noisp:'ผังยังไม่มีทางออกนอก', norouter:'เส้นทางไม่ผ่านอุปกรณ์ที่ข้ามวงได้', nogw:'ยังไม่รู้ประตูออกนอกวง',
+    dns:'ไม่รู้จักชื่อเว็บนี้'
+  };
+
+  /* บนมือถือ Terminal อยู่ล่างกระดาน — พอสั่ง ping แล้วจอค้างอยู่ล่าง มองไม่เห็นแพ็กเก็ตวิ่ง
+   * เลื่อนกลับไปที่กระดานให้อัตโนมัติ (เด็กจะได้เห็นเส้นทางจริง ไม่ต้องไถขึ้นลงเอง) */
+  function lookAtBoard(){
+    try {
+      var box = document.querySelector('.canvas-box');
+      if (!box || !box.scrollIntoView) return;
+      var r = box.getBoundingClientRect();
+      var vh = window.innerHeight || document.documentElement.clientHeight;
+      var visible = r.top < vh * 0.75 && r.bottom > vh * 0.25;   // เห็นกระดานอยู่แล้ว = ไม่ต้องเด้ง
+      if (!visible) box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } catch (e){}
   }
 
   function doPing(srcId, ip){
@@ -500,25 +585,30 @@
       });
     } else {
       res = E.ping(srcId, ip, function(r, hops){
-        termPrint('ตอบกลับจาก ' + ip + ': สำเร็จ (' + hops + ' hop' + (r.routed ? ' · ข้ามวงผ่าน Router' : '') + ')', 'ok');
+        for (var k = 0; k < 3; k++){
+          var ms = 1 + Math.round(Math.random() * 3) + hops;
+          termPrint('ตอบกลับจาก ' + ip + ': ไบต์=32 เวลา=' + ms + 'ms TTL=' + (128 - hops), 'ok');
+        }
         termPrint('📋 จดสมุด: ' + srcId + ' ping ' + ip + ' = ได้ — ' + (r.sameNet ? 'วงเดียวกัน (subnet เดียวกัน)' : 'คนละวง ต้องผ่าน Router'), 'note');
         showToast('✅ ' + srcId + ' ส่งถึง ' + ip + ' แล้ว (' + hops + ' hop)', 'ok');
       });
     }
-    if (res.ok){ termPrint('กำลัง ping ' + ip + ' ...'); statusEl.textContent = '📦 กำลัง ping ' + ip + ' จาก ' + srcId + ' ...'; return; }
+    if (res.ok){ termPrint('กำลัง ping ' + ip + ' ...'); statusEl.textContent = '📦 กำลัง ping ' + ip + ' จาก ' + srcId + ' ...'; lookAtBoard(); return; }
     var MSG = {
-      srcnoip:  'เครื่องต้นทางยังไม่ได้ตั้ง IP — ไปโหมด "ตั้ง IP" แล้วแตะเครื่องนี้ก่อน',
-      srcbad:   'IP ของเครื่องต้นทางผิดกฎ — ตั้งใหม่ก่อน',
+      /* ⚠️ ข้อความพวกนี้บอก "อาการที่ตรวจพบ" เท่านั้น ห้ามบอกวิธีแก้เป็นขั้นตอน
+       * (แก้ 29 ส.ค. 69 — ของเดิมบอกถึงขั้นให้ไปกดปุ่มไหน เด็กทำตามได้โดยไม่ต้องวิเคราะห์) */
+      srcnoip:  'เครื่องต้นทางยังไม่มีเลขที่อยู่ — เครื่องที่ไม่มี IP ส่งอะไรออกไม่ได้',
+      srcbad:   'IP ของเครื่องต้นทางผิดกฎ — ลองอ่านกติกาเลขที่ห้ามใช้อีกรอบ',
       badtarget:'รูปแบบ IP ปลายทางผิด เช่น ping 192.168.1.20',
       self:     'นั่นคือ IP ของเครื่องตัวเอง — ลอง ping เครื่องอื่น',
       nohost:   'ไม่มีเครื่องใดใช้ IP ' + ip + ' (ยังไม่ได้ตั้ง หรือพิมพ์ผิด)',
-      unwired:  'สายยังไม่เชื่อมถึงกัน — ไปโหมด "เชื่อม" ต่อสายให้ครบเส้นทางก่อน',
-      diffnet:  'คนละวง (subnet ต่างกัน) — ต้องต่อผ่าน Router + ตั้ง Default Gateway',
-      firewall: 'สาย+วงถูกครบ แต่ 🛡️ Firewall ปลายทางบล็อกอยู่ — ไปโหมด "Firewall" แตะเครื่องนั้น เปิด Allow File and Printer Sharing ก่อน',
-      noisp:    'ยังไม่มีเน็ตผู้ให้บริการ (ISP) บนผัง — วาง ISP แล้วต่อเข้า Router ก่อน',
-      norouter: 'เส้นทางออกเน็ตไม่มี Router — ต้องผ่าน Router ถึงออกนอกวงได้',
-      nogw:     'เครื่องนี้ยังไม่ได้ตั้ง Default Gateway — ออกนอกวงไม่ได้',
-      dns:      'ไม่รู้จักชื่อเว็บนี้ — ลอง ping 8.8.8.8 หรือ google.com'
+      unwired:  'ส่งไม่ถึง — ลองไล่นิ้วตามสายจากเครื่องนี้ดูว่าเดินไปถึงปลายทางได้จริงไหม',
+      diffnet:  'คนละวง — 3 ชุดแรกไม่ตรงกัน · การข้ามไปคนละวงต้องมีบางอย่างทำหน้าที่เป็นประตู และเครื่องต้องรู้ว่าประตูอยู่เลขอะไร',
+      firewall: 'สายถึง วงเดียวกัน แต่ปลายทางเงียบ — ที่ปลายทางมีอะไรกันไว้อยู่ ลองไปดูสถานะของเครื่องนั้น',
+      noisp:    'ผังนี้ยังไม่มีทางออกไปโลกภายนอก — ขาดอุปกรณ์ฝั่งผู้ให้บริการ',
+      norouter: 'เส้นทางออกนอกวงยังไม่ผ่านอุปกรณ์ที่ข้ามวงได้',
+      nogw:     'เครื่องนี้ยังไม่รู้ว่าประตูออกนอกวงอยู่เลขอะไร',
+      dns:      'ไม่รู้จักชื่อเว็บนี้ — สะกดถูกไหม'
     };
     var m = MSG[res.reason] || 'ส่งไม่ถึง';
     termPrint('✗ Request timed out — ' + m, 'bad');
@@ -551,7 +641,7 @@
     var NET = {
       srcnoip:'เครื่องต้นทางยังไม่ตั้ง IP', srcbad:'IP ต้นทางผิดกฎ', badtarget:'รูปแบบ IP ผิด',
       self:'นั่นคือ IP ของเครื่องตัวเอง', nohost:'ไม่มีเครื่องใดใช้ IP ' + ip,
-      unwired:'สายยังไม่เชื่อมถึงกัน', diffnet:'คนละวง ต้องผ่าน Router + ตั้ง Gateway'
+      unwired:'สายยังไม่ถึงกัน', diffnet:'คนละวง ยังข้ามไม่ได้'
     };
     var nm = NET[res.reason] || 'ส่งไม่ถึง';
     termPrint('✗ เปิดเว็บไม่ได้ — ' + nm, 'bad');
@@ -567,19 +657,50 @@
     });
   });
 
-  // init engine ท้ายสุด (หลังประกาศ DOM refs + ฟังก์ชันครบ — callback onChange/refreshTerm เรียกได้ปลอดภัย)
-  E.init(document.getElementById('canvas'), {
-    onStatus: function(m){ statusEl.textContent = m; },
-    onChange: function(n,e){ countsEl.textContent = 'อุปกรณ์ ' + n + ' · สาย ' + e; refreshTerm(); },
-    onToast: showToast,
-    onConfig: function(id){ openCfg(id); },
-    onWifi: function(apId, a, b, m){ openWifiConnect(apId, a, b, m); },
-    onSettings: function(id){ openFw(id); }
+  /* ===== เลขที่นักเรียน — ผูกงานกับคน + แยก storeKey ไม่ให้งานปนกันเวลาใช้มือถือร่วมกัน ===== */
+  var studentNo = parseInt(localStorage.getItem('netsim_builder_no') || '0', 10) || 0;
+  function showMe(){ document.getElementById('meBadge').textContent = 'เลขที่ ' + (studentNo || '—'); }
+  function askNo(){
+    document.getElementById('noInput').value = studentNo || '';
+    document.getElementById('noErr').textContent = '';
+    // เปิดจากปุ่มมุมบน (มีเลขที่แล้ว) = ยกเลิกได้ + เตือนว่างานเก่าไม่หาย
+    document.getElementById('noCancel').classList.toggle('hidden', !studentNo);
+    document.getElementById('noSwitchNote').classList.toggle('hidden', !studentNo);
+    document.getElementById('noOverlay').classList.add('show');
+  }
+  document.getElementById('meBadge').addEventListener('click', askNo);
+  document.getElementById('noCancel').addEventListener('click', function(){ document.getElementById('noOverlay').classList.remove('show'); });
+  document.getElementById('noOk').addEventListener('click', function(){
+    var v = (document.getElementById('noInput').value || '').trim();
+    if (!/^\d+$/.test(v) || +v < 1 || +v > 99){ document.getElementById('noErr').textContent = 'กรอกเลขที่ 1–99'; return; }
+    var switching = (booted && +v !== studentNo);   // มีคนใช้อยู่ก่อนแล้วเปลี่ยนเลข = สลับกล่องงาน
+    studentNo = +v; localStorage.setItem('netsim_builder_no', String(studentNo));
+    showMe();
+    document.getElementById('noOverlay').classList.remove('show');
+    if (switching) { location.reload(); return; }
+    bootEngine();                                   // ครั้งแรก: เพิ่งรู้เลขที่ ค่อยเปิดกระดาน
   });
+  showMe();
+  if (studentNo) document.getElementById('noOverlay').classList.remove('show');
 
-  // เริ่มที่โหมดวาง
-  setMode('place');
-  refreshTerm();
+  /* init engine "หลังรู้เลขที่แล้วเท่านั้น" — ไม่งั้นงานรอบแรกจะถูกเซฟลงกล่องกลาง no0 แล้วหาย */
+  var booted = false;
+  function bootEngine(){
+    if (booted) return;
+    booted = true;
+    E.init(document.getElementById('canvas'), {
+      storeKey: 'netsim_builder_no' + studentNo,
+      onStatus: function(m){ statusEl.textContent = m; },
+      onChange: function(n,e){ countsEl.textContent = 'อุปกรณ์ ' + n + ' · สาย ' + e; refreshTerm(); },
+      onToast: showToast,
+      onConfig: function(id){ openCfg(id); },
+      onWifi: function(apId, a, b, m){ openWifiConnect(apId, a, b, m); },
+      onSettings: function(id){ openFw(id); }
+    });
+    setMode('place');
+    refreshTerm();
+  }
+  if (studentNo) bootEngine();
 })();
 </script>
 </body>

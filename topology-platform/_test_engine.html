@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="th">
+<head><meta charset="UTF-8"><title>engine test</title></head>
+<body>
+<svg id="canvas" xmlns="http://www.w3.org/2000/svg"></svg>
+<pre id="out"></pre>
+<script src="js/engine.js"></script>
+<script>
+var E = window.NetSimEngine, log = [], pass = 0, fail = 0;
+function ok(name, cond, extra){ (cond ? pass++ : fail++); log.push((cond ? 'PASS ' : 'FAIL ') + name + (extra ? ' | ' + extra : '')); }
+
+E.init(document.getElementById('canvas'), { storeKey: 'netsim_test_' + Date.now() });
+
+/* ---------- เคส 1: PC1 - SW1 - PC2 วงเดียวกัน ping ผ่าน ---------- */
+E.loadState({ nodes: [
+  { id:'PC1', type:'pc', x:100, y:100, ip:'192.168.1.10' },
+  { id:'SW1', type:'switch', x:200, y:100 },
+  { id:'PC2', type:'pc', x:300, y:100, ip:'192.168.1.20' }
+], edges: [ {id:'e1',a:'PC1',b:'SW1',media:'utp'}, {id:'e2',a:'SW1',b:'PC2',media:'utp'} ] });
+ok('1 วงเดียวกันผ่านสวิตช์ ping ได้', E.ping('PC1','192.168.1.20').ok);
+
+/* ---------- เคส 2: PC1 - PC2 - PC3 (แพ็กเก็ตห้ามทะลุ PC กลาง) ---------- */
+E.loadState({ nodes: [
+  { id:'PC1', type:'pc', x:100, y:200, ip:'192.168.1.10' },
+  { id:'PC2', type:'pc', x:200, y:200, ip:'192.168.1.20' },
+  { id:'PC3', type:'pc', x:300, y:200, ip:'192.168.1.30' }
+], edges: [ {id:'e1',a:'PC1',b:'PC2',media:'utp'}, {id:'e2',a:'PC2',b:'PC3',media:'utp'} ] });
+var r2 = E.ping('PC1','192.168.1.30');
+ok('2 ห้ามทะลุ PC กลาง (PC1→PC3 ต้องไม่ผ่าน)', !r2.ok, 'reason=' + r2.reason);
+ok('2b PC1→PC2 ที่ต่อตรงกัน ยังผ่าน', E.ping('PC1','192.168.1.20').ok);
+
+/* ---------- เคส 3: คนละวง ต้องมี router + gateway ---------- */
+var twoNets = { nodes: [
+  { id:'PC1', type:'pc', x:100, y:300, ip:'192.168.1.10' },
+  { id:'SW1', type:'switch', x:200, y:300 },
+  { id:'R1',  type:'router', x:300, y:300, ip:'192.168.1.1' },
+  { id:'SW2', type:'switch', x:400, y:300 },
+  { id:'PC2', type:'pc', x:500, y:300, ip:'192.168.2.10' }
+], edges: [ {id:'e1',a:'PC1',b:'SW1',media:'utp'}, {id:'e2',a:'SW1',b:'R1',media:'utp'},
+            {id:'e3',a:'R1',b:'SW2',media:'utp'}, {id:'e4',a:'SW2',b:'PC2',media:'utp'} ] };
+E.loadState(twoNets);
+var r3 = E.ping('PC1','192.168.2.10');
+ok('3 คนละวง ไม่ตั้ง gateway = ไม่ผ่าน', !r3.ok, 'reason=' + r3.reason);
+E.setNodeIP('PC1','192.168.1.10','192.168.1.1');
+ok('3b คนละวง ตั้ง gateway + มี router = ผ่าน', E.ping('PC1','192.168.2.10').ok);
+
+/* ---------- เคส 4: Firewall ปลายทางบล็อก ---------- */
+E.loadState({ nodes: [
+  { id:'PC1', type:'pc', x:100, y:400, ip:'192.168.1.10' },
+  { id:'SW1', type:'switch', x:200, y:400 },
+  { id:'SRV1', type:'server', x:300, y:400, ip:'192.168.1.50' }
+], edges: [ {id:'e1',a:'PC1',b:'SW1',media:'utp'}, {id:'e2',a:'SW1',b:'SRV1',media:'utp'} ] });
+ok('4 ก่อนตั้ง firewall ping ผ่าน', E.ping('PC1','192.168.1.50').ok);
+E.setFirewall('SRV1', true);
+var r4 = E.ping('PC1','192.168.1.50');
+ok('4b Firewall บล็อก = ping ไม่ผ่าน', !r4.ok, 'reason=' + r4.reason);
+E.setFirewall('SRV1', false);
+ok('4c เปิด Allow File and Printer Sharing = ผ่านอีกครั้ง', E.ping('PC1','192.168.1.50').ok);
+
+/* ---------- เคส 5: IP ผิดกฎ / ซ้ำ ---------- */
+ok('5 .0 ใช้ไม่ได้',   !!E.ipError('192.168.1.0'));
+ok('5b .255 ใช้ไม่ได้', !!E.ipError('192.168.1.255'));
+ok('5c เกิน 255 ใช้ไม่ได้', !!E.ipError('192.168.1.300'));
+ok('5d IP ปกติผ่าน', !E.ipError('192.168.1.45'));
+ok('5e จับ IP ซ้ำได้', E.ipConflict('PC1','192.168.1.50') === 'SRV1', 'got=' + E.ipConflict('PC1','192.168.1.50'));
+
+/* ---------- เคส 6: tracert คืนเส้นทางเป็นลำดับ hop ---------- */
+E.loadState(twoNets);
+E.setNodeIP('PC1','192.168.1.10','192.168.1.1');
+var tr = E.tracePath('PC1','192.168.2.10');
+ok('6 tracert ได้เส้นทาง', tr.ok && tr.nodes && tr.nodes.length >= 3, 'nodes=' + (tr.nodes||[]).join('>'));
+ok('6b เส้นทางผ่าน router', (tr.nodes||[]).indexOf('R1') > -1);
+
+/* ---------- เคส 7: router ตั้ง IP ได้ (บั๊กที่เพิ่งแก้) ---------- */
+ok('7 router รับค่า IP ได้', (E.getNode('R1')||{}).ip === '192.168.1.1', 'ip=' + (E.getNode('R1')||{}).ip);
+ok('7b engine ยอมให้ router มี Wi-Fi ด้วย', E.canHaveWifi('router') === true);
+
+/* ---------- เคส 8: http status ---------- */
+E.loadState({ nodes: [
+  { id:'PC1', type:'pc', x:100, y:500, ip:'192.168.1.10' },
+  { id:'SW1', type:'switch', x:200, y:500 },
+  { id:'SRV1', type:'server', x:300, y:500, ip:'192.168.1.50', http:500 }
+], edges: [ {id:'e1',a:'PC1',b:'SW1',media:'utp'}, {id:'e2',a:'SW1',b:'SRV1',media:'utp'} ] });
+var h = E.http('PC1','192.168.1.50');
+ok('8 http คืน status ของ server', h && String(h.status) === '500', JSON.stringify(h && h.status));
+ok('8b ping ยังผ่านแม้เว็บพัง (แยกชั้นได้)', E.ping('PC1','192.168.1.50').ok);
+
+document.getElementById('out').textContent = log.join('\n') + '\nRESULT pass=' + pass + ' fail=' + fail;
+document.title = 'RESULT pass=' + pass + ' fail=' + fail;
+</script>
+</body>
+</html>

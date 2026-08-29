@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ใบงานที่ 15 · ติดตั้งเครือข่ายสำนักงานใหม่ — 21909-1009 สัปดาห์ 16</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .steps{background:#0e2033;border:1px solid #2c4a63;border-left:4px solid #ffd54a;border-radius:9px;padding:9px 12px;margin-bottom:8px;font-size:.84rem;color:#dff;line-height:1.8;}
+  .steps b{color:#ffd54a;}
+  .cases{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:8px;}
+  .case{background:#10243a;border:1px solid #2c4a63;border-radius:9px;padding:8px 10px;font-size:.82rem;color:#cfe;line-height:1.6;}
+  .case b{color:#ffd54a;display:block;margin-bottom:2px;}
+  .case.done{border-color:#3ddc97;background:#12332a;}
+  .case.done b{color:#3ddc97;}
+  @media(max-width:640px){ .cases{grid-template-columns:1fr;} }
+  .modebar{display:flex;gap:6px;margin-bottom:8px;}
+  .modebar button{flex:1;padding:11px 6px;min-height:44px;border-radius:9px;border:1px solid #2c4a63;background:#10243a;color:#dff;font:inherit;font-size:.82rem;cursor:pointer;}
+  .modebar button.on{border-color:#39c2ff;background:#123048;color:#8fd8ff;}
+  .ipdlg label{display:block;margin-top:8px;font-size:.85rem;color:#9fb6c9;}
+  .hintbox{background:#0e2033;border:1px dashed #6b8bb0;border-radius:8px;padding:8px 10px;margin-top:8px;font-size:.8rem;color:#9fb6c9;line-height:1.7;}
+  .hintbox b{color:#ffd54a;}
+  .diag{margin-top:8px;font-size:.83rem;line-height:1.7;color:#ffb4b4;}
+  .diag.ok{color:#3ddc97;}
+  .target{background:#0e2033;border:1px solid #2c4a63;border-radius:9px;padding:8px 11px;margin-bottom:8px;font-size:.83rem;color:#cfe;line-height:1.8;}
+  .target b{color:#ffd54a;}
+  .fwrow{display:flex;gap:8px;margin-top:8px;}
+  .fwrow button{flex:1;min-height:52px;border-radius:10px;border:1px solid #2c4a63;background:#10243a;color:#dff;font:inherit;font-size:.82rem;line-height:1.5;cursor:pointer;padding:8px;}
+  .fwrow button.on{border-color:#3ddc97;background:#12332a;color:#8fffd0;}
+  .casewrap{margin-bottom:8px;}
+  .casewrap>summary{cursor:pointer;list-style:none;background:#10243a;border:1px solid #2c4a63;border-radius:9px;padding:11px 12px;font-size:.84rem;color:#ffd54a;min-height:44px;}
+  .casewrap>summary::-webkit-details-marker{display:none;}
+  .casewrap[open]>summary{border-bottom-left-radius:0;border-bottom-right-radius:0;}
+  .casewrap .cases{margin-bottom:0;}
+</style>
+</head>
+<body>
+<div class="wrap wide">
+
+  <div class="topbar">
+    <span class="logo">🏢</span>
+    <h1>สำนักงานใหม่ ชค.ออฟฟิศ <span class="th-en">(สัปดาห์ 16 · 21909-1009 · ใบงานที่ 15)</span></h1>
+    <span class="sub" id="counts">อุปกรณ์ 0 · สาย 0</span>
+  </div>
+
+  <div class="statusbar"><span class="dot"></span><span id="status">แตะเครื่องเพื่อดูค่าที่อ่านได้ · พิมพ์คำสั่งใน Terminal ล่างจอ</span></div>
+
+  <div class="scn-head">
+    <button class="btn-reset" id="scnReset">เริ่มใหม่</button>
+    <span class="me" id="scnMe">เลขที่ <b>—</b></span>
+  </div>
+
+  <div class="spec-box">🏢 <b>เป้าหมาย:</b> ทำให้ <b>ทุกแผนกสั่งพิมพ์ได้</b> + <b>แผนกช่างออกเน็ตได้</b> · สายต่อครบแล้ว ปัญหาอยู่ที่ค่าที่ตั้งไว้</div>
+
+  <div class="steps">🧭 <b>ลำดับที่ต้องทำ</b> — ① ใส่เลขที่ → ② แตะเครื่องอ่านค่า → ③ แก้ → ④ <b>ยิง ping จากเครื่องนั้นให้ผ่านเองกับตา</b> (แก้เฉย ๆ ยังไม่นับจบ) → ⑤ จดอาการ + สาเหตุ + วิธีแก้ ลงสมุด</div>
+
+  <div class="target" id="targetBox">🔢 <b>เลขเครื่องที่สำนักงานนี้กำหนดให้ช่าง (คิดเองจากเลขที่ของเธอ)</b><br>
+    แผนกขาย = ชุดท้าย <b>เลขที่ + 40</b> · แผนกช่าง = ชุดท้าย <b>เลขที่ + 70</b> · <span id="meNoHint">เลขที่ของเธอ —</span><br>
+    <span style="color:#9fb6c9">3 ชุดแรกใช้ของออฟฟิศ ดูจากเครื่องแผนกบัญชีที่ใช้งานได้อยู่แล้ว · เครื่องพิมพ์กลาง = <b>192.168.1.200</b></span></div>
+
+  <details class="casewrap" open>
+    <summary>📋 อาการที่ลูกค้าแจ้ง 3 เคส <span id="caseCount">(0/3)</span> — แตะเพื่อย่อ/ขยาย</summary>
+    <div class="cases">
+      <div class="case" id="cA" data-n="A"><b>เคส A · แผนกขาย</b>สั่งพิมพ์ไม่ได้ ทั้งที่สายต่อครบ ไฟติดเขียว</div>
+      <div class="case" id="cB" data-n="B"><b>เคส B · เครื่องพิมพ์กลาง</b>ทุกแผนกสั่งพิมพ์ไม่ได้เลย แม้แผนกที่วงถูกแล้ว</div>
+      <div class="case" id="cC" data-n="C"><b>เคส C · แผนกช่าง</b>เปิดเว็บไม่ได้ — เครื่องนี้ยังไม่ได้ตั้งค่าอะไรเลย</div>
+    </div>
+  </details>
+
+  <div class="modebar">
+    <button id="mConfig" class="on">⚙️ ตรวจ/ตั้งค่า IP</button>
+    <button id="mFw">🛡️ Firewall</button>
+  </div>
+
+  <div class="stage">
+    <div class="main" style="width:100%">
+      <div class="canvas-box">
+        <svg id="canvas" xmlns="http://www.w3.org/2000/svg"></svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- Terminal -->
+  <div class="terminal">
+    <div class="term-head">
+      <span class="tt">💻 Terminal</span>
+      <label class="term-pc">เครื่อง:
+        <select id="srcSel" title="เลือกเครื่องที่จะพิมพ์คำสั่ง"></select>
+      </label>
+    </div>
+    <div class="term-out" id="termOut"><div class="th">เริ่มจาก <b>ipconfig</b> ดูค่าเครื่องก่อน แล้วค่อย <b>ping</b> — ping เครื่องพิมพ์ใช้ <b>ping 192.168.1.200</b> · ออกเน็ตใช้ <b>ping 8.8.8.8</b></div></div>
+    <div class="term-chips">
+      <button data-fill="ipconfig">ipconfig</button>
+      <button data-fill="ping 192.168.1.200">ping เครื่องพิมพ์</button>
+      <button data-fill="ping 8.8.8.8">ping ออกเน็ต</button>
+      <button data-fill="ping ">ping…</button>
+      <button data-fill="tracert 8.8.8.8">tracert ออกเน็ต</button>
+    </div>
+    <div class="term-in">
+      <span class="prompt" id="termPrompt">&gt;</span>
+      <input id="cmd" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="เช่น ping 192.168.1.200">
+      <button class="btn go" id="runBtn">รัน</button>
+    </div>
+  </div>
+
+  <div class="legend">
+    🔴 วงแดง = เครื่องที่ยังมีปัญหา · 🛡️ = Firewall บล็อกอยู่ · 🔓 = เปิดให้เพื่อนในวงเข้าถึงได้<br>
+    💡 <b>โพยช่าง:</b> เลข 3 ชุดแรกไม่ตรงกัน = คนละวง คุยกันไม่ได้ · ไม่มี Gateway = ในวงคุยได้ แต่ออกเน็ตไม่ได้ · สายครบไฟติดแต่ ping ไม่ตอบ = ที่ปลายทางมีอะไรกันอยู่
+  </div>
+
+  <a class="back" href="../21909-1009/index.html">← สื่อวิชานี้</a>
+</div>
+
+<!-- เลขที่ -->
+<div class="overlay show" id="noOverlay">
+  <div class="dialog">
+    <h3>👷 ช่างที่เจ้าของสำนักงานจ้างมา</h3>
+    <p class="dlg-note">ใส่เลขที่ตัวเอง → เลข IP ที่ต้องตั้งจะคิดจากเลขนี้ (กันลอก ครูตรวจสด)</p>
+    <label>เลขที่ (1–99)</label>
+    <input class="full" id="noInput" type="number" inputmode="numeric" min="1" max="99" placeholder="เช่น 7">
+    <label>ชื่อเล่น (ไม่บังคับ)</label>
+    <input class="full" id="noNick" type="text" placeholder="เช่น ก้อง" autocomplete="off">
+    <div class="dlg-err" id="noErr"></div>
+    <div class="dlg-actions">
+      <button class="btn primary" id="noOk">รับงาน</button>
+    </div>
+  </div>
+</div>
+
+<!-- ⚙️ ตรวจสภาพ / ตั้งค่าเครื่อง -->
+<div class="overlay" id="ipOverlay">
+  <div class="dialog ipdlg">
+    <h3 id="ipTitle">⚙️ ตรวจสภาพเครื่อง</h3>
+    <p class="dlg-note" id="ipNote"></p>
+    <label>IP Address</label>
+    <input class="full" id="ipVal" type="text" autocomplete="off" spellcheck="false" placeholder="เลข 4 ชุด คั่นด้วยจุด">
+    <label>Default Gateway (ประตูออกนอกวง)</label>
+    <input class="full" id="gwVal" type="text" autocomplete="off" spellcheck="false" placeholder="เลขประตูออกนอกวง">
+    <div class="hintbox">🩺 <b>ค่าที่อ่านได้จากหน้าเครื่อง</b><div class="diag" id="ipDiag">—</div></div>
+    <button class="btn" id="hintBtn" style="width:100%;margin-top:8px;min-height:44px">💡 ขอคำใบ้ (เป็นคำถามชวนคิด ไม่ใช่คำตอบ)</button>
+    <div class="hintbox" id="hintBox" style="display:none"></div>
+    <div class="dlg-err" id="ipErr"></div>
+    <div class="dlg-actions">
+      <button class="btn" id="ipCancel">ปิด</button>
+      <button class="btn primary" id="ipSave">บันทึกค่า</button>
+    </div>
+  </div>
+</div>
+
+<!-- 🛡️ Firewall -->
+<div class="overlay" id="fwOverlay">
+  <div class="dialog">
+    <h3 id="fwTitle">🛡️ Firewall</h3>
+    <p class="dlg-note">ทุกเครื่องมี "รปภ.เฝ้าประตู" · บล็อก = ไม่รับแขกแปลกหน้า (ping ไม่ตอบ แชร์ไม่ได้) · เปิด Allow File and Printer Sharing = เพื่อนในวงเข้าถึงและสั่งพิมพ์ได้</p>
+    <div class="fwrow" id="fwRow">
+      <button data-block="true">🛡️ บล็อก<br><small>ไม่รับแขกแปลกหน้า</small></button>
+      <button data-block="false">🔓 เปิด Allow File and Printer Sharing<br><small>เพื่อนในวงเข้าถึงได้</small></button>
+    </div>
+    <div class="dlg-actions">
+      <button class="btn" id="fwCancel">ปิด</button>
+    </div>
+  </div>
+</div>
+
+<div class="win-msg" id="winMsg"></div>
+<canvas id="fx"></canvas>
+<div class="toast" id="toast"></div>
+
+<script src="js/engine.js"></script>
+<script>
+(function(){
+  var E = window.NetSimEngine;
+  var NET = '192.168.1', GW = '192.168.1.1', PRN_IP = '192.168.1.200';
+  var ACC = 'บัญชี', SALE = 'ขาย', TECH = 'ช่าง', PRN = 'เครื่องพิมพ์กลาง', SW = 'สวิตช์', RT = 'เราเตอร์', ISP = 'ผู้ให้บริการ';
+  var LS = 'wk16-1009-mission';
+  var studentNo = 0, nickname = '', won = false;
+  var done = { A:false, B:false, C:false };
+  /* เด็กต้อง "ยิงคำสั่งเห็นผลจริง" ถึงจะนับว่าจบเคส — แค่กรอกเลขให้ตรงกล่องยังไม่พอ
+   * (agy จับได้ 29 ส.ค.: ถ้าตรวจแค่ค่าที่ตั้ง เด็กก๊อปเลขจากกล่องเป้าหมายใส่แล้วผ่านเลยโดยไม่ต้องทดสอบ) */
+  var proved = { A:false, B:false, C:false };
+
+  /* เลข IP ผูกเลขที่ — ไม่ชนกันเองและไม่ชน .1 / .200 */
+  function ipAcc(){  return studentNo ? NET + '.' + (studentNo + 10) : ''; }   // 11–109
+  function ipSale(){ return studentNo ? NET + '.' + (studentNo + 40) : ''; }   // 41–139
+  function ipTech(){ return studentNo ? NET + '.' + (studentNo + 70) : ''; }   // 71–169
+
+  function save(){ if(!studentNo) return; try{ localStorage.setItem(LS, JSON.stringify({studentNo:studentNo,nickname:nickname,done:done,won:won,proved:proved})); }catch(e){} }
+  function load(){
+    try{ var d = JSON.parse(localStorage.getItem(LS)); if(!d||!d.studentNo) return false;
+      studentNo = d.studentNo; nickname = d.nickname||''; if(d.done) done = d.done; if(d.proved) proved = d.proved; won = !!d.won; return true;
+    }catch(e){ return false; }
+  }
+
+  /* ---------- UI helpers ---------- */
+  var statusEl = document.getElementById('status'), countsEl = document.getElementById('counts');
+  var toastEl = document.getElementById('toast'), toastTimer = null;
+  function showToast(msg, kind){
+    toastEl.className = 'toast show' + (kind ? ' ' + kind : '');
+    toastEl.innerHTML = msg;
+    clearTimeout(toastTimer); toastTimer = setTimeout(function(){ toastEl.className = 'toast'; }, 3600);
+  }
+  function termPrint(html, cls){
+    var d = document.createElement('div'); if (cls) d.className = cls; d.innerHTML = html;
+    var out = document.getElementById('termOut'); out.appendChild(d); out.scrollTop = out.scrollHeight;
+  }
+  function lookAtBoard(){
+    try{
+      var box = document.querySelector('.canvas-box'); if(!box || !box.scrollIntoView) return;
+      var r = box.getBoundingClientRect(), vh = window.innerHeight || document.documentElement.clientHeight;
+      if (!(r.top < vh*0.75 && r.bottom > vh*0.25)) box.scrollIntoView({behavior:'smooth', block:'center'});
+    }catch(e){}
+  }
+  function showMe(){
+    document.getElementById('scnMe').innerHTML = 'เลขที่ <b>' + (studentNo||'—') + '</b>' + (nickname ? ' · ' + nickname : '');
+    var h = document.getElementById('meNoHint');
+    if (h) h.textContent = 'เลขที่ของเธอ ' + (studentNo || '—');
+  }
+  function paintCases(){
+    var n = (done.A?1:0) + (done.B?1:0) + (done.C?1:0);
+    var cc = document.getElementById('caseCount'); if (cc) cc.textContent = '(' + n + '/3)';
+    ['A','B','C'].forEach(function(k){
+      var el = document.getElementById('c'+k);
+      if (done[k]) el.classList.add('done'); else el.classList.remove('done');
+    });
+  }
+
+  /* ---------- ผังตั้งต้น: สายต่อครบ ปัญหาอยู่ที่ "ค่าที่ตั้งไว้" ---------- */
+  function seedBoard(){
+    E.loadState({
+      nodes: [
+        { id: ISP,  type:'isp',    x: 60,  y: 40 },
+        { id: RT,   type:'router', x: 200, y: 40,  ip: GW },
+        { id: SW,   type:'switch', x: 200, y: 130 },
+        { id: PRN,  type:'server', x: 340, y: 130, ip: PRN_IP, fw: true, fwAllow: false },  // 🛡️ บล็อกอยู่ = เคส B
+        { id: ACC,  type:'pc',     x: 60,  y: 235, ip: ipAcc(), gw: GW },                    // ตั้งถูกแล้ว = ตัวเทียบ
+        { id: SALE, type:'pc',     x: 190, y: 235, ip: '192.168.2.' + studentNo, gw: GW },   // คนละวง = เคส A
+        { id: TECH, type:'pc',     x: 320, y: 235 }                                          // ยังไม่ตั้งอะไรเลย = เคส C
+      ],
+      edges: [
+        { id:'e1', a: ISP, b: RT,  media:'utp' },
+        { id:'e2', a: RT,  b: SW,  media:'utp' },
+        { id:'e3', a: SW,  b: PRN, media:'utp' },
+        { id:'e4', a: SW,  b: ACC, media:'utp' },
+        { id:'e5', a: SW,  b: SALE, media:'utp' },
+        { id:'e6', a: SW,  b: TECH, media:'utp' }
+      ]
+    });
+  }
+
+  /* ---------- เงื่อนไขผ่านของแต่ละเคส (ผ่านแล้วค้าง) ---------- */
+  function checkCases(){
+    var sale = E.getNode(SALE), tech = E.getNode(TECH), prn = E.getNode(PRN);
+
+    // A: แผนกขายกลับมาอยู่วงเดียวกัน วัดด้วยการคุยกับ "แผนกบัญชี" (เครื่องที่ไม่มี Firewall กั้น)
+    //    — ห้ามวัดด้วยเครื่องพิมพ์ ไม่งั้นเคส A จะติดเพราะ Firewall ของเคส B ทั้งที่แก้ IP ถูกแล้ว
+    if (!done.A && proved.A && sale && sale.ip === ipSale() && E.canPing(SALE, ipAcc()).ok){
+      done.A = true;
+      showToast('✅ เคส A จบ — แผนกขายสั่งพิมพ์ได้แล้ว · จดอาการ + สาเหตุ + วิธีแก้ ลงสมุดข้อ 1', 'ok');
+    }
+    // B: เครื่องพิมพ์เปิดให้เข้าถึงแล้ว (บัญชีที่ค่าถูกอยู่แล้วต้อง ping ถึง)
+    if (!done.B && proved.B && prn && E.getFirewall(PRN) && !E.getFirewall(PRN).blocking && E.canPing(ACC, PRN_IP).ok){
+      done.B = true;
+      showToast('✅ เคส B จบ — เครื่องพิมพ์กลางรับงานจากทุกแผนกแล้ว · จดลงสมุดข้อ 2', 'ok');
+    }
+    // C: แผนกช่างตั้ง IP ในวง + มี Gateway จนออกอินเทอร์เน็ตได้
+    if (!done.C && proved.C && tech && tech.ip === ipTech() && tech.gw === GW && E.canReachNet(TECH).ok){
+      done.C = true;
+      showToast('✅ เคส C จบ — แผนกช่างออกอินเทอร์เน็ตได้แล้ว · จดลงสมุดข้อ 3', 'ok');
+    }
+    paintCases(); save();
+    if (!won && done.A && done.B && done.C) winNow();
+  }
+
+  function winNow(){
+    won = true; save();
+    var m = document.getElementById('winMsg');
+    m.innerHTML = '🎉 สำนักงานใช้งานได้ครบแล้ว<br><span style="font-size:.62em">จดข้อ 1-3 ให้ครบ (อาการ + สาเหตุ + วิธีแก้) แล้วทำตอนที่ 3 ในใบงานต่อ</span>';
+    m.classList.add('show');
+    setTimeout(function(){ m.classList.remove('show'); }, 5200);
+    showToast('🏆 ครบ 3 เคส — ยกมือเรียกครูมาดูหน้าจอ', 'ok');
+  }
+
+  /* ---------- ตั้งค่า IP ---------- */
+  var cfgId = null;
+  var ipOverlay = document.getElementById('ipOverlay');
+  function diagOf(id){
+    var n = E.getNode(id); if (!n) return '—';
+    var L = [];
+    L.push('IP ที่อ่านได้: <b>' + (n.ip || '(ยังไม่ได้ตั้ง)') + '</b>');
+    L.push('Gateway: <b>' + (n.gw || '(ยังไม่ได้ตั้ง)') + '</b>');
+    if (id === PRN){
+      var fw = E.getFirewall(PRN);
+      L.push('สถานะ Firewall: <b>' + (fw && fw.blocking ? '🛡️ บล็อกอยู่' : '🔓 เปิดให้เข้าถึง') + '</b>');
+    }
+    return L.join('<br>');
+  }
+  var HINTS = {};
+  HINTS[SALE] = 'ลองเทียบเลข 3 ชุดแรกของเครื่องนี้ กับของเครื่องแผนกบัญชีที่ใช้งานได้อยู่แล้ว — ตรงกันไหม · ถ้าไม่ตรง แปลว่าสองเครื่องนี้อยู่ที่เดียวกันหรือคนละที่';
+  HINTS[TECH] = 'เครื่องนี้ยังไม่มีเลขที่อยู่เลย · แล้วถ้าจะออกไปนอกวง เครื่องต้องรู้อะไรเพิ่มอีกอย่างหนึ่ง';
+  HINTS[PRN]  = 'สายต่อครบ ไฟติด วงก็ตรงกัน แต่ยังไม่ตอบ · อะไรที่อยู่ "ในตัวเครื่องปลายทาง" ที่กันคนแปลกหน้าไว้ได้';
+  HINTS[ACC]  = 'เครื่องนี้ค่าถูกอยู่แล้ว ใช้เป็นตัวเทียบว่า "ค่าที่ถูกต้อง" หน้าตาเป็นยังไง';
+
+  function openCfg(id){
+    if (id === RT || id === SW || id === ISP){
+      showToast('อุปกรณ์ตัวนี้ช่างวางไว้ถูกแล้ว — ปัญหาอยู่ที่เครื่องผู้ใช้', 'bad'); return;
+    }
+    if (id === PRN){ openFw(id); return; }        // เครื่องพิมพ์ให้ไปจัดการที่ Firewall
+    cfgId = id;
+    var n = E.getNode(id);
+    document.getElementById('ipTitle').textContent = '⚙️ ตรวจสภาพ ' + id;
+    document.getElementById('ipNote').textContent = 'อ่านค่าที่เครื่องนี้ก่อน แล้วค่อยตัดสินใจว่าจะแก้อะไร';
+    document.getElementById('ipVal').value = n.ip || '';
+    document.getElementById('gwVal').value = n.gw || '';
+    document.getElementById('ipDiag').innerHTML = diagOf(id);
+    document.getElementById('ipErr').textContent = '';
+    document.getElementById('hintBox').style.display = 'none';
+    ipOverlay.classList.add('show');
+  }
+  document.getElementById('hintBtn').addEventListener('click', function(){
+    var b = document.getElementById('hintBox');
+    b.innerHTML = '💡 ' + (HINTS[cfgId] || 'ลองเทียบค่าของเครื่องนี้กับเครื่องที่ใช้งานได้อยู่แล้ว');
+    b.style.display = 'block';
+  });
+  document.getElementById('ipCancel').addEventListener('click', function(){ ipOverlay.classList.remove('show'); });
+  ipOverlay.addEventListener('click', function(e){ if (e.target === ipOverlay) ipOverlay.classList.remove('show'); });
+  document.getElementById('ipSave').addEventListener('click', function(){
+    var ip = document.getElementById('ipVal').value.trim(), gw = document.getElementById('gwVal').value.trim();
+    var err = E.ipError(ip);
+    if (err){ document.getElementById('ipErr').textContent = '❌ ' + err; return; }
+    var dup = E.ipConflict(cfgId, ip);
+    if (dup){ document.getElementById('ipErr').textContent = '❌ IP นี้ซ้ำกับ ' + dup + ' — ในวงเดียวกันห้ามซ้ำ'; return; }
+    E.setNodeIP(cfgId, ip, gw);
+    ipOverlay.classList.remove('show');
+    showToast('บันทึกค่าให้ ' + cfgId + ' แล้ว — <b>ยิง ping จากเครื่องนี้</b> ดูว่าผลเปลี่ยนไหม', 'ok');
+    refreshTerm();
+    var sel = document.getElementById('srcSel');          // เลือกเครื่องที่เพิ่งแก้ให้เลย กันเด็กยิงผิดเครื่อง
+    if (sel.querySelector('option[value="' + cfgId + '"]')) { sel.value = cfgId; document.getElementById('termPrompt').textContent = cfgId + '>'; }
+    checkCases();
+  });
+
+  /* ---------- Firewall ---------- */
+  var fwId = null, fwOverlay = document.getElementById('fwOverlay');
+  function openFw(id){
+    fwId = id;
+    document.getElementById('fwTitle').textContent = '🛡️ Firewall ของ ' + id;
+    var fw = E.getFirewall(id) || { blocking:false };
+    Array.prototype.forEach.call(document.querySelectorAll('#fwRow button'), function(b){
+      b.classList.toggle('on', (b.getAttribute('data-block') === 'true') === !!fw.blocking);
+    });
+    fwOverlay.classList.add('show');
+  }
+  document.querySelectorAll('#fwRow button').forEach(function(b){
+    b.addEventListener('click', function(){
+      var block = b.getAttribute('data-block') === 'true';
+      E.setFirewall(fwId, block);
+      fwOverlay.classList.remove('show');
+      showToast(block ? '🛡️ ' + fwId + ' บล็อกคนแปลกหน้าแล้ว' : '🔓 ' + fwId + ' เปิดให้เพื่อนในวงเข้าถึงได้แล้ว', block ? 'bad' : 'ok');
+      checkCases();
+    });
+  });
+  document.getElementById('fwCancel').addEventListener('click', function(){ fwOverlay.classList.remove('show'); });
+  fwOverlay.addEventListener('click', function(e){ if (e.target === fwOverlay) fwOverlay.classList.remove('show'); });
+
+  /* ---------- โหมด ---------- */
+  function setModeUI(m){
+    document.getElementById('mConfig').classList.toggle('on', m === 'config');
+    document.getElementById('mFw').classList.toggle('on', m === 'settings');
+    E.setMode(m);
+    statusEl.textContent = (m === 'settings')
+      ? 'แตะเครื่องเพื่อดู/ตั้ง Firewall ของเครื่องนั้น'
+      : 'แตะเครื่องเพื่ออ่านค่าและตั้ง IP';
+  }
+  document.getElementById('mConfig').addEventListener('click', function(){ setModeUI('config'); });
+  document.getElementById('mFw').addEventListener('click', function(){ setModeUI('settings'); });
+
+  /* ---------- Terminal ---------- */
+  function refreshTerm(){
+    var sel = document.getElementById('srcSel');
+    var list = E.nodesWithIP ? E.nodesWithIP() : [];   // คืนเป็น object {id, ip, ...} ไม่ใช่สตริง
+    var cur = sel.value;
+    sel.innerHTML = '';
+    list.forEach(function(o){
+      var op = document.createElement('option');
+      op.value = o.id;
+      op.textContent = o.id + (o.ip ? ' (' + o.ip + ')' : ' (ยังไม่มี IP)');
+      sel.appendChild(op);
+    });
+    if (cur && list.some(function(o){ return o.id === cur; })) sel.value = cur;
+    else if (list.length) sel.value = list[0].id;
+    document.getElementById('termPrompt').textContent = (sel.value || '') + '>';
+  }
+  document.getElementById('srcSel').addEventListener('change', function(){
+    document.getElementById('termPrompt').textContent = this.value + '>';
+  });
+  document.querySelectorAll('.term-chips button').forEach(function(b){
+    b.addEventListener('click', function(){
+      var i = document.getElementById('cmd'); i.value = b.getAttribute('data-fill'); i.focus();
+    });
+  });
+  document.getElementById('runBtn').addEventListener('click', runCmd);
+  document.getElementById('cmd').addEventListener('keydown', function(e){ if (e.key === 'Enter') runCmd(); });
+
+  var MSG = {
+    srcnoip:'เครื่องต้นทางยังไม่มีเลขที่อยู่ — เครื่องที่ไม่มี IP ส่งอะไรออกไม่ได้',
+    srcbad:'IP ของเครื่องต้นทางผิดกฎ',
+    badtarget:'รูปแบบ IP ปลายทางผิด',
+    self:'นั่นคือ IP ของเครื่องตัวเอง',
+    nohost:'ไม่มีเครื่องใดในสำนักงานใช้เลขนี้',
+    unwired:'ส่งไม่ถึง — เส้นทางขาดตอน',
+    diffnet:'คนละวง — 3 ชุดแรกไม่ตรงกัน สองเครื่องนี้จึงไม่ถือว่าอยู่ที่เดียวกัน',
+    firewall:'สายถึง วงเดียวกัน แต่ปลายทางเงียบ — ที่ปลายทางมีอะไรกันไว้อยู่',
+    noisp:'ผังนี้ยังไม่มีทางออกไปโลกภายนอก',
+    norouter:'เส้นทางออกนอกวงยังไม่ผ่านอุปกรณ์ที่ข้ามวงได้',
+    nogw:'เครื่องนี้ยังไม่รู้ว่าประตูออกนอกวงอยู่เลขอะไร',
+    dns:'ไม่รู้จักชื่อเว็บนี้'
+  };
+
+  function runCmd(){
+    var input = document.getElementById('cmd'), raw = (input.value || '').trim();
+    if (!raw) return;
+    var src = document.getElementById('srcSel').value;
+    if (!src){ termPrint('ยังไม่มีเครื่องที่ตั้ง IP ให้เลือกเลย', 'th'); return; }
+    termPrint('<span class="cmd">' + src + '&gt; ' + raw + '</span>');
+    input.value = '';
+    var p = raw.split(/\s+/), cmd = p[0].toLowerCase();
+
+    if (cmd === 'ipconfig'){
+      var n = E.getNode(src) || {};
+      termPrint('   IPv4 Address . . : ' + (n.ip || '(ยังไม่ได้ตั้ง)')
+        + '<br>   Subnet Mask  . . : ' + (n.ip ? '255.255.255.0' : '-')
+        + '<br>   Default Gateway  : ' + (n.gw || '(ยังไม่ได้ตั้ง)'));
+      return;
+    }
+    if (cmd === 'ping'){
+      if (!p[1]){ termPrint('ใช้: ping &lt;IP&gt; เช่น ping ' + PRN_IP, 'th'); return; }
+      doPing(src, p[1]); return;
+    }
+    if (cmd === 'tracert' || cmd === 'traceroute'){
+      if (!p[1]){ termPrint('ใช้: tracert &lt;IP&gt;', 'th'); return; }
+      doTracert(src, p[1]); return;
+    }
+    termPrint("'" + cmd + "' ไม่ใช่คำสั่งที่รองรับ — ใช้ได้: ipconfig, ping, tracert", 'th');
+  }
+
+  function doPing(src, ip){
+    var net = E.netTarget(ip), res;
+    if (net){
+      res = E.pingNet(src, ip, function(){
+        termPrint('ตอบกลับจาก ' + net.ip + ': เวลา ' + net.ms + 'ms TTL=' + net.ttl, 'ok');
+        termPrint('📋 จดสมุด: ' + src + ' ออกอินเทอร์เน็ตได้ — ผ่านเราเตอร์ที่ตั้งเป็น Gateway', 'note');
+        checkCases();
+      });
+    } else {
+      res = E.ping(src, ip, function(r, hops){
+        for (var k = 0; k < 3; k++){
+          var ms = 1 + Math.round(Math.random()*3) + hops;
+          termPrint('ตอบกลับจาก ' + ip + ': ไบต์=32 เวลา=' + ms + 'ms TTL=' + (128 - hops), 'ok');
+        }
+        termPrint('📋 จดสมุด: ' + src + ' → ' + ip + ' = ถึง (' + hops + ' hop)', 'note');
+        checkCases();
+      });
+    }
+    if (res.ok){
+      /* ปักธง "เด็กยิงเองเห็นผลเอง" ตรงนี้ ไม่ใช่ใน callback ของ animation
+       * (callback ผูกกับ requestAnimationFrame — สลับแท็บ/ล็อกจอแล้วมันไม่ยิง เด็กจะทำถูกแต่ไม่ติ๊ก) */
+      if (net){ if (src === TECH) proved.C = true; }
+      else {
+        if (src === SALE && (ip === ipAcc() || ip === PRN_IP)) proved.A = true;
+        if (src === ACC  && ip === PRN_IP) proved.B = true;
+      }
+      save(); checkCases();
+      termPrint('กำลัง ping ' + ip + ' ...'); lookAtBoard(); return;
+    }
+    var m = MSG[res.reason] || 'ส่งไม่ถึง';
+    termPrint('✗ Request timed out — ' + m, 'bad');
+    showToast('⛔ ' + m, 'bad');
+  }
+
+  function doTracert(src, host){
+    var r = E.tracePath(src, host);
+    if (!r.ok){ termPrint('✗ ไล่เส้นทางไม่ได้ — ' + (MSG[r.reason] || 'ส่งไม่ถึง'), 'bad'); return; }
+    termPrint('Tracing route to ' + ((r.target && r.target.ip) || host) + ' :');
+    var hop = 0;
+    r.nodes.forEach(function(id, i){
+      if (i === 0) return;
+      hop++;
+      var n = E.getNode(id) || {};
+      termPrint('  ' + hop + '   ' + (1 + Math.round(Math.random()*4) + hop*2) + ' ms   ' + id + (n.ip ? ' [' + n.ip + ']' : ''), 'ok');
+    });
+    if (r.kind === 'net' && r.target){ hop++; termPrint('  ' + hop + '   ' + r.target.ms + ' ms   ' + r.target.ip, 'ok'); }
+    termPrint('Trace complete. รวม ' + hop + ' hop', 'note');
+  }
+
+  /* ---------- เริ่มใหม่ ---------- */
+  document.getElementById('scnReset').addEventListener('click', function(){
+    if (!confirm('เริ่มภารกิจใหม่ทั้งหมด? (ค่าที่แก้ไปจะหายหมด)')) return;
+    done = { A:false, B:false, C:false }; won = false; save();
+    seedBoard(); paintCases(); refreshTerm();
+    showToast('เริ่มภารกิจใหม่แล้ว', 'ok');
+  });
+
+  /* ---------- boot ---------- */
+  function boot(){
+    E.init(document.getElementById('canvas'), {
+      storeKey: 'wk16-1009-board-no' + studentNo,
+      onStatus: function(m){ statusEl.textContent = m; },
+      onChange: function(n,e){ countsEl.textContent = 'อุปกรณ์ ' + n + ' · สาย ' + e; },
+      onToast: showToast,
+      onConfig: function(id){ openCfg(id); },
+      onSettings: function(id){ openFw(id); }
+    });
+    var st = { nodes: [] };
+    try { st = JSON.parse(E.exportState()) || st; } catch(e){}
+    if (!st.nodes || !st.nodes.length) seedBoard();     // ยังไม่เคยทำ = วางผังตั้งต้น
+    setModeUI('config');
+    refreshTerm(); paintCases(); showMe(); checkCases();
+    setInterval(checkCases, 1200);   // ไม่ animate แล้ว เรียกซ้ำได้ไม่กวนจอ
+  }
+
+  document.getElementById('noOk').addEventListener('click', function(){
+    var v = (document.getElementById('noInput').value || '').trim();
+    if (!/^\d+$/.test(v) || +v < 1 || +v > 99){ document.getElementById('noErr').textContent = 'กรอกเลขที่ 1–99'; return; }
+    var switching = (studentNo && +v !== studentNo);
+    studentNo = +v; nickname = (document.getElementById('noNick').value || '').trim();
+    save(); showMe();
+    document.getElementById('noOverlay').classList.remove('show');
+    if (switching){ location.reload(); return; }
+    boot();
+  });
+
+  if (load()){
+    document.getElementById('noOverlay').classList.remove('show');
+    showMe(); boot();
+  }
+})();
+</script>
+</body>
+</html>

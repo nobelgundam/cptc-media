@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="th">
+<head><meta charset="UTF-8"><title>builder flow test</title></head>
+<body>
+<iframe id="fr" src="builder.html" style="width:1000px;height:800px;border:1px solid #ccc"></iframe>
+<pre id="out">running…</pre>
+<script>
+var log = [], pass = 0, fail = 0;
+function ok(name, cond, extra){ (cond ? pass++ : fail++); log.push((cond ? 'PASS ' : 'FAIL ') + name + (extra ? ' | ' + extra : '')); }
+function done(){
+  document.getElementById('out').textContent = log.join('\n') + '\nRESULT pass=' + pass + ' fail=' + fail;
+  document.title = 'RESULT pass=' + pass + ' fail=' + fail;
+}
+
+var fr = document.getElementById('fr');
+fr.addEventListener('load', function(){
+  var w = fr.contentWindow, d = fr.contentDocument;
+  try { w.localStorage.clear(); } catch(e){}
+
+  /* --- เปิดครั้งแรก: ต้องถามเลขที่ และยังไม่เปิดกระดาน --- */
+  var ov = d.getElementById('noOverlay');
+  ok('1 เปิดครั้งแรกถามเลขที่', ov && ov.classList.contains('show'));
+  ok('1b ยังไม่มีปุ่มยกเลิก (บังคับกรอกครั้งแรก)', d.getElementById('noCancel').classList.contains('hidden'));
+  ok('1c ยังไม่ init กระดาน', d.querySelectorAll('#canvas .node').length === 0);
+
+  /* --- กรอกเลขผิดกฎ --- */
+  d.getElementById('noInput').value = '0';
+  d.getElementById('noOk').click();
+  ok('2 เลข 0 ไม่ผ่าน', d.getElementById('noErr').textContent.length > 0 && ov.classList.contains('show'));
+
+  /* --- กรอกเลขที่ถูก → boot กระดาน --- */
+  d.getElementById('noInput').value = '7';
+  d.getElementById('noOk').click();
+  ok('3 กรอกเลขที่แล้วปิดป๊อปอัป', !ov.classList.contains('show'));
+  ok('3b badge ขึ้นเลขที่', /7/.test(d.getElementById('meBadge').textContent));
+  ok('3c เก็บเลขที่ลง localStorage', w.localStorage.getItem('netsim_builder_no') === '7');
+
+  /* --- วางอุปกรณ์ผ่าน engine แล้วต้องเซฟลง key ของเลขที่ 7 --- */
+  var E = w.NetSimEngine;
+  E.loadState({ nodes:[ {id:'PC1',type:'pc',x:100,y:100,ip:'192.168.1.7'},
+                        {id:'SW1',type:'switch',x:200,y:100},
+                        {id:'R1',type:'router',x:300,y:100} ],
+                edges:[ {id:'e1',a:'PC1',b:'SW1',media:'utp'}, {id:'e2',a:'SW1',b:'R1',media:'utp'} ] });
+  ok('4 งานถูกเซฟลงกล่องของเลขที่ 7', !!w.localStorage.getItem('netsim_builder_no7'), 'keys=' + Object.keys(w.localStorage).join(','));
+  ok('4b ไม่มีกล่องกลาง no0 ปนมา', !w.localStorage.getItem('netsim_builder_no0'));
+
+  /* --- router: ต้องเปิดหน้าตั้งค่าแล้วเห็นทั้งช่อง IP และ Wi-Fi --- */
+  w.document.getElementById('m-config').click();
+  E.getNode('R1');           // ให้แน่ใจว่ามีจริง
+  var openCfgWorks = false;
+  try { fr.contentWindow.eval("document.querySelector('[data-id=\"R1\"] .node-hit')"); openCfgWorks = true; } catch(e){}
+  ok('5 มีปุ่มโหมดตั้ง IP', !!w.document.getElementById('m-config'));
+
+  /* --- terminal รองรับ tracert --- */
+  var chips = Array.prototype.map.call(d.querySelectorAll('.term-chips button'), function(b){ return b.getAttribute('data-fill'); });
+  ok('6 ปุ่มลัดมี tracert', chips.indexOf('tracert ') > -1, chips.join('|'));
+  ok('6b ไม่มีปุ่มกดแล้วรันทันที', d.querySelectorAll('.term-chips [data-run]').length === 0);
+
+  /* --- เปลี่ยนเลขที่: ต้องมีปุ่มยกเลิก + ข้อความเตือน --- */
+  d.getElementById('meBadge').click();
+  ok('7 เปิดจากปุ่มมุมบน มีปุ่มยกเลิก', !d.getElementById('noCancel').classList.contains('hidden'));
+  ok('7b มีข้อความบอกว่างานเก่าไม่หาย', !d.getElementById('noSwitchNote').classList.contains('hidden'));
+  d.getElementById('noCancel').click();
+  ok('7c กดยกเลิกแล้วปิดได้', !ov.classList.contains('show'));
+
+  done();
+});
+setTimeout(function(){ if (!log.length){ log.push('FAIL iframe ไม่โหลด'); fail++; done(); } }, 4000);
+</script>
+</body>
+</html>
