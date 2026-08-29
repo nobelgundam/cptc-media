@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>ใบงานที่ 15 · ติดตั้งเครือข่ายสำนักงานใหม่ — 21909-1009 สัปดาห์ 16</title>
-<link rel="stylesheet" href="css/style.css?v=20260829b">
+<link rel="stylesheet" href="css/style.css?v=20260829c">
 <style>
   .steps{background:#0e2033;border:1px solid #2c4a63;border-left:4px solid #ffd54a;border-radius:9px;padding:9px 12px;margin-bottom:8px;font-size:.84rem;color:#dff;line-height:1.8;}
   .steps b{color:#ffd54a;}
@@ -61,7 +61,7 @@
   <details class="casewrap" open>
     <summary>📋 อาการที่ลูกค้าแจ้ง 3 เคส <span id="caseCount">(0/3)</span> — แตะเพื่อย่อ/ขยาย</summary>
     <div class="cases">
-      <div class="case" id="cA" data-n="A"><b>เคส A · แผนกขาย</b>สั่งพิมพ์ไม่ได้ ทั้งที่สายต่อครบ ไฟติดเขียว</div>
+      <div class="case" id="cA" data-n="A"><b>เคส A · แผนกขาย</b>สั่งพิมพ์ไม่ได้ ทั้งที่สายต่อครบ ไฟติดเขียว<br><span style="color:#9fb6c9">ทดสอบเคสนี้ด้วยการ <b>ping แผนกบัญชี</b> ก่อน (เครื่องพิมพ์ยังมีปัญหาของเคส B ค้างอยู่)</span></div>
       <div class="case" id="cB" data-n="B"><b>เคส B · เครื่องพิมพ์กลาง</b>ทุกแผนกสั่งพิมพ์ไม่ได้เลย แม้แผนกที่วงถูกแล้ว</div>
       <div class="case" id="cC" data-n="C"><b>เคส C · แผนกช่าง</b>เปิดเว็บไม่ได้ — เครื่องนี้ยังไม่ได้ตั้งค่าอะไรเลย</div>
     </div>
@@ -91,6 +91,7 @@
     <div class="term-out" id="termOut"><div class="th">เริ่มจาก <b>ipconfig</b> ดูค่าเครื่องก่อน แล้วค่อย <b>ping</b> — ping เครื่องพิมพ์ใช้ <b>ping 192.168.1.200</b> · ออกเน็ตใช้ <b>ping 8.8.8.8</b></div></div>
     <div class="term-chips">
       <button data-fill="ipconfig">ipconfig</button>
+      <button id="chipAcc" data-fill="ping ">ping แผนกบัญชี</button>
       <button data-fill="ping 192.168.1.200">ping เครื่องพิมพ์</button>
       <button data-fill="ping 8.8.8.8">ping ออกเน็ต</button>
       <button data-fill="ping ">ping…</button>
@@ -166,7 +167,7 @@
 <canvas id="fx"></canvas>
 <div class="toast" id="toast"></div>
 
-<script src="js/engine.js?v=20260829b"></script>
+<script src="js/engine.js?v=20260829c"></script>
 <script>
 (function(){
   var E = window.NetSimEngine;
@@ -210,10 +211,18 @@
       if (!(r.top < vh*0.75 && r.bottom > vh*0.25)) box.scrollIntoView({behavior:'smooth', block:'center'});
     }catch(e){}
   }
+  function syncAccChip(){
+    /* เคส A วัดด้วยการคุยกับ "แผนกบัญชี" ไม่ใช่เครื่องพิมพ์ (เครื่องพิมพ์ยังโดน Firewall ของเคส B กันอยู่)
+     * ถ้าไม่มีปุ่มนี้ เด็กจะกด ping เครื่องพิมพ์แล้วไม่ผ่าน นึกว่าตัวเองแก้ IP ผิด */
+    var b = document.getElementById('chipAcc');
+    if (b && studentNo) b.setAttribute('data-fill', 'ping ' + ipAcc());
+  }
+
   function showMe(){
     document.getElementById('scnMe').innerHTML = 'เลขที่ <b>' + (studentNo||'—') + '</b>' + (nickname ? ' · ' + nickname : '');
     var h = document.getElementById('meNoHint');
     if (h) h.textContent = 'เลขที่ของเธอ ' + (studentNo || '—');
+    syncAccChip();
   }
   function paintCases(){
     var n = (done.A?1:0) + (done.B?1:0) + (done.C?1:0);

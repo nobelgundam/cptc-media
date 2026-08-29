@@ -103,6 +103,12 @@ function done(){
      JSON.stringify(saved.done || {}));
   ok('6e Terminal มีบรรทัดผลลัพธ์ให้เด็กจดลงสมุด',
      /ตอบกลับจาก/.test(d.getElementById('termOut').textContent || ''));
+  var accChip = d.getElementById('chipAcc');
+  ok('6f มีปุ่มลัด ping แผนกบัญชี ผูกเลขที่ (เคส A ต้องวัดกับเครื่องนี้ ไม่ใช่เครื่องพิมพ์ที่ยังโดน Firewall)',
+     !!accChip && accChip.getAttribute('data-fill') === 'ping ' + IP_ACC,
+     accChip ? accChip.getAttribute('data-fill') : 'ไม่มีปุ่ม');
+  ok('6g กล่องเคส A บอกให้ทดสอบกับแผนกบัญชี',
+     /ping แผนกบัญชี/.test(d.getElementById('cA').textContent || ''));
   finish();
 }
 setTimeout(function(){ if (!/RESULT/.test(document.title)){ ok('เทสจบทัน', false, 'timeout'); finish(); } }, 15000);
