@@ -40,6 +40,21 @@
   .q.done{background:var(--okbg);border-color:var(--ok);color:#166534;font-weight:600;}
   .q.done .ic{background:var(--ok);border-color:var(--ok);}
 
+  /* check-my-answer (wk16 ตอนที่ 2) */
+  .checksec{flex:0 0 auto;background:var(--card);border-bottom:1px solid var(--line);padding:8px 10px;}
+  .checksec .chead{font-size:.82rem;font-weight:700;margin-bottom:4px;}
+  .pow2ref{font-size:.7rem;color:var(--muted);font-family:'Consolas',monospace;
+    overflow-x:auto;white-space:nowrap;padding:2px 0 7px;}
+  .crow{display:flex;align-items:center;gap:6px;padding:4px 0;flex-wrap:wrap;}
+  .crow .clabel{font-size:.78rem;font-weight:700;min-width:34px;}
+  .crow .cinp{width:88px;font-family:'Consolas',monospace;font-size:.86rem;
+    padding:5px 7px;border:1.5px solid var(--line2);border-radius:7px;}
+  .crow .cbtn{background:var(--signal);color:#fff;border:none;border-radius:7px;
+    padding:5px 11px;font-size:.78rem;font-weight:700;}
+  .crow .cres{font-size:.74rem;flex-basis:100%;min-height:1.1em;color:var(--muted);}
+  .crow .cres.ok{color:var(--ok);font-weight:700;}
+  .crow .cres.bad{color:var(--bad);}
+
   /* topology */
   .stage{flex:0 0 auto;background:var(--card);border-bottom:1px solid var(--line);padding:4px 6px 6px;}
   .stage .hint{font-size:.72rem;color:var(--muted);text-align:center;margin:3px 0;}
@@ -111,6 +126,29 @@
   <div class="q" id="q1"><span class="ic">1</span> ตั้ง IP ครบ 5</div>
   <div class="q" id="q2"><span class="ic">2</span> ping เพื่อนในวง</div>
   <div class="q" id="q3"><span class="ic">3</span> ping ออกเน็ต</div>
+</div>
+
+<div class="checksec" id="checkSec">
+  <div class="chead">🧮 ตรวจคำตอบตอนที่ 2 — จำนวนโฮสต์ใช้งานได้จริง</div>
+  <div class="pow2ref">2¹=2 · 2²=4 · 2³=8 · 2⁴=16 · 2⁵=32 · 2⁶=64 · 2⁷=128 · 2⁸=256</div>
+  <div class="crow" data-prefix="24">
+    <span class="clabel">/24</span>
+    <input type="text" inputmode="numeric" class="cinp" placeholder="คำตอบของเธอ">
+    <button class="cbtn" data-check="24">ตรวจ</button>
+    <span class="cres" id="cres24"></span>
+  </div>
+  <div class="crow" data-prefix="26">
+    <span class="clabel">/26</span>
+    <input type="text" inputmode="numeric" class="cinp" placeholder="คำตอบของเธอ">
+    <button class="cbtn" data-check="26">ตรวจ</button>
+    <span class="cres" id="cres26"></span>
+  </div>
+  <div class="crow" data-prefix="30">
+    <span class="clabel">/30</span>
+    <input type="text" inputmode="numeric" class="cinp" placeholder="คำตอบของเธอ">
+    <button class="cbtn" data-check="30">ตรวจ</button>
+    <span class="cres" id="cres30"></span>
+  </div>
 </div>
 
 <div class="stage">
@@ -374,11 +412,47 @@ document.getElementById('resetBtn').addEventListener('click',()=>{
 document.getElementById('goBtn').addEventListener('click',run);
 document.getElementById('cmd').addEventListener('keydown',e=>{if(e.key==="Enter")run();});
 
+// ---------- ตรวจคำตอบ (wk16 ตอนที่ 2) ----------
+// เฉลย (CHK_ANS) ใช้เทียบในโค้ดเท่านั้น — ห้ามพิมพ์ตัวเลขนี้ออกจอ/toast/console เด็ดขาด
+const CHK_HBITS={24:8,26:6,30:2};
+const CHK_ANS={24:254,26:62,30:2};
+const CHK_LS="ip_sim_1009_wk16_check_v1";
+const checkState={};
+function loadCheck(){try{const d=JSON.parse(localStorage.getItem(CHK_LS));if(d)Object.assign(checkState,d);}catch(e){}}
+function saveCheck(){try{localStorage.setItem(CHK_LS,JSON.stringify(checkState));}catch(e){}}
+function classifyWrong(prefix,v){
+  const pow=Math.pow(2,CHK_HBITS[prefix]);
+  if(v===pow||v===pow-1) return 'ลองทบทวน "ขั้นสุดท้าย" — กันที่อยู่ไว้ 2 ที่ (Network + Broadcast) ให้ครบ';
+  return 'ลองทบทวน "หาบิตโฮสต์ที่เหลือ → 2ⁿ" อีกที (เทียบตาราง 2ⁿ ด้านบน)';
+}
+function paintCheckRow(prefix){
+  const el=document.getElementById('cres'+prefix); if(!el)return;
+  const st=checkState[prefix];
+  if(st==='ok'){el.textContent="✅ ถูกต้อง!";el.className="cres ok";}
+  else if(st&&st.startsWith('bad')){el.textContent="❌ ยังไม่ถูก — ลองใหม่";el.className="cres bad";}
+  else{el.textContent="";el.className="cres";}
+}
+function doCheck(prefix){
+  const row=document.querySelector(`.crow[data-prefix="${prefix}"]`); if(!row)return;
+  const inp=row.querySelector('.cinp'), el=document.getElementById('cres'+prefix);
+  const raw=(inp.value||"").trim();
+  if(!/^\d+$/.test(raw)){el.textContent="กรอกตัวเลขก่อนนะ";el.className="cres";return;}
+  const v=+raw;
+  if(v===CHK_ANS[prefix]){ checkState[prefix]='ok'; el.textContent="✅ ถูกต้อง!"; el.className="cres ok"; }
+  else{ checkState[prefix]='bad'; el.textContent="❌ "+classifyWrong(prefix,v); el.className="cres bad"; }
+  saveCheck();
+}
+document.querySelectorAll('[data-check]').forEach(b=>b.addEventListener('click',()=>doCheck(b.dataset.check)));
+document.querySelectorAll('.crow .cinp').forEach(i=>i.addEventListener('keydown',e=>{
+  if(e.key==="Enter"){const btn=e.target.closest('.crow').querySelector('.cbtn'); if(btn)btn.click();}
+}));
+
 // init
 fillSrc();
 if(load()){term('โหลดงานที่ค้างไว้กลับมาแล้ว ทำต่อได้เลย','th');}
 else{term('Network Simulator — 21909-1009 wk6','th');}
 render();updateQuest();
+loadCheck();[24,26,30].forEach(paintCheckRow);
 </script>
 </body>
 </html>

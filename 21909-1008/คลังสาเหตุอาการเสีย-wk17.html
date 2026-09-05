@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>คลังสาเหตุอาการเสีย · 21909-1008 wk17</title>
+<style>
+  :root{
+    --bg:#F1F5F9; --card:#FFFFFF; --line:#E2E8F0; --line2:#CBD5E1;
+    --ink:#0F172A; --muted:#64748B; --accent-bg:#EFF6FF; --accent-line:#BFDBFE; --accent-ink:#1E3A8A;
+    --mark-bg:#FEF9C3; --mark-line:#EAB308;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  html{min-height:100%;background:var(--bg);}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Sarabun",sans-serif;
+    background:var(--bg);color:var(--ink);line-height:1.55;
+    max-width:760px;margin:0 auto;padding:16px 14px 32px;min-height:100vh;}
+  h1{font-size:1.2rem;font-weight:700;margin-bottom:2px;}
+  .sub{font-size:.82rem;color:var(--muted);margin-bottom:14px;}
+  .note{background:var(--accent-bg);border:1px solid var(--accent-line);color:var(--accent-ink);
+    border-radius:10px;padding:10px 13px;font-size:.87rem;margin-bottom:12px;}
+  .symp{font-size:.8rem;color:var(--muted);margin-bottom:18px;padding:0 2px;}
+  .symp b{color:var(--ink);}
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  @media(max-width:680px){.cols{grid-template-columns:1fr;}}
+  .col h2{font-size:1rem;font-weight:700;margin-bottom:9px;display:flex;align-items:center;gap:6px;}
+  .card{background:var(--card);border:1.5px solid var(--line2);border-radius:11px;
+    padding:11px 12px;margin-bottom:9px;font-size:.9rem;display:flex;gap:10px;align-items:flex-start;
+    cursor:pointer;transition:.12s;user-select:none;}
+  .card:active{transform:scale(.99);}
+  .card.mark{background:var(--mark-bg);border-color:var(--mark-line);}
+  .card .tag{flex:0 0 auto;width:27px;height:27px;border-radius:50%;background:var(--bg);
+    border:1.5px solid var(--line2);display:grid;place-items:center;font-weight:700;
+    font-size:.82rem;color:var(--muted);margin-top:1px;}
+  .card.mark .tag{background:var(--mark-line);border-color:var(--mark-line);color:#fff;}
+  .card .txt{flex:1;}
+  footer{margin-top:20px;font-size:.8rem;color:var(--muted);border-top:1px solid var(--line);
+    padding-top:12px;}
+</style>
+</head>
+<body>
+
+<h1>🩺 คลังสาเหตุอาการเสีย</h1>
+<div class="sub">21909-1008 · ใบงานที่ 17 · ใช้ตอนเคส C (ข้อ 7-9) และตอนที่ 2 (ข้อ 10-11)</div>
+
+<div class="note">
+  เทียบกับ <b>อาการของเครื่องคุณเอง</b> (ตามตารางเลขที่ในใบงาน) — เลือก <b>สาเหตุ</b> ที่คิดว่าตรงกับอาการนั้น
+  แล้วเลือก <b>วิธีเช็ค</b> ที่ไม่ต้องเปลี่ยนอะไหล่ที่เข้ากับสาเหตุนั้นด้วยตัวเอง
+  <br>(แตะการ์ดเพื่อทำเครื่องหมายอันที่กำลังพิจารณา — ไม่ใช่เฉลย ไม่มีคำตอบสำเร็จรูปในสื่อนี้)
+</div>
+
+<div class="symp">
+  สื่อนี้ครอบคลุมอาการทั้ง 4 แบบที่เจอในห้องนี้:
+  <b>จอไม่ติดแต่พัดลมหมุน</b> ·
+  <b>เครื่องช้าลงมากตอนเปิดหลายโปรแกรมพร้อมกัน</b> ·
+  <b>ต่อหูฟังแล้วไม่มีเสียงออก</b> ·
+  <b>เสียบ USB แล้วเครื่องไม่รู้จัก</b>
+</div>
+
+<div class="cols">
+  <div class="col">
+    <h2>🔍 สาเหตุที่เป็นไปได้</h2>
+
+    <div class="card"><span class="tag">A</span><span class="txt">
+      ไดรฟ์ C: เหลือพื้นที่ว่างน้อยมาก (ใกล้เต็ม)
+    </span></div>
+
+    <div class="card"><span class="tag">B</span><span class="txt">
+      สายเชื่อมต่อหลวม เสียบไม่แน่นสนิท (สายจอภาพ หรือสาย/พอร์ต USB)
+    </span></div>
+
+    <div class="card"><span class="tag">C</span><span class="txt">
+      ไดรเวอร์ของอุปกรณ์เสียหายหรือหายไป (Device Manager ขึ้นเครื่องหมายตกใจสีเหลือง)
+    </span></div>
+
+    <div class="card"><span class="tag">D</span><span class="txt">
+      RAM (หน่วยความจำ) เสียบเข้าช่องไม่แน่นสนิท
+    </span></div>
+
+    <div class="card"><span class="tag">E</span><span class="txt">
+      อุปกรณ์ถูกปิดใช้งาน (Disabled) หรือ Windows เลือกอุปกรณ์เล่นเสียงผิดตัวอยู่
+    </span></div>
+
+    <div class="card"><span class="tag">F</span><span class="txt">
+      เปิดโปรแกรมพร้อมกันมากเกินกว่าที่ RAM ของเครื่องนี้จะรองรับไหว
+    </span></div>
+  </div>
+
+  <div class="col">
+    <h2>🛠️ วิธีเช็ค (ไม่เปลี่ยนอะไหล่)</h2>
+
+    <div class="card"><span class="tag">1</span><span class="txt">
+      เปิดหน้าตั้งค่าเสียงของ Windows ไล่ดูรายชื่อที่ปรากฏอยู่ในหน้านั้นทั้งหมด แล้วเทียบกับอุปกรณ์เสียงที่ต่ออยู่กับเครื่องจริงตอนนี้
+    </span></div>
+
+    <div class="card"><span class="tag">2</span><span class="txt">
+      เปิดตัวจัดการอุปกรณ์ (Device Manager) ไล่ดูไอคอนของอุปกรณ์ทีละตัว สังเกตว่ามีตัวไหนหน้าตาต่างไปจากอุปกรณ์ปกติตัวอื่นบ้าง
+    </span></div>
+
+    <div class="card"><span class="tag">3</span><span class="txt">
+      ปิดเครื่องและถอดปลั๊กก่อน แล้วถอดชิ้นส่วนที่ถอดเข้าออกได้เอง (จุดที่สงสัย) ออกมา ใส่กลับตำแหน่งเดิมอีกครั้ง จากนั้นลองใช้งานซ้ำ ดูว่าอาการเปลี่ยนไปหรือไม่
+    </span></div>
+
+    <div class="card"><span class="tag">4</span><span class="txt">
+      เปิดหน้าคุณสมบัติ (Properties) ของไดรฟ์หลักที่ใช้เก็บข้อมูล แล้วเทียบตัวเลขสองค่าที่แสดงอยู่ในหน้านั้น
+    </span></div>
+
+    <div class="card"><span class="tag">5</span><span class="txt">
+      เปิดตัวจัดการงาน (Task Manager) แท็บ Performance แล้วลองสลับใช้งานหลายหน้าต่างพร้อมกัน สังเกตว่ากราฟเส้นไหนพุ่งขึ้นผิดปกติที่สุด
+    </span></div>
+
+    <div class="card"><span class="tag">6</span><span class="txt">
+      ลองใช้ช่องต่อหรือพอร์ตอื่นที่ทำหน้าที่เดียวกันบนเครื่องเดียวกันแทนตำแหน่งเดิม แล้วเทียบว่าอาการเหมือนเดิมหรือเปลี่ยนไป
+    </span></div>
+  </div>
+</div>
+
+<footer>
+  อ่านแล้วยังไม่แน่ใจ ถามครูได้เลย — สื่อนี้ไม่มีเฉลยตายตัว เลือกและอธิบายเหตุผลของตัวเอง
+</footer>
+
+<script>
+document.querySelectorAll('.card').forEach(function(c){
+  c.addEventListener('click', function(){ c.classList.toggle('mark'); });
+});
+</script>
+</body>
+</html>

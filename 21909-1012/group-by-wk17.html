@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WHERE กับ GROUP BY ทำอะไร · 21909-1012 wk17</title>
+<style>
+  :root{
+    --bg:#F1F5F9; --card:#FFFFFF; --line:#E2E8F0; --line2:#CBD5E1;
+    --ink:#0F172A; --muted:#64748B; --accent-bg:#EFF6FF; --accent-line:#BFDBFE; --accent-ink:#1E3A8A;
+    --mark-bg:#FEF9C3; --mark-line:#EAB308;
+    --good-bg:#DCFCE7; --good-line:#22C55E; --good-ink:#166534;
+    --bad-bg:#FEE2E2; --bad-line:#EF4444; --bad-ink:#991B1B;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  html{min-height:100%;background:var(--bg);}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Sarabun",sans-serif;
+    background:var(--bg);color:var(--ink);line-height:1.55;
+    max-width:720px;margin:0 auto;padding:16px 14px 32px;min-height:100vh;}
+  h1{font-size:1.15rem;font-weight:700;margin-bottom:2px;}
+  .sub{font-size:.8rem;color:var(--muted);margin-bottom:14px;}
+  .kw{font-family:Consolas,"Courier New",monospace;font-weight:700;color:var(--accent-ink);
+    background:var(--accent-bg);border:1px solid var(--accent-line);border-radius:5px;padding:0 5px;}
+
+  .tabs{display:flex;gap:8px;margin-bottom:14px;}
+  .tabbtn{flex:1;padding:10px 8px;border-radius:10px;border:1.5px solid var(--line2);
+    background:var(--card);color:var(--muted);font-size:.86rem;font-weight:700;cursor:pointer;}
+  .tabbtn.active{background:var(--accent-ink);border-color:var(--accent-ink);color:#fff;}
+
+  .tabpanel{display:none;}
+  .tabpanel.active{display:block;}
+
+  .card{background:var(--card);border:1.5px solid var(--line2);border-radius:12px;padding:14px 14px 16px;margin-bottom:12px;}
+  h2{font-size:1rem;font-weight:700;margin-bottom:6px;}
+  .lead{font-size:.86rem;color:var(--muted);margin-bottom:12px;}
+
+  .gtable{border:1px solid var(--line2);border-radius:10px;overflow:hidden;margin-bottom:12px;}
+  .grow{display:grid;padding:9px 10px;font-size:.86rem;align-items:center;gap:6px;}
+  .gtable.cols2 .grow{grid-template-columns:1.4fr 1fr;}
+  .gtable.cols3 .grow{grid-template-columns:1fr 1fr 1fr;}
+  .grow.head{background:var(--accent-bg);color:var(--accent-ink);font-weight:700;font-size:.82rem;}
+  .grow + .grow{border-top:1px solid var(--line);}
+  .grow.target{background:var(--mark-bg);}
+  .grow.changed{background:var(--good-bg);}
+  .grow.collapsing{transition:opacity .5s ease, transform .5s ease;opacity:0;transform:translateY(-16px) scale(.92);}
+
+  .resultwrap{display:none;}
+  .resultwrap.show{display:block;animation:fadein .5s ease;}
+  @keyframes fadein{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+  .badge{display:inline-block;font-family:Consolas,"Courier New",monospace;font-weight:700;
+    background:var(--mark-line);color:#fff;border-radius:6px;padding:2px 8px;font-size:.78rem;margin-bottom:8px;}
+
+  .btnrow{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;}
+  button.act{padding:9px 12px;border-radius:9px;border:1.5px solid var(--accent-ink);
+    background:var(--accent-ink);color:#fff;font-size:.84rem;font-weight:700;cursor:pointer;}
+  button.act:active{transform:scale(.98);}
+  button.ghost{padding:9px 12px;border-radius:9px;border:1.5px solid var(--line2);
+    background:var(--card);color:var(--muted);font-size:.84rem;font-weight:700;cursor:pointer;}
+
+  .resultbadge{font-size:.9rem;font-weight:700;border-radius:9px;padding:9px 12px;margin-bottom:10px;}
+  .resultbadge.with{background:var(--good-bg);border:1px solid var(--good-line);color:var(--good-ink);}
+  .resultbadge.without{background:var(--bad-bg);border:1px solid var(--bad-line);color:var(--bad-ink);}
+  .resultbadge[hidden]{display:none;}
+
+  .quizbox{border-top:1px dashed var(--line2);margin-top:10px;padding-top:12px;}
+  .quizbox p{font-size:.85rem;margin-bottom:8px;}
+  .quizbtns{display:flex;gap:8px;margin-bottom:8px;}
+  .quizbtns button{flex:1;padding:8px;border-radius:8px;border:1.5px solid var(--line2);
+    background:var(--card);font-size:.86rem;font-weight:700;cursor:pointer;}
+  .quizfb{font-size:.85rem;font-weight:700;min-height:1.2em;}
+  .quizfb.ok{color:var(--good-ink);}
+  .quizfb.bad{color:var(--bad-ink);}
+
+  footer{margin-top:8px;font-size:.78rem;color:var(--muted);border-top:1px solid var(--line);padding-top:12px;}
+</style>
+</head>
+<body>
+
+<h1>🔍 ก่อนแตะเครื่อง: WHERE กับ GROUP BY ทำอะไร</h1>
+<div class="sub">21909-1012 · ใบงานที่ 16 · ใช้ประกอบเคส A และเคส B — ไม่มีคำสั่ง SQL ให้คัดลอกในนี้</div>
+
+<div class="tabs">
+  <button class="tabbtn active" id="tabbtnWhere" onclick="showTab('where')">เคส A · WHERE ทำอะไร</button>
+  <button class="tabbtn" id="tabbtnGroup" onclick="showTab('group')">เคส B · GROUP BY ทำอะไร</button>
+</div>
+
+<!-- ========== TAB: WHERE ========== -->
+<section id="tabWhere" class="tabpanel active">
+  <div class="card">
+    <h2>อุปกรณ์สาธิต 7 ชิ้น (ไม่ใช่ของจริงในใบงาน)</h2>
+    <p class="lead">ลองกดปุ่มด้านล่าง ดูว่าคำสั่งที่เจาะจงด้วย <span class="kw">WHERE</span> ต่างจากแบบที่ลืมใส่ <span class="kw">WHERE</span> แค่ไหน — ตัวเลข/ชื่อในตารางนี้เป็นของสมมติทั้งหมด</p>
+
+    <div class="gtable cols2" id="devTable">
+      <div class="grow head"><span>อุปกรณ์</span><span>สถานะ</span></div>
+    </div>
+
+    <div class="btnrow">
+      <button class="act" onclick="whereRun(true)">▶ มี WHERE (เจาะจง 1 ชิ้น)</button>
+      <button class="act" onclick="whereRun(false)">▶ ไม่มี WHERE (ลืมใส่)</button>
+      <button class="ghost" onclick="whereReset()">↺ รีเซ็ตตาราง</button>
+    </div>
+
+    <div class="resultbadge" id="whereResult" hidden></div>
+
+    <div class="quizbox">
+      <p>เช็คตัวเอง: ถ้าตารางนี้มี <b>10 แถว</b> แทนที่จะเป็น 7 แล้วลืมใส่ WHERE จะมีกี่แถวเปลี่ยนสถานะ</p>
+      <div class="quizbtns">
+        <button onclick="quizCheck('where',0,this)">0</button>
+        <button onclick="quizCheck('where',1,this)">1</button>
+        <button onclick="quizCheck('where',10,this)">10</button>
+      </div>
+      <div class="quizfb" id="whereQuizFB"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== TAB: GROUP BY ========== -->
+<section id="tabGroup" class="tabpanel">
+  <div class="card">
+    <h2>โรงเรือนตัวอย่าง 3 หลัง วัดวันเดียวกัน</h2>
+    <p class="lead">ตัวเลขทั้งหมดเป็นตัวอย่างสมมติ ไม่ใช่ข้อมูลของโรงเรือนใครจริง — กดดูว่าคำที่ชื่อ <span class="kw">GROUP BY</span> ทำอะไรกับรูปร่างของตารางนี้</p>
+
+    <div class="gtable cols3" id="rawWrap">
+      <div class="grow head"><span>โรงเรือน</span><span>วันที่</span><span>อุณหภูมิ (°C)</span></div>
+    </div>
+
+    <div class="resultwrap" id="resultWrap">
+      <span class="badge">GROUP BY</span>
+      <div class="gtable cols3">
+        <div class="grow head"><span>โรงเรือน</span><span>วันที่</span><span>ค่าเฉลี่ย (°C)</span></div>
+        <div class="grow"><span>(รวมทุกหลัง)</span><span id="resDate">-</span><span id="resAvg">-</span></div>
+      </div>
+    </div>
+
+    <div class="btnrow">
+      <button class="act" onclick="groupPlay()">▶ ดูการยุบตัว</button>
+      <button class="ghost" onclick="groupShuffle()">🔀 สุ่มชุดใหม่</button>
+    </div>
+
+    <div class="quizbox">
+      <p>เช็คตัวเอง: ถ้ามี <b>5 แถว</b> มาก่อน (ทุกแถวอยู่กลุ่มเดียวกันหมด) จัดกลุ่มแล้วจะเหลือกี่แถว</p>
+      <div class="quizbtns">
+        <button onclick="quizCheck('group',1,this)">1</button>
+        <button onclick="quizCheck('group',5,this)">5</button>
+        <button onclick="quizCheck('group',10,this)">10</button>
+      </div>
+      <div class="quizfb" id="groupQuizFB"></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  สื่อนี้ไม่มีคำสั่ง SQL ให้คัดลอก และไม่ใช้ตัวเลขจริงจากฐานข้อมูลของใคร — ทุกจุดเป็นตัวอย่างสมมติ ลองแล้วยังไม่แน่ใจ ถามครูได้เลย
+</footer>
+
+<script>
+/* ---------- Tabs ---------- */
+function showTab(name){
+  document.getElementById('tabWhere').classList.toggle('active', name==='where');
+  document.getElementById('tabGroup').classList.toggle('active', name==='group');
+  document.getElementById('tabbtnWhere').classList.toggle('active', name==='where');
+  document.getElementById('tabbtnGroup').classList.toggle('active', name==='group');
+}
+
+/* ---------- WHERE demo ---------- */
+var devLabels = ['อุปกรณ์สาธิต A','อุปกรณ์สาธิต B','อุปกรณ์สาธิต C','อุปกรณ์สาธิต D','อุปกรณ์สาธิต E','อุปกรณ์สาธิต F','อุปกรณ์สาธิต G'];
+var STATUS_ON = 'พร้อมใช้งาน';
+var STATUS_OFF = 'ปิดปรับปรุง';
+var whereTargetIdx = 2; /* "อุปกรณ์สาธิต C" เป็นตัวที่ WHERE เจาะจง */
+
+function renderDevTable(){
+  var wrap = document.getElementById('devTable');
+  wrap.innerHTML = '<div class="grow head"><span>อุปกรณ์</span><span>สถานะ</span></div>';
+  devLabels.forEach(function(name, i){
+    var row = document.createElement('div');
+    row.className = 'grow';
+    row.id = 'devrow-'+i;
+    row.innerHTML = '<span>'+name+'</span><span class="devstatus">'+STATUS_ON+'</span>';
+    wrap.appendChild(row);
+  });
+}
+renderDevTable();
+
+function whereReset(){
+  renderDevTable();
+  var r = document.getElementById('whereResult');
+  r.hidden = true;
+  r.className = 'resultbadge';
+  r.textContent = '';
+}
+
+function whereRun(withWhere){
+  whereReset();
+  var r = document.getElementById('whereResult');
+  if(withWhere){
+    var row = document.getElementById('devrow-'+whereTargetIdx);
+    row.classList.add('target');
+    setTimeout(function(){
+      row.querySelector('.devstatus').textContent = STATUS_OFF;
+      row.classList.remove('target');
+      row.classList.add('changed');
+      r.hidden = false;
+      r.className = 'resultbadge with';
+      r.textContent = 'ผลลัพธ์: เปลี่ยนสถานะไป 1 แถว';
+    }, 500);
+  } else {
+    devLabels.forEach(function(name, i){
+      var row = document.getElementById('devrow-'+i);
+      setTimeout(function(){
+        row.querySelector('.devstatus').textContent = STATUS_OFF;
+        row.classList.add('changed');
+      }, 120*i);
+    });
+    setTimeout(function(){
+      r.hidden = false;
+      r.className = 'resultbadge without';
+      r.textContent = 'ผลลัพธ์: เปลี่ยนสถานะไป 7 แถว';
+    }, 120*devLabels.length + 150);
+  }
+}
+
+/* ---------- GROUP BY demo ---------- */
+var ghLabels = ['โรงเรือนตัวอย่าง ก','โรงเรือนตัวอย่าง ข','โรงเรือนตัวอย่าง ค'];
+var ghTemps = [];
+
+function randTemp(){
+  /* ตัวเลขสมมติล้วน ไม่อ้างอิงข้อมูลจริงของใคร */
+  var whole = 28 + Math.floor(Math.random()*10); /* 28-37 */
+  var dec = Math.random() < 0.5 ? 0 : 5;
+  return whole + dec/10;
+}
+
+function renderRawTable(){
+  ghTemps = [randTemp(), randTemp(), randTemp()];
+  var wrap = document.getElementById('rawWrap');
+  wrap.innerHTML = '<div class="grow head"><span>โรงเรือน</span><span>วันที่</span><span>อุณหภูมิ (°C)</span></div>';
+  ghLabels.forEach(function(name, i){
+    var row = document.createElement('div');
+    row.className = 'grow';
+    row.id = 'ghrow-'+i;
+    row.innerHTML = '<span>'+name+'</span><span>ตัวอย่างวันเดียวกัน</span><span>'+ghTemps[i].toFixed(1)+'</span>';
+    wrap.appendChild(row);
+  });
+  document.getElementById('rawWrap').style.display = '';
+  document.getElementById('resultWrap').classList.remove('show');
+}
+renderRawTable();
+
+function groupShuffle(){
+  renderRawTable();
+}
+
+function groupPlay(){
+  ghLabels.forEach(function(_, i){
+    var row = document.getElementById('ghrow-'+i);
+    setTimeout(function(){ row.classList.add('collapsing'); }, 90*i);
+  });
+  setTimeout(function(){
+    document.getElementById('rawWrap').style.display = 'none';
+    var avg = (ghTemps[0]+ghTemps[1]+ghTemps[2]) / 3;
+    document.getElementById('resDate').textContent = 'ตัวอย่างวันเดียวกัน';
+    document.getElementById('resAvg').textContent = avg.toFixed(1);
+    document.getElementById('resultWrap').classList.add('show');
+  }, 700);
+}
+
+/* ---------- Quiz (ถูก/ผิด เท่านั้น ไม่มีคำอธิบายกลไก) ---------- */
+function quizCheck(which, ans, btn){
+  var correct = (which === 'where') ? 10 : 1;
+  var fb = document.getElementById(which+'QuizFB');
+  if(ans === correct){
+    fb.className = 'quizfb ok';
+    fb.textContent = '✅ ถูกต้อง';
+  } else {
+    fb.className = 'quizfb bad';
+    fb.textContent = '❌ ลองอีกครั้ง';
+  }
+}
+</script>
+
+</body>
+</html>
