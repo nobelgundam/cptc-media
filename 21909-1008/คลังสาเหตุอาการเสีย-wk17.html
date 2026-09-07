@@ -24,16 +24,20 @@
   .cols{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
   @media(max-width:680px){.cols{grid-template-columns:1fr;}}
   .col h2{font-size:1rem;font-weight:700;margin-bottom:9px;display:flex;align-items:center;gap:6px;}
-  .card{background:var(--card);border:1.5px solid var(--line2);border-radius:11px;
+  .card{background:var(--card);border:1.5px solid var(--line2);border-left:5px solid rgb(var(--c));
+    border-radius:11px;
     padding:11px 12px;margin-bottom:9px;font-size:.9rem;display:flex;gap:10px;align-items:flex-start;
     cursor:pointer;transition:.12s;user-select:none;}
   .card:active{transform:scale(.99);}
-  .card.mark{background:var(--mark-bg);border-color:var(--mark-line);}
-  .card .tag{flex:0 0 auto;width:27px;height:27px;border-radius:50%;background:var(--bg);
-    border:1.5px solid var(--line2);display:grid;place-items:center;font-weight:700;
-    font-size:.82rem;color:var(--muted);margin-top:1px;}
-  .card.mark .tag{background:var(--mark-line);border-color:var(--mark-line);color:#fff;}
+  .card.mark{background:rgb(var(--c) / .11);border-color:rgb(var(--c));
+    border-left-color:rgb(var(--c));box-shadow:0 0 0 2px rgb(var(--c) / .3);}
+  .card .tag{flex:0 0 auto;width:27px;height:27px;border-radius:50%;
+    background:rgb(var(--c));border:1.5px solid rgb(var(--c));
+    display:grid;place-items:center;font-weight:700;
+    font-size:.82rem;color:#fff;margin-top:1px;}
+  .col-check .card .tag{border-radius:8px;}
   .card .txt{flex:1;}
+  .card.mark .txt::after{content:" ✓";font-weight:700;color:rgb(var(--c));}
   footer{margin-top:20px;font-size:.8rem;color:var(--muted);border-top:1px solid var(--line);
     padding-top:12px;}
 </style>
@@ -58,58 +62,58 @@
 </div>
 
 <div class="cols">
-  <div class="col">
+  <div class="col col-cause">
     <h2>🔍 สาเหตุที่เป็นไปได้</h2>
 
-    <div class="card"><span class="tag">A</span><span class="txt">
+    <div class="card" style="--c:220 38 38"><span class="tag">A</span><span class="txt">
       ไดรฟ์ C: เหลือพื้นที่ว่างน้อยมาก (ใกล้เต็ม)
     </span></div>
 
-    <div class="card"><span class="tag">B</span><span class="txt">
+    <div class="card" style="--c:234 88 12"><span class="tag">B</span><span class="txt">
       สายเชื่อมต่อหลวม เสียบไม่แน่นสนิท (สายจอภาพ หรือสาย/พอร์ต USB)
     </span></div>
 
-    <div class="card"><span class="tag">C</span><span class="txt">
+    <div class="card" style="--c:22 163 74"><span class="tag">C</span><span class="txt">
       ไดรเวอร์ของอุปกรณ์เสียหายหรือหายไป (Device Manager ขึ้นเครื่องหมายตกใจสีเหลือง)
     </span></div>
 
-    <div class="card"><span class="tag">D</span><span class="txt">
+    <div class="card" style="--c:8 145 178"><span class="tag">D</span><span class="txt">
       RAM (หน่วยความจำ) เสียบเข้าช่องไม่แน่นสนิท
     </span></div>
 
-    <div class="card"><span class="tag">E</span><span class="txt">
+    <div class="card" style="--c:37 99 235"><span class="tag">E</span><span class="txt">
       อุปกรณ์ถูกปิดใช้งาน (Disabled) หรือ Windows เลือกอุปกรณ์เล่นเสียงผิดตัวอยู่
     </span></div>
 
-    <div class="card"><span class="tag">F</span><span class="txt">
+    <div class="card" style="--c:147 51 234"><span class="tag">F</span><span class="txt">
       เปิดโปรแกรมพร้อมกันมากเกินกว่าที่ RAM ของเครื่องนี้จะรองรับไหว
     </span></div>
   </div>
 
-  <div class="col">
+  <div class="col col-check">
     <h2>🛠️ วิธีเช็ค (ไม่เปลี่ยนอะไหล่)</h2>
 
-    <div class="card"><span class="tag">1</span><span class="txt">
+    <div class="card" style="--c:219 39 119"><span class="tag">1</span><span class="txt">
       เปิดหน้าตั้งค่าเสียงของ Windows ไล่ดูรายชื่อที่ปรากฏอยู่ในหน้านั้นทั้งหมด แล้วเทียบกับอุปกรณ์เสียงที่ต่ออยู่กับเครื่องจริงตอนนี้
     </span></div>
 
-    <div class="card"><span class="tag">2</span><span class="txt">
+    <div class="card" style="--c:180 83 9"><span class="tag">2</span><span class="txt">
       เปิดตัวจัดการอุปกรณ์ (Device Manager) ไล่ดูไอคอนของอุปกรณ์ทีละตัว สังเกตว่ามีตัวไหนหน้าตาต่างไปจากอุปกรณ์ปกติตัวอื่นบ้าง
     </span></div>
 
-    <div class="card"><span class="tag">3</span><span class="txt">
+    <div class="card" style="--c:101 163 13"><span class="tag">3</span><span class="txt">
       ปิดเครื่องและถอดปลั๊กก่อน แล้วถอดชิ้นส่วนที่ถอดเข้าออกได้เอง (จุดที่สงสัย) ออกมา ใส่กลับตำแหน่งเดิมอีกครั้ง จากนั้นลองใช้งานซ้ำ ดูว่าอาการเปลี่ยนไปหรือไม่
     </span></div>
 
-    <div class="card"><span class="tag">4</span><span class="txt">
+    <div class="card" style="--c:13 148 136"><span class="tag">4</span><span class="txt">
       เปิดหน้าคุณสมบัติ (Properties) ของไดรฟ์หลักที่ใช้เก็บข้อมูล แล้วเทียบตัวเลขสองค่าที่แสดงอยู่ในหน้านั้น
     </span></div>
 
-    <div class="card"><span class="tag">5</span><span class="txt">
+    <div class="card" style="--c:79 70 229"><span class="tag">5</span><span class="txt">
       เปิดตัวจัดการงาน (Task Manager) แท็บ Performance แล้วลองสลับใช้งานหลายหน้าต่างพร้อมกัน สังเกตว่ากราฟเส้นไหนพุ่งขึ้นผิดปกติที่สุด
     </span></div>
 
-    <div class="card"><span class="tag">6</span><span class="txt">
+    <div class="card" style="--c:71 85 105"><span class="tag">6</span><span class="txt">
       ลองใช้ช่องต่อหรือพอร์ตอื่นที่ทำหน้าที่เดียวกันบนเครื่องเดียวกันแทนตำแหน่งเดิม แล้วเทียบว่าอาการเหมือนเดิมหรือเปลี่ยนไป
     </span></div>
   </div>
