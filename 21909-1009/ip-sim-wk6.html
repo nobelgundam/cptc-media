@@ -95,9 +95,6 @@
   .card input.full{width:100%;font-family:'Consolas',monospace;font-size:1rem;padding:10px 11px;border:1.5px solid var(--line2);border-radius:9px;background:#fff;color:var(--ink);}
   .card input.full::placeholder{color:#B6C2D2;font-style:italic;}
   .card input[readonly]{background:var(--device-bg);color:#92400E;border-color:var(--device-line);}
-  .gwrow{display:flex;gap:6px;align-items:stretch;}
-  .gwrow input{flex:1;}
-  .gwrow button{background:var(--device-bg);border:1px solid var(--device-line);color:#92400E;border-radius:9px;padding:0 10px;font-size:.78rem;font-weight:600;}
   .card .err{font-size:.8rem;color:var(--bad);margin-top:8px;min-height:1em;}
   .card .actions{display:flex;gap:8px;margin-top:14px;}
   .card .actions button{flex:1;border:none;border-radius:9px;padding:11px;font-weight:700;font-size:.95rem;}
@@ -186,10 +183,7 @@
   <label>Subnet Mask</label>
   <input class="full" id="cfgSub" type="text" value="255.255.255.0" readonly>
   <label>Default Gateway</label>
-  <div class="gwrow">
-    <input class="full" id="cfgGw" type="text" inputmode="decimal" placeholder="ยังไม่ใส่ — แตะ 'ใช้ .1'">
-    <button id="gwAuto">ใช้ .1</button>
-  </div>
+  <input class="full" id="cfgGw" type="text" inputmode="decimal" placeholder="ยังไม่ใส่ — พิมพ์เอง">
   <div class="err" id="cfgErr"></div>
   <div class="actions"><button class="cancel" id="cfgCancel">ยกเลิก</button><button class="save" id="cfgSave">บันทึก</button></div>
 </div></div>
@@ -285,7 +279,6 @@ window.openCfg=function(n){
   document.getElementById('cfgOverlay').classList.add('show');
   setTimeout(()=>{const f=document.getElementById('cfgIp');f.focus();f.setSelectionRange(f.value.length,f.value.length);},50);
 };
-document.getElementById('gwAuto').addEventListener('click',()=>document.getElementById('cfgGw').value=ROUTER_IP);
 document.getElementById('cfgCancel').addEventListener('click',()=>document.getElementById('cfgOverlay').classList.remove('show'));
 document.getElementById('cfgSave').addEventListener('click',()=>{
   pcs[editing].ip=document.getElementById('cfgIp').value.trim();
