@@ -314,8 +314,8 @@ function doPing(src,target){
   if(!s.ok){term(`Ping request could not find host.`,'bad');term(`   (เครื่อง PC${src} ของเธอยังตั้ง IP ไม่ถูก: ${s.msg.replace(/^❌ /,'')})`,'th');return;}
   if(target==="8.8.8.8"){
     if(pcs[src].gw===ROUTER_IP){anim(src,cen(RT),true);reply(target,"ออกประตู Gateway ไปอินเทอร์เน็ตได้!");prog.net=true;updateQuest();
-      term(`   📋 จดสมุด: ออกเน็ตได้เพราะตั้ง Default Gateway = ${ROUTER_IP}`,'note');}
-    else{anim(src,cen(RT),false);term(`Request timed out.`,'bad');term(`   (ออกเน็ตไม่ได้ เพราะยังไม่ได้ตั้ง Default Gateway = ${ROUTER_IP} — ไม่มีประตูออก) แตะ PC${src} ใส่ Gateway แล้วลองใหม่`,'th');}
+      term(`   📋 จดสมุด: ออกเน็ตได้เพราะตั้ง Default Gateway ถูกตัว — Gateway คือประตูออกจากวงนี้`,'note');}
+    else{anim(src,cen(RT),false);term(`Request timed out.`,'bad');term(`   (ออกเน็ตไม่ได้ เพราะยังไม่ได้ตั้ง Default Gateway — ไม่มีประตูออกจากวงนี้) ดูว่า Router ในภาพมี IP อะไร แล้วแตะ PC${src} ใส่เอง`,'th');}
     return;}
   const t=parseIp(target);
   if(t.bad){term(`Ping request could not find host ${target}.`,'bad');return;}
