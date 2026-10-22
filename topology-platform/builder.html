@@ -73,7 +73,7 @@
         <select id="srcSel" title="เลือกเครื่องที่จะพิมพ์คำสั่ง"></select>
       </label>
     </div>
-    <div class="term-out" id="termOut"><div class="th">พิมพ์ <b>ipconfig</b> ดูเลข IP · <b>ping &lt;IP&gt;</b> ทดสอบส่งข้อมูล · <b>http &lt;IP&gt;</b> เปิดเว็บที่ Server · <b>tracert &lt;IP&gt;</b> ดูว่าผ่านอุปกรณ์อะไรบ้าง (ตั้ง IP ที่เครื่องก่อนนะ)<br>แบบ Ubuntu: <b>ip a</b> · <b>ip route</b> · <b>ip neigh</b> · <b>ping -c 4 &lt;IP&gt;</b> · <b>traceroute &lt;IP&gt;</b> · <b>dhclient</b> (ขอ IP อัตโนมัติ)</div></div>
+    <div class="term-out" id="termOut"><div class="th">พิมพ์ <b>ipconfig</b> ดูเลข IP · <b>ping &lt;IP&gt;</b> ทดสอบส่งข้อมูล · <b>http &lt;IP&gt;</b> เปิดเว็บที่ Server · <b>tracert &lt;IP&gt;</b> ดูว่าผ่านอุปกรณ์อะไรบ้าง · <b>nslookup &lt;ชื่อ&gt;</b> ถามว่าชื่อนี้คือเลข IP อะไร (ตั้ง IP ที่เครื่องก่อนนะ)<br>แบบ Ubuntu: <b>ip a</b> · <b>ip route</b> · <b>ip neigh</b> · <b>ping -c 4 &lt;IP&gt;</b> · <b>traceroute &lt;IP&gt;</b> · <b>dhclient</b> (ขอ IP อัตโนมัติ) · <b>dig &lt;ชื่อ&gt;</b> · <b>cat /etc/resolv.conf</b></div></div>
     <div class="term-chips">
       <button data-fill="ipconfig">ipconfig</button>
       <button data-fill="ping ">ping…</button>
@@ -142,6 +142,10 @@
       <input class="full" id="cfgSub" type="text" value="255.255.255.0" readonly>
       <label>Default Gateway (เกตเวย์ — ถ้าต้องออกข้ามวง)</label>
       <input class="full" id="cfgGw" type="text" placeholder="192.168.1.1 (ไม่บังคับ)" autocomplete="off">
+      <div id="cfgDnsWrap">
+        <label>DNS Server (ดีเอ็นเอส · ตัวแปลงชื่อเป็นเลข IP)</label>
+        <input class="full" id="cfgDns" type="text" placeholder="ว่างไว้ = ยังไม่มี DNS (ไม่บังคับ)" autocomplete="off" autocapitalize="off" spellcheck="false">
+      </div>
       </div>
       <div id="cfgHttpWrap" class="hidden">
         <label>เว็บเซิร์ฟเวอร์นี้ตอบ HTTP status อะไร (เมื่อมีคน http มา)</label>
@@ -153,6 +157,11 @@
           <option value="500">500 Internal Server Error — เซิร์ฟเวอร์พัง (5xx)</option>
           <option value="503">503 Service Unavailable — ปิดปรับปรุง (5xx)</option>
         </select>
+      </div>
+      <div id="cfgHostWrap" class="hidden">
+        <label>ชื่อเครื่อง (Hostname · ไม่บังคับ)</label>
+        <input class="full" id="cfgHost" type="text" placeholder="ว่างไว้ = ไม่ตั้งชื่อ" autocomplete="off" autocapitalize="off" spellcheck="false">
+        <p class="dlg-note" style="margin:6px 0 0">ตั้งชื่อ เช่น shop.local — เครื่องอื่นพิมพ์ชื่อแทนเลข IP ได้ ถ้ามี DNS ที่ทำงานอยู่</p>
       </div>
     </div>
     <!-- Router เท่านั้น: DHCP Server แจก IP อัตโนมัติ (ค่าตั้งต้นแบบ MikroTik: .10–.254) -->
@@ -237,7 +246,7 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="js/engine.js?v=20261022b"></script>
+<script src="js/engine.js?v=20261022c"></script>
 <script>
 (function(){
   var E = window.NetSimEngine;
@@ -505,6 +514,11 @@
     var httpWrap = document.getElementById('cfgHttpWrap');
     if (n.type === 'server'){ httpWrap.classList.remove('hidden'); document.getElementById('cfgHttp').value = String(n.http || 200); }
     else httpWrap.classList.add('hidden');
+    /* DNS: PC/Server ใส่ DNS Server ได้ (router ไม่มีช่องนี้ — DNS ที่ router แจกตั้งในส่วน DHCP) · ชื่อเครื่อง: Server เท่านั้น */
+    document.getElementById('cfgDnsWrap').classList.toggle('hidden', isRouter);
+    document.getElementById('cfgDns').value = isRouter ? '' : (n.dns || '');
+    document.getElementById('cfgHostWrap').classList.toggle('hidden', n.type !== 'server');
+    document.getElementById('cfgHost').value = n.host || '';
     /* DHCP: PC/Server เลือก ตั้งเอง/รับอัตโนมัติ · Router มีสวิตช์ DHCP Server + ช่วงแจก */
     var canAuto = E.canDhcpClient(n.type);
     document.getElementById('cfgModeWrap').classList.toggle('hidden', !canAuto);
@@ -568,8 +582,11 @@
     }
     var isServer = !document.getElementById('cfgHttpWrap').classList.contains('hidden');
     // PC/Server เลือก "รับอัตโนมัติ (DHCP)" → ขอ IP ทันที (ไม่ต้องกรอก/ตรวจ IP)
+    var hostV = isServer ? document.getElementById('cfgHost').value.trim() : '';
+    var herr = isServer ? E.hostError(cfgId, hostV) : null;
+    if (herr){ cfgErr.textContent = '❌ ชื่อเครื่อง: ' + herr; return; }
     if (cfgMode === 'dhcp' && !document.getElementById('cfgModeWrap').classList.contains('hidden')){
-      if (isServer) E.setNodeHttp(cfgId, document.getElementById('cfgHttp').value);
+      if (isServer){ E.setNodeHttp(cfgId, document.getElementById('cfgHttp').value); E.setNodeHost(cfgId, hostV); }
       var rq = E.requestDhcp(cfgId);
       overlay.classList.remove('show');
       dhcpToast(cfgId, rq);
@@ -579,6 +596,10 @@
     var ip = cfgIp.value.trim(), gw = cfgGw.value.trim();
     var err = E.ipError(ip);
     if (err){ cfgErr.textContent = '❌ ' + err; return; }
+    var dnsShown = !document.getElementById('cfgDnsWrap').classList.contains('hidden');
+    var dnsV = dnsShown ? document.getElementById('cfgDns').value.trim() : '';   // DNS Server ของเครื่อง (ว่างได้ · router ไม่มีช่องนี้)
+    var dnsErr = dnsV ? E.ipError(dnsV) : null;
+    if (dnsErr){ cfgErr.textContent = '❌ DNS Server: ' + dnsErr; return; }
     var conflict = E.ipConflict(cfgId, ip);
     if (conflict){ cfgErr.textContent = '❌ IP ซ้ำกับ ' + conflict + ' (ในวงเดียวกันห้ามซ้ำ)'; return; }
     // router + DHCP Server: ตรวจช่วงแจกก่อนบันทึกอะไรทั้งสิ้น
@@ -600,10 +621,11 @@
     // router: ผ่าน validate ครบแล้วค่อยบันทึก Wi-Fi พร้อมกัน (กันเคสกรอก IP ผิดแล้วรหัสถูกเขียนไปก่อน)
     if (wifiShown && ipShown) E.setNodeWifi(cfgId, pass);
     var http = isServer ? document.getElementById('cfgHttp').value : undefined;
-    E.setNodeIP(cfgId, ip, gw, http);
+    E.setNodeIP(cfgId, ip, gw, http, dnsV);
+    if (isServer) E.setNodeHost(cfgId, hostV);
     if (dhcpCfg) E.setNodeDhcp(cfgId, dhcpCfg);
     overlay.classList.remove('show');
-    showToast('ตั้ง IP ' + cfgId + ' = ' + ip + (isServer ? ' · HTTP ' + http : '') +
+    showToast('ตั้ง IP ' + cfgId + ' = ' + ip + (isServer ? ' · HTTP ' + http : '') + (dnsV ? ' · DNS ' + dnsV : '') +
       (dhcpCfg && dhcpCfg.on ? ' · DHCP แจก ' + dhcpCfg.from + '–' + dhcpCfg.to : ''), 'ok');
     refreshTerm();
   });
@@ -718,6 +740,9 @@
     }
     if (cmd === 'ip'){ doIp(srcId, p.slice(1)); return; }
     if (cmd === 'dhclient'){ doDhclient(srcId, p.slice(1)); return; }
+    if (cmd === 'nslookup'){ doNslookup(srcId, p.slice(1)); return; }
+    if (cmd === 'dig'){ doDig(srcId, p.slice(1)); return; }
+    if (cmd === 'cat'){ doCat(srcId, p.slice(1)); return; }
     if (cmd === 'ping'){
       if (p[1] && /^-c\d*$/i.test(p[1])){ doPingC(srcId, p); return; }   // ping -c N (แบบ Ubuntu)
       if (!p[1]){ termPrint('ใช้: ping <IP> เช่น ping 192.168.1.20', 'th'); return; }
@@ -739,7 +764,7 @@
       doTraceroute(srcId, p[1]);
       return;
     }
-    termPrint("'" + cmd + "' ไม่ใช่คำสั่งที่รองรับ — ใช้ได้: ping, ipconfig, http, tracert · แบบ Ubuntu: ip, traceroute, dhclient", 'th');
+    termPrint("'" + cmd + "' ไม่ใช่คำสั่งที่รองรับ — ใช้ได้: ping, ipconfig, http, tracert, nslookup · แบบ Ubuntu: ip, traceroute, dhclient, dig, cat", 'th');
   }
 
   /* ===== ipconfig (Windows) — ปกติ / /all / /renew / /release ===== */
@@ -868,7 +893,8 @@
   }
   // traceroute แบบ Linux — เส้นทางเดียวกับ tracert (engine.tracePath) แต่หน้าตา Ubuntu
   function doTraceroute(srcId, host){
-    var r = E.tracePath(srcId, host);
+    var rv = resolveFor(srcId, host, 'trl'); if (!rv) return;   // ชื่อ → ถาม DNS ก่อน
+    var r = E.tracePath(srcId, rv.key);
     if (!r.ok){
       if (r.reason === 'badtarget'){ termPrint('traceroute: unknown host ' + host, 'bad'); return; }
       termPrint('traceroute to ' + host + ' (' + host + '), 30 hops max, 60 byte packets');
@@ -894,12 +920,13 @@
 
   /* tracert — เดินทีละ hop ให้เห็นว่าแพ็กเก็ตผ่านอุปกรณ์อะไรบ้าง (engine มี tracePath อยู่แล้ว) */
   function doTracert(srcId, host){
-    var r = E.tracePath(srcId, host);
+    var rv = resolveFor(srcId, host, 'trw'); if (!rv) return;   // ชื่อ → ถาม DNS ก่อน
+    var r = E.tracePath(srcId, rv.key);
     if (!r.ok){
       termPrint('✗ ไล่เส้นทางไม่ได้ — ' + (TRACE_MSG[r.reason] || 'ส่งไม่ถึงปลายทาง'), 'bad');
       return;
     }
-    termPrint('Tracing route to ' + (r.target && r.target.ip ? r.target.ip : host) + ' :');
+    termPrint('Tracing route to ' + (rv.name ? host + ' [' + rv.ip + ']' : (r.target && r.target.ip ? r.target.ip : host)) + ' :');
     var hopNo = 0;
     r.nodes.forEach(function(id, i){
       if (i === 0) return;                       // ข้ามตัวเอง
@@ -922,6 +949,90 @@
     dns:'ไม่รู้จักชื่อเว็บนี้'
   };
 
+  /* ================= DNS: ชื่อ → เลข IP (โหมดเข้ม · engine.resolve) =================
+   * ข้อความทุกบรรทัดบอก "อาการ" เท่านั้น ห้ามบอกว่าต้องไปแก้ DNS ที่ไหน (สื่อจำลองไม่เฉลย) */
+  // style: win=ping · lx=ping -c · trw=tracert · trl=traceroute · http
+  // คืน {key,ip,kind,name} ไปต่อได้ (พิมพ์เลข IP = ไม่ถาม DNS) · หรือ null = พิมพ์ error แล้ว คำสั่งจบ
+  function resolveFor(srcId, token, style){
+    if (!E.isName(token)) return { key: token, ip: token };
+    var r = E.resolve(srcId, token);
+    if (r.ok) return { key: r.key, ip: r.ip, kind: r.kind, name: true };
+    if (r.reason === 'srcnoip') return { key: token, ip: token };   // ต้นทางไม่มี IP → ให้ข้อความเดิมของคำสั่งตอบ
+    if (style === 'win') termPrint('Ping request could not find host ' + token + '. Please check the name and try again.', 'bad');
+    else if (style === 'lx') termPrint('ping: ' + token + ': ' + (r.reason === 'nxdomain' ? 'Name or service not known' : 'Temporary failure in name resolution'), 'bad');
+    else if (style === 'trw') termPrint('Unable to resolve target system name ' + token + '.', 'bad');
+    else if (style === 'trl') termPrint('traceroute: unknown host ' + token, 'bad');
+    else termPrint('ERR_NAME_NOT_RESOLVED — เปิดเว็บ ' + token + ' ไม่ได้', 'bad');
+    termPrint('✗ แปลงชื่อ ' + token + ' เป็นเลข IP ไม่ได้', 'bad');
+    showToast('⛔ แปลงชื่อ ' + token + ' เป็นเลข IP ไม่ได้', 'bad');
+    return null;
+  }
+  function termBlank(){ termPrint(' '); }
+  function doNslookup(srcId, a){   // nslookup <ชื่อ> [DNS] — รูปแบบ Windows
+    if (!a[0]){ termPrint('ใช้: nslookup <ชื่อ> [DNS] เช่น nslookup www.google.com', 'th'); return; }
+    var r = E.resolve(srcId, a[0], a[1]);
+    var dead = !r.ok && (r.reason === 'nodns' || r.reason === 'srcnoip' || r.reason === 'timeout');
+    termPrint('Server:  ' + (dead ? 'UnKnown' : (r.dnsName || 'UnKnown')));
+    termPrint('Address:  ' + (r.dns || '(ยังไม่ตั้ง)'));
+    termBlank();
+    if (dead){
+      termPrint('DNS request timed out.', 'bad');
+      termPrint('    timeout was 2 seconds.', 'bad');
+      termPrint('DNS request timed out.', 'bad');
+      termPrint('    timeout was 2 seconds.', 'bad');
+      termPrint('*** Request to UnKnown timed-out', 'bad');
+    } else if (!r.ok){
+      termPrint('*** ' + (r.dnsName || 'UnKnown') + " can't find " + a[0] + ': Non-existent domain', 'bad');
+    } else {
+      if (r.nonauth) termPrint('Non-authoritative answer:');
+      termPrint('Name:    ' + a[0]);
+      termPrint('Address:  ' + r.ip, 'ok');
+    }
+  }
+  function doDig(srcId, a){   // dig [@DNS] <ชื่อ> — รูปแบบ Linux ย่อ
+    var name = '', srv = '';
+    a.forEach(function(x){
+      if (x.charAt(0) === '@') srv = x.slice(1);
+      else if (x.charAt(0) !== '+' && x.charAt(0) !== '-' && !name) name = x;
+    });
+    if (!name){ termPrint('ใช้: dig <ชื่อ> เช่น dig www.google.com (ระบุ DNS ได้: dig @8.8.8.8 www.google.com)', 'th'); return; }
+    var r = E.resolve(srcId, name, srv), q = name.replace(/\.$/, '') + '.';
+    termPrint('; <<>> DiG 9.18.30 <<>> ' + (srv ? '@' + srv + ' ' : '') + name);
+    if (!r.ok && (r.reason === 'nodns' || r.reason === 'srcnoip')){
+      termPrint(';; connection timed out; no servers could be reached', 'bad'); return;
+    }
+    if (!r.ok && r.reason === 'timeout'){
+      termPrint(';; communications error to ' + r.dns + '#53: timed out', 'bad');
+      termPrint(';; communications error to ' + r.dns + '#53: timed out', 'bad');
+      termPrint(';; no servers could be reached', 'bad');
+      return;
+    }
+    termPrint(';; Got answer:');
+    termPrint(';; ->>HEADER<<- opcode: QUERY, status: ' + (r.ok ? 'NOERROR' : 'NXDOMAIN') + ', id: ' + (10000 + Math.floor(Math.random() * 50000)));
+    termPrint(';; flags: qr rd ra; QUERY: 1, ANSWER: ' + (r.ok ? 1 : 0));
+    termBlank();
+    termPrint(';; QUESTION SECTION:');
+    termPrint(';' + q + '\t\tIN\tA');
+    if (r.ok){
+      termBlank();
+      termPrint(';; ANSWER SECTION:');
+      termPrint(q + '\t300\tIN\tA\t' + r.ip, 'ok');
+    }
+    termBlank();
+    termPrint(';; Query time: ' + (r.kind === 'lan' ? 1 : 12) + ' msec');
+    termPrint(';; SERVER: ' + r.dns + '#53(' + r.dns + ')');
+  }
+  function doCat(srcId, a){   // cat /etc/resolv.conf เท่านั้น — ไฟล์อื่นไม่มี
+    if (!a[0]){ termPrint('ใช้: cat <ไฟล์> เช่น cat /etc/resolv.conf', 'th'); return; }
+    if (a[0] === '/etc/resolv.conf'){
+      var n = E.getNode(srcId);
+      termPrint('# Generated by NetworkManager');
+      if (n.dns) termPrint('nameserver ' + n.dns);
+      return;
+    }
+    termPrint('cat: ' + a[0] + ': No such file or directory', 'bad');
+  }
+
   /* บนมือถือ Terminal อยู่ล่างกระดาน — พอสั่ง ping แล้วจอค้างอยู่ล่าง มองไม่เห็นแพ็กเก็ตวิ่ง
    * เลื่อนกลับไปที่กระดานให้อัตโนมัติ (เด็กจะได้เห็นเส้นทางจริง ไม่ต้องไถขึ้นลงเอง) */
   function lookAtBoard(){
@@ -935,37 +1046,40 @@
     } catch (e){}
   }
 
-  function doPing(srcId, ip, lx){   // lx = จำนวนครั้งของ ping -c (แบบ Ubuntu) · ไม่ส่ง = แบบ Windows เดิมเป๊ะ
+  function doPing(srcId, typed, lx){   // lx = จำนวนครั้งของ ping -c (แบบ Ubuntu) · ไม่ส่ง = แบบ Windows เดิมเป๊ะ
+    var rv = resolveFor(srcId, typed, lx ? 'lx' : 'win'); if (!rv) return;   // พิมพ์เป็นชื่อ → ถาม DNS ก่อน (ไม่ผ่าน = จบที่นี่)
+    var ip = rv.key, lab = typed;   // ip = ที่ส่งให้ engine (แปลงแล้ว) · lab = ที่เด็กพิมพ์ (โชว์ตามนั้น · พิมพ์เลข IP = สองตัวนี้เหมือนกัน)
     var net = E.netTarget(ip);      // 8.8.8.8 / google.com … = ปลายทางนอกวง (ออกอินเทอร์เน็ต)
     var res;
     if (net){
       res = E.pingNet(srcId, ip, function(){
         if (lx){
-          linuxPingOut(ip, net.ip, lx, net.ms, net.ttl);
+          linuxPingOut(lab, net.ip, lx, net.ms, net.ttl);
         } else {
           termPrint('ตอบกลับจาก ' + net.ip + ': เวลา ' + net.ms + 'ms TTL=' + net.ttl + ' (' + net.note + ')', 'ok');
         }
-        termPrint('📋 จดสมุด: ' + srcId + ' ping ' + ip + ' = ได้ — ออกอินเทอร์เน็ตผ่าน Router', 'note');
+        termPrint('📋 จดสมุด: ' + srcId + ' ping ' + lab + ' = ได้ — ออกอินเทอร์เน็ตผ่าน Router', 'note');
         showToast('✅ ออกเน็ตได้ (' + net.ms + 'ms)', 'ok');
       });
     } else {
       res = E.ping(srcId, ip, function(r, hops){
         if (lx){
-          linuxPingOut(ip, ip, lx, 0.2 + hops * 0.15, 64 - routersOn(r.path));   // TTL ลดเฉพาะตอนผ่าน Router
+          linuxPingOut(lab, ip, lx, 0.2 + hops * 0.15, 64 - routersOn(r.path));   // TTL ลดเฉพาะตอนผ่าน Router
         } else {
           for (var k = 0; k < 3; k++){
             var ms = 1 + Math.round(Math.random() * 3) + hops;
             termPrint('ตอบกลับจาก ' + ip + ': ไบต์=32 เวลา=' + ms + 'ms TTL=' + (128 - hops), 'ok');
           }
         }
-        termPrint('📋 จดสมุด: ' + srcId + ' ping ' + ip + ' = ได้ — ' + (r.sameNet ? 'วงเดียวกัน (subnet เดียวกัน)' : 'คนละวง ต้องผ่าน Router'), 'note');
-        showToast('✅ ' + srcId + ' ส่งถึง ' + ip + ' แล้ว (' + hops + ' hop)', 'ok');
+        termPrint('📋 จดสมุด: ' + srcId + ' ping ' + lab + ' = ได้ — ' + (r.sameNet ? 'วงเดียวกัน (subnet เดียวกัน)' : 'คนละวง ต้องผ่าน Router'), 'note');
+        showToast('✅ ' + srcId + ' ส่งถึง ' + lab + ' แล้ว (' + hops + ' hop)', 'ok');
       });
     }
+    var tag = (rv.name ? ' [' + rv.ip + ']' : '');   // พิมพ์เป็นชื่อ → โชว์เลข IP ที่แปลงได้ในวงเล็บ (เหมือน Windows)
     if (res.ok){
-      if (lx) termPrint('PING ' + ip + ' (' + (net ? net.ip : ip) + ') 56(84) bytes of data.');
-      else termPrint('กำลัง ping ' + ip + ' ...');
-      statusEl.textContent = '📦 กำลัง ping ' + ip + ' จาก ' + srcId + ' ...'; lookAtBoard(); return;
+      if (lx) termPrint('PING ' + lab + ' (' + (net ? net.ip : ip) + ') 56(84) bytes of data.');
+      else termPrint('กำลัง ping ' + lab + tag + ' ...');
+      statusEl.textContent = '📦 กำลัง ping ' + lab + ' จาก ' + srcId + ' ...'; lookAtBoard(); return;
     }
     var MSG = {
       /* ⚠️ ข้อความพวกนี้บอก "อาการที่ตรวจพบ" เท่านั้น ห้ามบอกวิธีแก้เป็นขั้นตอน
@@ -986,14 +1100,14 @@
     var m = MSG[res.reason] || 'ส่งไม่ถึง';
     if (lx){   // Ubuntu: บรรทัด error แบบ Linux + อาการ (ไทย) ชุดเดียวกับ Windows — ไม่บอกวิธีแก้
       var sn = E.getNode(srcId) || {}, rs = res.reason, st = true;
-      termPrint('PING ' + ip + ' (' + (net ? net.ip : ip) + ') 56(84) bytes of data.');
-      if (rs === 'badtarget' || rs === 'dns'){ termPrint('ping: ' + ip + ': Name or service not known', 'bad'); st = false; }
+      termPrint('PING ' + lab + ' (' + (net ? net.ip : ip) + ') 56(84) bytes of data.');
+      if (rs === 'badtarget' || rs === 'dns'){ termPrint('ping: ' + lab + ': Name or service not known', 'bad'); st = false; }
       else if (rs === 'srcnoip' || rs === 'srcbad' || rs === 'nogw' || (rs === 'diffnet' && !sn.gw)){ termPrint('ping: connect: Network is unreachable', 'bad'); st = false; }
       else if (rs === 'self'){ st = false; }
       else if (rs !== 'firewall'){ termPrint('From ' + sn.ip + ' icmp_seq=1 Destination Host Unreachable', 'bad'); }
       termPrint('✗ ' + m, 'bad');
       if (st){
-        termPrint('--- ' + ip + ' ping statistics ---');
+        termPrint('--- ' + lab + ' ping statistics ---');
         termPrint(lx + ' packets transmitted, 0 received, 100% packet loss, time ' + ((lx - 1) * 1001) + 'ms', 'bad');
       }
     } else {
@@ -1011,7 +1125,21 @@
     500:{en:'Internal Server Error', th:'เซิร์ฟเวอร์มีปัญหาภายใน (Server Error 5xx)'},
     503:{en:'Service Unavailable',   th:'เซิร์ฟเวอร์ไม่ว่าง/ปิดปรับปรุง (Server Error 5xx)'}
   };
-  function doHttp(srcId, ip){
+  function doHttpNet(srcId, lab, rv){   // เว็บบนอินเทอร์เน็ต (ชื่อที่ DNS แปลงได้) · ออกเน็ตได้จริง = 200 OK
+    var res = E.pingNet(srcId, rv.key, function(){
+      termPrint('HTTP/1.1 200 OK', 'ok');
+      termPrint('   → ' + HTTP_INFO[200].th, 'note');
+      showToast('✅ 200 OK', 'ok');
+    });
+    if (res.ok){ termPrint('กำลังเปิดเว็บ http://' + lab + ' [' + rv.ip + '] ...'); statusEl.textContent = '🌐 เปิดเว็บ ' + lab + ' จาก ' + srcSel.value + ' ...'; return; }
+    var nm = TRACE_MSG[res.reason] || 'ส่งไม่ถึง';
+    termPrint('✗ เปิดเว็บไม่ได้ — ' + nm, 'bad');
+    showToast('⛔ เปิดเว็บไม่ได้: ' + nm, 'bad');
+  }
+  function doHttp(srcId, typed){
+    var rv = resolveFor(srcId, typed, 'http'); if (!rv) return;   // ชื่อ → ถาม DNS ก่อน
+    if (rv.kind === 'net'){ doHttpNet(srcId, typed, rv); return; }
+    var ip = rv.key;
     var res = E.http(srcId, ip, function(status, hops, targetId){
       var info = HTTP_INFO[status] || {en:'', th:''};
       var good = status < 400;
@@ -1019,7 +1147,7 @@
       termPrint('   → ' + info.th, 'note');
       showToast((good ? '✅ ' : '⛔ ') + status + ' ' + info.en, good ? 'ok' : 'bad');
     });
-    if (res.ok){ termPrint('กำลังเปิดเว็บ http://' + ip + ' ...'); statusEl.textContent = '🌐 เปิดเว็บ ' + ip + ' จาก ' + srcSel.value + ' ...'; return; }
+    if (res.ok){ termPrint('กำลังเปิดเว็บ http://' + typed + (rv.name ? ' [' + ip + ']' : '') + ' ...'); statusEl.textContent = '🌐 เปิดเว็บ ' + typed + ' จาก ' + srcSel.value + ' ...'; return; }
     if (res.reason === 'noserver'){
       termPrint('✗ เชื่อมต่อไม่ได้ — ' + ip + ' ไม่ใช่เว็บเซิร์ฟเวอร์ (ต้องเป็น Server ถึงจะ http ได้)', 'bad');
       showToast('⛔ ' + ip + ' ไม่มีเว็บเซิร์ฟเวอร์', 'bad');
@@ -1077,6 +1205,7 @@
     booted = true;
     E.init(document.getElementById('canvas'), {
       storeKey: 'netsim_builder_no' + studentNo,
+      dnsStrict: true,   // โหมดเข้ม: ชื่อต้องผ่าน DNS ของเครื่อง (ไฟล์ภารกิจ wk* ไม่ส่ง option นี้ = พฤติกรรมเดิม)
       onStatus: function(m){ statusEl.textContent = m; },
       onChange: function(n,e){ countsEl.textContent = 'อุปกรณ์ ' + n + ' · สาย ' + e; refreshTerm(); },
       onToast: showToast,

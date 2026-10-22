@@ -236,7 +236,7 @@ fr.addEventListener('load', function(){
   var T = {};      // เก็บผลคำสั่งที่ต้องรอแพ็กเก็ตวิ่ง
   step(function(){
     load([ N('R1','router','192.168.1.1',{dhcp:DH}), N('SW1','switch'), N('SW2','switch'),
-           N('PC1','pc','192.168.1.50',{gw:'192.168.1.1'}), N('PC2','pc'), N('SRV1','server','192.168.1.60'),
+           N('PC1','pc','192.168.1.50',{gw:'192.168.1.1',dns:'192.168.1.1'}), N('PC2','pc'), N('SRV1','server','192.168.1.60'),
            N('PC3','pc','192.168.1.70'), N('PC4','pc'), N('PC5','pc'), N('ISP1','isp') ],
          [ U('R1','SW1'), U('SW1','PC1'), U('SW1','PC2'), U('SW1','SRV1'), U('SW1','PC4'), U('R1','ISP1'), U('SW2','PC5') ]);
     E.requestDhcp('PC2');          // PC2 = DHCP .10

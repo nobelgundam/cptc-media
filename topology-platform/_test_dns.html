@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="th">
+<head><meta charset="UTF-8"><title>dns + nslookup test</title></head>
+<body>
+<script>try { localStorage.clear(); localStorage.setItem('netsim_builder_no', '7'); } catch (e) {}</script>
+<iframe id="fr" src="builder.html" style="width:420px;height:900px;border:1px solid #ccc"></iframe>
+<pre id="out">running…</pre>
+<script>
+/* DNS (แปลงชื่อ → IP) + nslookup/dig/resolv.conf ใน Terminal — รูปแบบเดียวกับ _test_dhcp_cli.html: ok(name,cond) → document.title = RESULT pass=N fail=M
+ * ใช้ iframe builder.html (โหมดเข้ม dnsStrict) เพราะคำสั่งอยู่ใน builder · ส่วนโหมดปกติ (ไฟล์ภารกิจเทอม 1) ทดสอบด้วยหน้าเปล่า srcdoc ที่โหลด engine.js แล้ว init โดยไม่ส่ง option */
+var log = [], pass = 0, fail = 0;
+function ok(name, cond, extra){ (cond ? pass++ : fail++); log.push((cond ? 'PASS ' : 'FAIL ') + name + (extra ? ' | ' + extra : '')); }
+function done(){
+  try { localStorage.clear(); } catch (e) {}
+  document.getElementById('out').textContent = log.join('\n') + '\nRESULT pass=' + pass + ' fail=' + fail;
+  document.title = 'RESULT pass=' + pass + ' fail=' + fail;
+}
+
+var fr = document.getElementById('fr'), w, d, E, termOut, srcSel;
+function U(a, b){ return { id: a + '-' + b, a: a, b: b, media: 'utp' }; }
+function load(nodes, edges){ E.loadState({ nodes: nodes, edges: edges }); }
+function N(id, type, ip, extra){
+  var n = { id: id, type: type, x: 60 + (N.k = (N.k || 0) + 1) * 14, y: 80 + (N.k % 7) * 30 };
+  if (ip) n.ip = ip;
+  if (extra) for (var k in extra) n[k] = extra[k];
+  return n;
+}
+function merge(a, b){ var o = {}, k; for (k in a) o[k] = a[k]; for (k in (b || {})) o[k] = b[k]; return o; }
+var DH = { on: true, from: 10, to: 254, dns: '' };
+function lines(base){ var a = []; for (var i = base; i < termOut.children.length; i++) a.push(termOut.children[i].textContent); return a; }
+function has(L, s){ return L.some(function(l){ return l.indexOf(s) > -1; }); }
+function count(L, s){ return L.filter(function(l){ return l.indexOf(s) > -1; }).length; }
+function cmd(id, text){          // พิมพ์คำสั่งลง Terminal ของ builder เหมือนเด็กกดรัน · คืนบรรทัดที่เพิ่มมา
+  var base = termOut.children.length;
+  srcSel.value = id;
+  d.getElementById('cmd').value = text;
+  d.getElementById('runBtn').click();
+  return { base: base, now: function(){ return lines(base); } };
+}
+/* ผังร้านมาตรฐาน: R1(DHCP เปิด) — SW1 — PC1/PC2/SRV1(shop.local) · R1 — ISP1
+ * o.noDhcp = R1 ไม่เปิด DHCP · o.noIsp = ไม่มี ISP · o.ispOff = มี ISP แต่ไม่ได้ต่อกับ R1 · o.dhcp = ค่า DHCP ของ R1 */
+function shop(pcx, o){
+  o = o || {};
+  var nodes = [ N('R1','router','192.168.1.1', o.noDhcp ? {} : { dhcp: o.dhcp || DH }), N('SW1','switch'),
+                N('PC1','pc','192.168.1.10', merge({ gw: '192.168.1.1' }, pcx)), N('PC2','pc'),
+                N('SRV1','server','192.168.1.50', { gw: '192.168.1.1', host: 'shop.local' }) ];
+  var edges = [ U('R1','SW1'), U('SW1','PC1'), U('SW1','PC2'), U('SW1','SRV1') ];
+  if (!o.noIsp){ nodes.push(N('ISP1','isp')); if (!o.ispOff) edges.push(U('R1','ISP1')); }
+  load(nodes, edges);
+}
+function tap(id){                // แตะอุปกรณ์ในโหมดตั้งค่า = เปิด dialog (stub setPointerCapture เพราะ PointerEvent สังเคราะห์ไม่มี pointer จริง)
+  w.Element.prototype.setPointerCapture = function(){};
+  E.setMode('config');
+  var hit = d.querySelector('#canvas .node[data-id="' + id + '"] .node-hit');
+  ['pointerdown', 'pointerup'].forEach(function(t){ hit.dispatchEvent(new w.PointerEvent(t, { pointerId: 1, bubbles: true, clientX: 1, clientY: 1 })); });
+}
+function dlgOpen(){ return d.getElementById('cfgOverlay').classList.contains('show'); }
+function shown(id){ return !d.getElementById(id).classList.contains('hidden'); }
+function setv(id, v){ d.getElementById(id).value = v; }
+function click(id){ d.getElementById(id).click(); }
+function errTxt(){ return d.getElementById('cfgErr').textContent; }
+var SPOIL = /ต้อง|ควร|ลอง|ให้ไป|แก้|ใส่ DNS|ตั้ง DNS|ตั้งค่า|เปิด DHCP/;   // คำที่ชี้วิธีแก้ — ข้อความ error ห้ามมี
+
+fr.addEventListener('load', function(){
+  w = fr.contentWindow; d = fr.contentDocument; E = w.NetSimEngine;
+  termOut = d.getElementById('termOut'); srcSel = d.getElementById('srcSel');
+  var steps = [], T = {};
+  function step(fn){ steps.push(fn); }
+
+  /* ================= A) engine.resolve (โหมดเข้ม) ================= */
+  step(function(){
+    ok('A0 builder เปิดโหมดเข้ม (dnsStrict) · isName แยกชื่อกับเลข IP', E.dnsStrict() === true && E.isName('google.com') && E.isName('abc') && !E.isName('192.168.1.10') && !E.isName('192.168.1') && !E.isName('1.2.3.4.5'));
+    shop();
+    var r = E.resolve('PC1', 'www.google.com');
+    ok('A1 ไม่มี DNS (strict) → หาชื่อไม่เจอ reason=nodns', r.ok === false && r.reason === 'nodns', JSON.stringify(r));
+    ok('A1b ไม่มี DNS แต่ออกเน็ตด้วยเลข IP ได้ (canReachNet ok · ping 8.8.8.8 ผ่านกฎเดิม)', E.canReachNet('PC1').ok === true && E.netTarget('8.8.8.8') !== null);
+    ok('A1c ไม่มี DNS: ชื่อในร้าน shop.local ก็หาไม่เจอด้วย', E.resolve('PC1', 'shop.local').reason === 'nodns');
+
+    shop({ dns: '192.168.1.99' });
+    r = E.resolve('PC1', 'www.google.com');
+    ok('A2 DNS ผิด (192.168.1.99 ไม่มีเครื่อง) → timeout · แต่ออกเน็ตด้วยเลข IP ได้ (อาการคลาสสิก)', r.ok === false && r.reason === 'timeout' && E.canReachNet('PC1').ok === true, JSON.stringify(r));
+    shop({ dns: '192.168.1.50' });
+    ok('A2b DNS = IP ของ Server (ไม่ใช่ DNS) → timeout', E.resolve('PC1', 'www.google.com').reason === 'timeout');
+    shop({ dns: '192.168.1.10' });
+    ok('A2c DNS = IP ของตัวเอง/PC → timeout', E.resolve('PC1', 'www.google.com').reason === 'timeout');
+    shop({ dns: '192.168.1.1' }, { noDhcp: true });
+    ok('A2d DNS = router ที่ไม่ได้เปิด DHCP/DNS → timeout', E.resolve('PC1', 'www.google.com').reason === 'timeout');
+    shop({ dns: 'abc' });
+    ok('A2e DNS พิมพ์เป็นชื่อ/ไม่ใช่เลข IP → timeout (ไม่ crash)', E.resolve('PC1', 'www.google.com').reason === 'timeout');
+    shop({ dns: '8.8.8.8', gw: '' });
+    ok('A2f DNS = 8.8.8.8 แต่เครื่องไม่มี gateway (ออกเน็ตไม่ได้) → timeout', E.resolve('PC1', 'www.google.com').reason === 'timeout' && E.canReachNet('PC1').ok === false);
+    shop({ dns: '8.8.8.8' }, { noIsp: true });
+    ok('A2g DNS = 8.8.8.8 แต่ผังไม่มี ISP → timeout', E.resolve('PC1', 'www.google.com').reason === 'timeout');
+    shop({ dns: '8.8.8.8' }, { ispOff: true });
+    ok('A2h DNS = 8.8.8.8 แต่ ISP ไม่ได้ต่อกับ router → timeout', E.resolve('PC1', 'www.google.com').reason === 'timeout');
+  });
+
+  step(function(){
+    shop({ dns: '8.8.8.8' });
+    var r = E.resolve('PC1', 'www.google.com');
+    ok('A3 DNS = 8.8.8.8 + ออกเน็ตได้ → ได้ 142.250.71.14 (key=google.com)', r.ok && r.kind === 'net' && r.ip === '142.250.71.14' && r.key === 'google.com' && r.dns === '8.8.8.8' && r.dnsName === 'dns.google', JSON.stringify(r));
+    ok('A3b พิมพ์ตัวใหญ่ WWW.Google.COM ก็ได้ · google.com (ไม่มี www) ได้ IP เดียวกัน', E.resolve('PC1', 'WWW.Google.COM').ip === '142.250.71.14' && E.resolve('PC1', 'google.com').ip === '142.250.71.14');
+    ok('A3c เว็บอื่นในตาราง: www.youtube.com · roblox.com · www.facebook.com', E.resolve('PC1', 'www.youtube.com').ip === '142.250.71.46' && E.resolve('PC1', 'roblox.com').ip === '128.116.112.1' && E.resolve('PC1', 'www.facebook.com').ip === '57.144.222.1');
+    shop({ dns: '1.1.1.1' });
+    ok('A3d DNS สาธารณะอีก 2 ตัว (1.1.1.1 · 8.8.4.4) ใช้ได้เหมือนกัน และ ping เลขพวกนี้ได้ใน strict', E.resolve('PC1', 'google.com').ok && E.resolve('PC1', 'google.com').dnsName === 'one.one.one.one' && (shop({ dns: '8.8.4.4' }), E.resolve('PC1', 'google.com').ok) && E.netTarget('1.1.1.1') !== null && E.netTarget('8.8.4.4') !== null);
+    shop({ dns: '8.8.8.8' });
+    var n = E.resolve('PC1', 'no-such-site.example');
+    ok('A3e DNS ทำงานแต่ไม่รู้จักชื่อนี้ → nxdomain (บอกชื่อ DNS ที่ตอบ)', n.ok === false && n.reason === 'nxdomain' && n.dnsName === 'dns.google', JSON.stringify(n));
+    ok('A3f ชื่อในร้าน (shop.local) 8.8.8.8 ก็แปลงให้ → 192.168.1.50 (kind=lan)', (function(){ var s = E.resolve('PC1', 'shop.local'); return s.ok && s.kind === 'lan' && s.ip === '192.168.1.50' && s.key === '192.168.1.50'; })());
+    ok('A3g เลข IP ไม่ผ่านการแปลงชื่อ (reverse lookup ไม่รองรับ → nxdomain ไม่ crash)', E.resolve('PC1', '8.8.8.8').reason === 'nxdomain');
+
+    shop({ dns: '192.168.1.1' });
+    r = E.resolve('PC1', 'www.google.com');
+    ok('A4 DNS = router (เปิด DHCP/DNS) ที่ถึง ISP → ผ่าน · router ไม่มีชื่อ (UnKnown)', r.ok && r.ip === '142.250.71.14' && r.dns === '192.168.1.1' && r.dnsName === 'UnKnown', JSON.stringify(r));
+    ok('A4b DNS = router: ชื่อในร้านก็ผ่าน', E.resolve('PC1', 'shop.local').ip === '192.168.1.50');
+
+    shop({ dns: '192.168.1.1' }, { ispOff: true });
+    r = E.resolve('PC1', 'www.google.com');
+    ok('A5 DNS = router ที่ไม่ถึง ISP → ชื่อเว็บนอกหาไม่เจอ (nxdomain · noUpstream)', r.ok === false && r.reason === 'nxdomain' && r.noUpstream === true, JSON.stringify(r));
+    ok('A5b router ไม่ถึง ISP แต่ชื่อในร้านยังผ่าน (ไม่ต้องออกเน็ต)', E.resolve('PC1', 'shop.local').ok === true);
+    shop({ dns: '192.168.1.1' }, { noIsp: true });
+    ok('A5c ผังไม่มี ISP เลข DNS = router → เว็บนอกหาไม่เจอ', E.resolve('PC1', 'google.com').reason === 'nxdomain');
+
+    /* DNS เป็น router อีกตัวนอกวง: ต้องมี gw ถึงไปถึง */
+    var far = function(gw){ load([ N('PC1','pc','192.168.1.10',{ gw: gw, dns: '10.0.0.1' }), N('SW1','switch'), N('R1','router','192.168.1.1'), N('R2','router','10.0.0.1',{ dhcp: DH }), N('ISP1','isp') ],
+                                  [ U('PC1','SW1'), U('SW1','R1'), U('R1','R2'), U('R2','ISP1') ]); };
+    far('192.168.1.1');
+    ok('A5d DNS = router อีกวงที่ routing ถึง (มี gw) → ผ่าน', E.resolve('PC1', 'google.com').ok === true);
+    far('');
+    ok('A5e DNS = router อีกวง แต่เครื่องไม่มี gw → timeout', E.resolve('PC1', 'google.com').reason === 'timeout');
+
+    ok('A6 ต้นทางไม่มี IP → reason=srcnoip', (function(){ shop(); return E.resolve('PC2', 'google.com').reason === 'srcnoip'; })());
+    shop();
+    ok('A7 ระบุ DNS ตรง ๆ (nslookup ชื่อ DNS): 8.8.8.8 ผ่าน · 192.168.1.99 timeout · เครื่องที่ไม่มี DNS ของตัวเองก็ใช้ได้',
+       E.resolve('PC1', 'google.com', '8.8.8.8').ok === true && E.resolve('PC1', 'google.com', '192.168.1.99').reason === 'timeout' && E.getNode('PC1').dns === '');
+  });
+
+  step(function(){
+    /* DHCP แจก dns ให้เอง */
+    shop();
+    var q = E.requestDhcp('PC2'), r = E.resolve('PC2', 'www.google.com');
+    ok('A8 DHCP แจก dns (ค่าตั้งต้น=IP router) → PC2 แปลงชื่อได้ทันที', q.ok && E.getNode('PC2').dns === '192.168.1.1' && r.ok && r.ip === '142.250.71.14' && r.dns === '192.168.1.1', JSON.stringify(r));
+    shop({}, { dhcp: { on: true, from: 10, to: 254, dns: '8.8.8.8' } });
+    E.requestDhcp('PC2');
+    ok('A8b DHCP แจก dns=8.8.8.8 → ผ่านทาง DNS สาธารณะ', E.getNode('PC2').dns === '8.8.8.8' && E.resolve('PC2', 'www.google.com').dnsName === 'dns.google');
+    shop({}, { dhcp: { on: true, from: 10, to: 254, dns: '192.168.1.99' } });
+    E.requestDhcp('PC2');
+    ok('A8c DHCP แจก dns ผิด (ไม่มีเครื่อง) → timeout แต่ ping เลข IP เน็ตยังผ่าน', E.resolve('PC2', 'www.google.com').reason === 'timeout' && E.canReachNet('PC2').ok === true);
+    shop();
+    E.requestDhcp('PC2'); E.releaseDhcp('PC2');
+    ok('A8d คืน IP (release) แล้ว dns หาย', E.getNode('PC2').dns === '' && E.resolve('PC2', 'google.com').reason === 'srcnoip');
+
+    /* ฟิลด์ในไฟล์ผัง */
+    shop({ dns: '8.8.8.8' });
+    var st = JSON.parse(E.exportState()), pc1 = st.nodes.filter(function(n){ return n.id === 'PC1'; })[0], pc2 = st.nodes.filter(function(n){ return n.id === 'PC2'; })[0];
+    ok('B1 dns อยู่ใน node (เซฟอัตโนมัติ/ไฟล์ผัง 💾 พาไปเอง) และมีเฉพาะเครื่องที่ตั้ง', pc1.dns === '8.8.8.8' && pc2.dns === undefined);
+    E.setNodeIP('PC1', '192.168.1.10', '192.168.1.1');
+    ok('B2 setNodeIP แบบเก่า (4 อาร์กิวเมนต์ไม่มี dns) → ล้าง dns ไม่เติมฟิลด์เปล่าลงไฟล์', E.getNode('PC1').dns === '' && JSON.parse(E.exportState()).nodes.filter(function(n){ return n.id === 'PC1'; })[0].dns === undefined);
+    E.setNodeIP('PC1', '192.168.1.10', '192.168.1.1', undefined, ' 1.1.1.1 ');
+    ok('B2b setNodeIP ใส่ dns (ตัดช่องว่าง) → เก็บ 1.1.1.1', E.getNode('PC1').dns === '1.1.1.1');
+    E.requestDhcp('PC1');
+    ok('B3 เปลี่ยนจาก Static เป็น DHCP → dns ถูกแทนด้วยค่าจาก router', E.getNode('PC1').dns === '192.168.1.1' && E.getNode('PC1').ipmode === 'dhcp');
+    E.setNodeIP('PC1', '192.168.1.10', '192.168.1.1');
+    ok('B3b กลับเป็น Static (ไม่ใส่ dns) → dns หาย', E.getNode('PC1').dns === '');
+
+    /* ชื่อเครื่อง (Hostname) */
+    shop();
+    E.setNodeHost('SRV1', '  Shop.LOCAL ');
+    ok('B4 setNodeHost เก็บตัวพิมพ์เล็ก ตัดช่องว่าง · getNode.host', E.getNode('SRV1').host === 'shop.local' && JSON.parse(E.exportState()).nodes.filter(function(n){ return n.host; }).length === 1);
+    E.setNodeHost('PC1', 'pc1.local');
+    ok('B4b hostname ตั้งได้เฉพาะ Server (PC ไม่ติด)', E.getNode('PC1').host === '');
+    E.setNodeHost('SRV1', '');
+    ok('B4c ว่าง = เอาชื่อออก (ไม่เหลือฟิลด์ host ในไฟล์)', E.getNode('SRV1').host === '' && !/"host"/.test(E.exportState()));
+    shop();
+    ok('B5 hostError: ชื่อดี/ว่าง = null', E.hostError('SRV1', 'shop.local') === null && E.hostError('SRV1', '') === null && E.hostError('SRV1', 'my-shop2') === null);
+    ok('B5b hostError: อักขระแปลก/มีช่องว่าง/ไม่มีตัวอักษร/ยาวเกิน 40 → ข้อความผิด', !!E.hostError('SRV1', 'a b') && !!E.hostError('SRV1', 'ร้าน') && !!E.hostError('SRV1', '192.168.1.5') && !!E.hostError('SRV1', 'a..b') && !!E.hostError('SRV1', '-abc') && !!E.hostError('SRV1', new Array(42).join('a')));
+    ok('B5c hostError: ซ้ำกับ Server อื่น / ชนชื่อเว็บจริง → ผิด · ซ้ำกับตัวเอง = ผ่าน', (function(){
+      var nodes = JSON.parse(E.exportState()).nodes; nodes.push(N('SRV2', 'server', '192.168.1.51', { host: 'dup.local' })); E.loadState({ nodes: nodes, edges: [] });
+      return /SRV2/.test(E.hostError('SRV1', 'dup.local')) && !!E.hostError('SRV1', 'google.com') && !!E.hostError('SRV1', 'www.google.com') && E.hostError('SRV2', 'dup.local') === null;
+    })());
+  });
+
+  /* ================= C) Terminal (กด “รัน” จริงใน builder) — คำสั่งที่ล้ม (ทันที ไม่รอแพ็กเก็ต) ================= */
+  step(function(){
+    shop();   // PC1 ไม่มี DNS
+    var L = cmd('PC1', 'ping www.google.com').now();
+    ok('C1 ไม่มี DNS · ping ชื่อ → Windows: Ping request could not find host … (ไม่ส่งแพ็กเก็ต)', has(L, 'Ping request could not find host www.google.com. Please check the name and try again.') && !has(L, 'กำลัง ping') && !has(L, 'ตอบกลับจาก'), L.join(' ⏎ '));
+    var tt = (d.querySelector('.toast') || {}).textContent || '';
+    ok('C1b มี toast บอกอาการ (แปลงชื่อไม่ได้) ไม่ใช่ blank', /แปลงชื่อ www\.google\.com/.test(tt), tt);
+    L = cmd('PC1', 'ping -c 2 www.google.com').now();
+    ok('C2 ไม่มี DNS · ping -c ชื่อ → Linux: Temporary failure in name resolution', has(L, 'ping: www.google.com: Temporary failure in name resolution') && !has(L, '64 bytes'), L.join(' ⏎ '));
+    L = cmd('PC1', 'tracert www.google.com').now();
+    ok('C3 ไม่มี DNS · tracert ชื่อ → Unable to resolve target system name', has(L, 'Unable to resolve target system name www.google.com.') && !has(L, 'Tracing route'), L.join(' ⏎ '));
+    L = cmd('PC1', 'traceroute www.google.com').now();
+    ok('C3b ไม่มี DNS · traceroute ชื่อ → traceroute: unknown host', has(L, 'traceroute: unknown host www.google.com'), L.join(' ⏎ '));
+    L = cmd('PC1', 'http shop.local').now();
+    ok('C3c ไม่มี DNS · http ชื่อ → ERR_NAME_NOT_RESOLVED', has(L, 'ERR_NAME_NOT_RESOLVED') && !has(L, 'กำลังเปิดเว็บ'), L.join(' ⏎ '));
+
+    /* ข้อความ error ทุกอันบอกอาการ ไม่เฉลยวิธีแก้ (สื่อจำลองไม่เฉลย) */
+    var all = lines(0).filter(function(l){ return l.indexOf('>') === -1 || l.indexOf('PC1>') === -1; });
+    var failLines = all.filter(function(l){ return /could not find|Temporary failure|Unable to resolve|unknown host|ERR_NAME|แปลงชื่อ/.test(l); });
+    ok('C4 error ของการแปลงชื่อ ' + failLines.length + ' บรรทัด ไม่มีคำชี้วิธีแก้ (ต้อง/ควร/ลอง/แก้/ตั้ง DNS …) · ไม่มีคำว่า DNS เลย', failLines.length >= 8 && failLines.every(function(l){ return !SPOIL.test(l) && l.indexOf('DNS') === -1; }), failLines.filter(function(l){ return SPOIL.test(l) || l.indexOf('DNS') > -1; }).join(' ⏎ '));
+
+    /* DNS ผิด (ชี้เครื่องที่ไม่มี) */
+    shop({ dns: '192.168.1.99' });
+    L = cmd('PC1', 'ping www.google.com').now();
+    ok('C5 DNS ผิด · ping ชื่อ ได้ข้อความเดียวกับไม่มี DNS (Windows ก็แยกไม่ออก)', has(L, 'Ping request could not find host www.google.com.'), L.join(' ⏎ '));
+    L = cmd('PC1', 'ping -c 2 www.google.com').now();
+    ok('C5b DNS ผิด · ping -c ชื่อ → Temporary failure in name resolution', has(L, 'ping: www.google.com: Temporary failure in name resolution'));
+    shop({ dns: '8.8.8.8' });
+    L = cmd('PC1', 'ping -c 2 no-such-site.example').now();
+    ok('C5c DNS ทำงาน แต่ไม่รู้จักชื่อ · ping -c → Name or service not known', has(L, 'ping: no-such-site.example: Name or service not known'));
+    L = cmd('PC1', 'ping no-such-site.example').now();
+    ok('C5d DNS ทำงาน แต่ไม่รู้จักชื่อ · ping → could not find host', has(L, 'Ping request could not find host no-such-site.example.'));
+
+    /* ต้นทางไม่มี IP: ข้อความเดิมของคำสั่งตอบ (ไม่ใช่ "หาชื่อไม่เจอ") */
+    shop();
+    L = cmd('PC2', 'ping www.google.com').now();
+    ok('C6 ต้นทางไม่มี IP · ping ชื่อ → ข้อความเดิม "ยังไม่มีเลขที่อยู่"', has(L, 'เครื่องต้นทางยังไม่มีเลขที่อยู่') && !has(L, 'could not find host'), L.join(' ⏎ '));
+    L = cmd('PC1', 'ping 192.168.1.99').now();
+    ok('C6b ping เลข IP ที่ไม่มีเครื่อง → ข้อความเดิม (ไม่เกี่ยว DNS)', has(L, 'Request timed out') && has(L, 'ไม่มีเครื่องใดใช้ IP 192.168.1.99'), L.join(' ⏎ '));
+  });
+
+  /* ================= D) nslookup / dig / resolv.conf / ipconfig /all ================= */
+  step(function(){
+    shop({ dns: '8.8.8.8' });
+    var L = cmd('PC1', 'nslookup www.google.com').now();
+    ok('D1 nslookup (DNS ถูก): Server/Address + Non-authoritative answer + Name/Address ของเว็บ',
+       has(L, 'Server:  dns.google') && has(L, 'Address:  8.8.8.8') && has(L, 'Non-authoritative answer:') && has(L, 'Name:    www.google.com') && has(L, 'Address:  142.250.71.14') && !has(L, 'timed out'), L.join(' ⏎ '));
+    L = cmd('PC1', 'nslookup shop.local').now();
+    ok('D1b nslookup ชื่อในร้าน → 192.168.1.50 (ไม่มีบรรทัด Non-authoritative)', has(L, 'Name:    shop.local') && has(L, 'Address:  192.168.1.50') && !has(L, 'Non-authoritative'), L.join(' ⏎ '));
+    L = cmd('PC1', 'nslookup no-such-site.example').now();
+    ok('D1c nslookup ชื่อที่ไม่มี → *** dns.google can\'t find … Non-existent domain', has(L, "*** dns.google can't find no-such-site.example: Non-existent domain") && !has(L, 'Non-authoritative'), L.join(' ⏎ '));
+    L = cmd('PC1', 'nslookup').now();
+    ok('D1d nslookup ไม่ใส่ชื่อ → บอกวิธีใช้', has(L, 'ใช้: nslookup'));
+    L = cmd('PC1', 'nslookup 8.8.8.8').now();
+    ok('D1e nslookup เลข IP (ไม่รองรับ reverse) → Non-existent domain ไม่ crash', has(L, 'Non-existent domain'), L.join(' ⏎ '));
+
+    shop({ dns: '192.168.1.99' });
+    L = cmd('PC1', 'nslookup www.google.com').now();
+    ok('D2 nslookup (DNS ผิด): Server UnKnown · Address=DNS ที่ตั้งไว้ · DNS request timed out · *** Request to UnKnown timed-out',
+       has(L, 'Server:  UnKnown') && has(L, 'Address:  192.168.1.99') && has(L, 'DNS request timed out.') && has(L, '*** Request to UnKnown timed-out') && !has(L, 'Name:'), L.join(' ⏎ '));
+    shop();
+    L = cmd('PC1', 'nslookup www.google.com').now();
+    ok('D2b nslookup (ไม่มี DNS): Address (ยังไม่ตั้ง) + DNS request timed out', has(L, 'Address:  (ยังไม่ตั้ง)') && has(L, 'DNS request timed out.') && !has(L, 'Name:'), L.join(' ⏎ '));
+    var timeoutLines = L.filter(function(l){ return l.indexOf('PC1>') === -1; });
+    ok('D2c ข้อความ nslookup ที่ล้มไม่ชี้วิธีแก้', timeoutLines.every(function(l){ return !SPOIL.test(l); }), timeoutLines.filter(function(l){ return SPOIL.test(l); }).join(' ⏎ '));
+    L = cmd('PC1', 'nslookup www.google.com 8.8.8.8').now();
+    ok('D2d nslookup ชื่อ 8.8.8.8 (ระบุ DNS เอง) ผ่าน แม้เครื่องไม่มี DNS ของตัวเอง', has(L, 'Server:  dns.google') && has(L, 'Address:  142.250.71.14'), L.join(' ⏎ '));
+    L = cmd('PC1', 'nslookup www.google.com 192.168.1.99').now();
+    ok('D2e nslookup ระบุ DNS ที่ไม่มีเครื่อง → timed out', has(L, 'Address:  192.168.1.99') && has(L, 'DNS request timed out.'), L.join(' ⏎ '));
+
+    shop({ dns: '192.168.1.1' });
+    L = cmd('PC1', 'nslookup www.google.com').now();
+    ok('D3 nslookup (DNS = router): Server UnKnown · Address 192.168.1.1 · ได้ IP', has(L, 'Server:  UnKnown') && has(L, 'Address:  192.168.1.1') && has(L, 'Address:  142.250.71.14'), L.join(' ⏎ '));
+    shop({ dns: '192.168.1.1' }, { ispOff: true });
+    L = cmd('PC1', 'nslookup www.google.com').now();
+    ok('D3b nslookup (router ไม่ถึง ISP): ชื่อเว็บนอก Non-existent domain · ชื่อในร้านยังได้', has(L, "can't find www.google.com: Non-existent domain") && has(cmd('PC1', 'nslookup shop.local').now(), 'Address:  192.168.1.50'), L.join(' ⏎ '));
+
+    /* ผ่าน DHCP */
+    shop();
+    cmd('PC2', 'dhclient');
+    L = cmd('PC2', 'nslookup www.google.com').now();
+    ok('D4 DHCP แจก dns แล้ว nslookup ผ่าน (PC2 ไม่ได้ตั้ง DNS เอง)', E.getNode('PC2').ipmode === 'dhcp' && has(L, 'Address:  192.168.1.1') && has(L, 'Address:  142.250.71.14'), L.join(' ⏎ '));
+    L = cmd('PC2', 'ipconfig /all').now();
+    ok('D4b ipconfig /all (DHCP) → DNS Servers . . . : 192.168.1.1', has(L, 'DNS Servers . . . : 192.168.1.1'), L.join(' ⏎ '));
+    L = cmd('PC2', 'cat /etc/resolv.conf').now();
+    ok('D4c cat /etc/resolv.conf (DHCP) → nameserver 192.168.1.1', has(L, 'nameserver 192.168.1.1') && has(L, '# Generated'), L.join(' ⏎ '));
+
+    /* ipconfig /all + resolv.conf แบบ Static */
+    shop({ dns: '8.8.8.8' });
+    L = cmd('PC1', 'ipconfig /all').now();
+    ok('D5 ipconfig /all (Static มี DNS) → DNS Servers . . . : 8.8.8.8', has(L, 'DNS Servers . . . : 8.8.8.8') && has(L, 'DHCP Enabled . . . . : No'), L.join(' ⏎ '));
+    L = cmd('PC1', 'cat /etc/resolv.conf').now();
+    ok('D5b cat /etc/resolv.conf (Static) → nameserver 8.8.8.8', has(L, 'nameserver 8.8.8.8'));
+    shop();
+    L = cmd('PC1', 'ipconfig /all').now();
+    ok('D5c ipconfig /all (ไม่มี DNS) → ไม่มีบรรทัด DNS Servers', !has(L, 'DNS Servers'), L.join(' ⏎ '));
+    L = cmd('PC1', 'cat /etc/resolv.conf').now();
+    ok('D5d cat /etc/resolv.conf (ไม่มี DNS) → ไม่มีบรรทัด nameserver', has(L, '# Generated') && !has(L, 'nameserver'), L.join(' ⏎ '));
+    L = cmd('PC1', 'cat /etc/hosts').now();
+    ok('D5e cat ไฟล์อื่น → No such file or directory · cat ไม่ใส่ไฟล์ → วิธีใช้', has(L, 'cat: /etc/hosts: No such file or directory') && has(cmd('PC1', 'cat').now(), 'ใช้: cat'));
+    L = cmd('PC1', 'ipconfig').now();
+    ok('D5f ipconfig ปกติเหมือนเดิม 3 บรรทัด (ไม่มี DNS ปน)', L.length === 4 && !has(L, 'DNS'), L.join(' ⏎ '));
+
+    /* dig */
+    shop({ dns: '8.8.8.8' });
+    L = cmd('PC1', 'dig www.google.com').now();
+    ok('D6 dig (DNS ถูก): ANSWER SECTION มี A 142.250.71.14 + ;; SERVER: 8.8.8.8#53 + status NOERROR', has(L, ';; ANSWER SECTION:') && L.some(function(l){ return /^www\.google\.com\.\s+300\s+IN\s+A\s+142\.250\.71\.14$/.test(l); }) && has(L, ';; SERVER: 8.8.8.8#53(8.8.8.8)') && has(L, 'status: NOERROR') && has(L, ';; QUESTION SECTION:'), L.join(' ⏎ '));
+    L = cmd('PC1', 'dig @1.1.1.1 shop.local').now();
+    ok('D6b dig @DNS ระบุเอง · ชื่อในร้าน → 192.168.1.50 จาก 1.1.1.1', has(L, ';; SERVER: 1.1.1.1#53') && L.some(function(l){ return /^shop\.local\.\s+300\s+IN\s+A\s+192\.168\.1\.50$/.test(l); }), L.join(' ⏎ '));
+    L = cmd('PC1', 'dig no-such-site.example').now();
+    ok('D6c dig ชื่อที่ไม่มี → status NXDOMAIN · ไม่มี ANSWER SECTION · ยังมี ;; SERVER', has(L, 'status: NXDOMAIN') && !has(L, ';; ANSWER SECTION:') && has(L, ';; SERVER: 8.8.8.8#53'), L.join(' ⏎ '));
+    shop({ dns: '192.168.1.99' });
+    L = cmd('PC1', 'dig www.google.com').now();
+    ok('D6d dig (DNS ผิด) → communications error … timed out · no servers could be reached · ไม่มี ANSWER', has(L, ';; communications error to 192.168.1.99#53: timed out') && has(L, ';; no servers could be reached') && !has(L, 'ANSWER SECTION'), L.join(' ⏎ '));
+    shop();
+    L = cmd('PC1', 'dig www.google.com').now();
+    ok('D6e dig (ไม่มี DNS) → connection timed out; no servers could be reached', has(L, ';; connection timed out; no servers could be reached') && !has(L, 'ANSWER SECTION'), L.join(' ⏎ '));
+    ok('D6f dig ไม่ใส่ชื่อ → วิธีใช้', has(cmd('PC1', 'dig').now(), 'ใช้: dig'));
+    L = cmd('PC1', 'foo').now();
+    ok('D7 คำสั่งที่ไม่รู้จัก → รายชื่อมี nslookup · dig · cat (และของเดิม ip/traceroute/dhclient)', has(L, 'ไม่ใช่คำสั่งที่รองรับ') && has(L, 'nslookup') && has(L, 'ip, traceroute, dhclient, dig, cat'), L.join(' ⏎ '));
+    var help = d.querySelector('#termOut .th').textContent;
+    ok('D7b บรรทัดช่วยเหลือบนสุดมี nslookup · dig · resolv.conf · ปุ่มลัดยังเท่าเดิม 5 ปุ่ม', /nslookup/.test(help) && /dig/.test(help) && /resolv\.conf/.test(help) && d.querySelectorAll('.term-chips button').length === 5, help.slice(-120));
+  });
+
+  /* ================= E) คำสั่งที่ผ่าน (ต้องรอแพ็กเก็ตวิ่ง) ================= */
+  step(function(){
+    shop({ dns: '8.8.8.8' });
+    T.base = termOut.children.length;
+    cmd('PC1', 'ping www.google.com');
+    cmd('PC1', 'ping -c 2 www.google.com');
+    cmd('PC1', 'ping shop.local');
+    cmd('PC1', 'http shop.local');
+    cmd('PC1', 'http www.google.com');
+    T.tr = cmd('PC1', 'tracert www.google.com').now();
+    T.tl = cmd('PC1', 'traceroute shop.local').now();
+    return 3300;
+  });
+  step(function(){
+    var L = lines(T.base);
+    ok('E1 ping ชื่อเว็บ (DNS ถูก) → กำลัง ping <ชื่อ> [IP ที่แปลงได้] แล้วตอบกลับจาก 142.250.71.14', has(L, 'กำลัง ping www.google.com [142.250.71.14] ...') && has(L, 'ตอบกลับจาก 142.250.71.14: เวลา 9ms'), L.join(' ⏎ '));
+    ok('E1b ping -c ชื่อเว็บ → PING www.google.com (142.250.71.14) + 64 bytes from 142.250.71.14 ×2 + สรุป 2/2', has(L, 'PING www.google.com (142.250.71.14) 56(84) bytes of data.') && count(L, '64 bytes from 142.250.71.14: icmp_seq=') === 2 && has(L, '--- www.google.com ping statistics ---') && has(L, '2 packets transmitted, 2 received'), L.join(' ⏎ '));
+    ok('E1c ping ชื่อในร้าน → กำลัง ping shop.local [192.168.1.50] + ตอบกลับจาก 192.168.1.50 (3 บรรทัด)', has(L, 'กำลัง ping shop.local [192.168.1.50] ...') && count(L, 'ตอบกลับจาก 192.168.1.50: ไบต์=32') === 3 && has(L, 'ping shop.local = ได้'), L.join(' ⏎ '));
+    ok('E2 http ชื่อในร้าน → HTTP/1.1 200 OK (Server ตอบ)', has(L, 'กำลังเปิดเว็บ http://shop.local [192.168.1.50] ...') && has(L, 'HTTP/1.1 200 OK'), L.join(' ⏎ '));
+    ok('E2b http ชื่อเว็บนอก (ออกเน็ตได้) → กำลังเปิดเว็บ … [142.250.71.14] + 200 OK', has(L, 'กำลังเปิดเว็บ http://www.google.com [142.250.71.14] ...') && count(L, 'HTTP/1.1 200 OK') === 2, 'n200=' + count(L, 'HTTP/1.1 200 OK'));
+    ok('E3 tracert ชื่อ → Tracing route to www.google.com [142.250.71.14] : ผ่าน SW1 → R1 → ISP1 → เว็บ', has(T.tr, 'Tracing route to www.google.com [142.250.71.14] :') && has(T.tr, 'SW1') && has(T.tr, 'R1') && has(T.tr, 'ISP1') && has(T.tr, 'ปลายทางบนอินเทอร์เน็ต'), T.tr.join(' ⏎ '));
+    ok('E3b traceroute ชื่อในร้าน → traceroute to shop.local (192.168.1.50) · hop สุดท้าย 192.168.1.50', has(T.tl, 'traceroute to shop.local (192.168.1.50), 30 hops max') && T.tl.some(function(l){ return /^ 2  192\.168\.1\.50  /.test(l); }), T.tl.join(' ⏎ '));
+
+    /* อาการคลาสสิก: DNS ผิด → ping 8.8.8.8 ได้ แต่ ping ชื่อไม่ได้ */
+    shop({ dns: '192.168.1.99' });
+    T.base2 = termOut.children.length;
+    cmd('PC1', 'ping 8.8.8.8');
+    cmd('PC1', 'ping www.google.com');
+    return 3300;
+  });
+  step(function(){
+    var L = lines(T.base2);
+    ok('E4 อาการคลาสสิก: ping 8.8.8.8 ได้ (ตอบกลับจาก 8.8.8.8) แต่ ping www.google.com ไม่ได้ (could not find host)', has(L, 'ตอบกลับจาก 8.8.8.8: เวลา 12ms') && has(L, 'Ping request could not find host www.google.com.') && count(L, 'ตอบกลับจาก') === 1, L.join(' ⏎ '));
+    ok('E4b ไม่มีข้อความ undefined/NaN ใน Terminal ตลอดทั้งไฟล์ทดสอบ', !/undefined|NaN/.test(termOut.textContent), (termOut.textContent.match(/.{0,30}(undefined|NaN).{0,30}/) || [''])[0]);
+  });
+
+  /* ================= F) dialog ตั้งค่า (แตะอุปกรณ์จริง) ================= */
+  step(function(){
+    shop();
+    tap('PC1');
+    ok('F1 แตะ PC → dialog เปิด · มีช่อง DNS Server (ว่างอยู่) · ไม่มีช่องชื่อเครื่อง · placeholder ไม่เฉลยเลขที่ต้องใส่', dlgOpen() && shown('cfgDnsWrap') && shown('cfgStaticWrap') && !shown('cfgHostWrap') && d.getElementById('cfgDns').value === '' && !/\d/.test(d.getElementById('cfgDns').placeholder), d.getElementById('cfgDns').placeholder);
+    setv('cfgDns', '999.1.1.1'); click('cfgSave');
+    ok('F2 DNS รูปแบบผิด → error "DNS Server: …" · dialog ยังเปิด · ไม่บันทึกอะไร', dlgOpen() && /DNS Server/.test(errTxt()) && E.getNode('PC1').dns === '', errTxt());
+    setv('cfgDns', '8.8.8.8'); click('cfgSave');
+    var tt = (d.querySelector('.toast') || {}).textContent || '';
+    ok('F3 ใส่ 8.8.8.8 → บันทึก · dialog ปิด · toast บอก DNS · แปลงชื่อได้ทันที', !dlgOpen() && E.getNode('PC1').dns === '8.8.8.8' && /DNS 8\.8\.8\.8/.test(tt) && E.resolve('PC1', 'google.com').ok, tt);
+    tap('PC1');
+    ok('F4 เปิดใหม่ → ช่อง DNS มีค่าเดิม', dlgOpen() && d.getElementById('cfgDns').value === '8.8.8.8');
+    setv('cfgDns', ''); click('cfgSave');
+    ok('F5 ล้างช่อง DNS แล้วบันทึก → ไม่มี DNS (ไม่มีฟิลด์ในไฟล์)', !dlgOpen() && E.getNode('PC1').dns === '' && JSON.parse(E.exportState()).nodes.filter(function(n){ return n.id === 'PC1'; })[0].dns === undefined);
+
+    tap('R1');
+    ok('F6 แตะ Router → ไม่มีช่อง DNS ของตัวเอง (ซ่อน) แต่ยังมีส่วน DHCP (DNS ที่แจก)', dlgOpen() && !shown('cfgDnsWrap') && shown('cfgDhcpSrvWrap') && !shown('cfgHostWrap'));
+    click('cfgSave');
+    ok('F6b บันทึก Router โดยไม่แก้ → ยังเป็น DHCP เปิด · ไม่มี dns ติดตัว router · IP เดิม', !dlgOpen() && E.getDhcp('R1').on === true && E.getNode('R1').dns === '' && E.getNode('R1').ip === '192.168.1.1', errTxt());
+
+    tap('SRV1');
+    ok('F7 แตะ Server → มีช่อง DNS + ช่องชื่อเครื่อง (ค่าเดิม shop.local)', dlgOpen() && shown('cfgDnsWrap') && shown('cfgHostWrap') && d.getElementById('cfgHost').value === 'shop.local');
+    setv('cfgHost', 'a b'); click('cfgSave');
+    ok('F7b ชื่อเครื่องผิดรูปแบบ → error "ชื่อเครื่อง: …" · ค่าเดิมไม่เปลี่ยน', dlgOpen() && /ชื่อเครื่อง/.test(errTxt()) && E.getNode('SRV1').host === 'shop.local', errTxt());
+    setv('cfgHost', 'Google.com'); click('cfgSave');
+    ok('F7c ชื่อเครื่องชนชื่อเว็บจริง → error', dlgOpen() && /ชื่อเครื่อง/.test(errTxt()) && E.getNode('SRV1').host === 'shop.local');
+    setv('cfgHost', 'Shop2.Local'); setv('cfgDns', '1.1.1.1'); click('cfgSave');
+    ok('F7d ชื่อเครื่องถูก → บันทึกเป็นตัวพิมพ์เล็ก + DNS ของ Server เก็บด้วย', !dlgOpen() && E.getNode('SRV1').host === 'shop2.local' && E.getNode('SRV1').dns === '1.1.1.1' && E.getNode('SRV1').ip === '192.168.1.50');
+    tap('SRV1'); setv('cfgHost', ''); click('cfgSave');
+    ok('F7e ล้างชื่อเครื่อง → เอาชื่อออก', !dlgOpen() && E.getNode('SRV1').host === '');
+  });
+
+  step(function(){
+    shop();
+    tap('PC2'); click('cfgModeDhcp');
+    ok('F8 โหมด รับอัตโนมัติ (DHCP) → ช่อง IP/Gateway/DNS ซ่อนทั้งก้อน (DNS มาจาก router เอง)', dlgOpen() && !shown('cfgStaticWrap') && !d.getElementById('cfgDns').offsetParent);
+    click('cfgSave');
+    ok('F8b บันทึกโหมด DHCP → ได้ IP + dns จาก router ทันที', !dlgOpen() && E.getNode('PC2').ipmode === 'dhcp' && E.getNode('PC2').dns === '192.168.1.1' && E.resolve('PC2', 'google.com').ok);
+    tap('SRV1'); click('cfgModeDhcp'); setv('cfgHost', 'srv.local'); click('cfgSave');
+    ok('F9 Server โหมด DHCP + ตั้งชื่อเครื่อง → ได้ lease และ host=srv.local · PC2 ping ชื่อนี้แปลงได้', !dlgOpen() && E.getNode('SRV1').ipmode === 'dhcp' && E.getNode('SRV1').host === 'srv.local' && E.resolve('PC2', 'srv.local').ok && E.resolve('PC2', 'srv.local').ip === E.getNode('SRV1').ip, E.getNode('SRV1').ip);
+    shop();
+    tap('SRV1'); setv('cfgHost', 'x y'); click('cfgModeDhcp'); click('cfgSave');
+    ok('F9b Server โหมด DHCP แต่ชื่อเครื่องผิด → error · ไม่ขอ IP · dialog ยังเปิด', dlgOpen() && /ชื่อเครื่อง/.test(errTxt()) && E.getNode('SRV1').ipmode === 'static', errTxt());
+    click('cfgCancel');
+  });
+
+  /* ================= G) โหมดปกติ (ไฟล์ภารกิจเทอม 1 ไม่ส่ง option) = พฤติกรรมเดิมเป๊ะ ================= */
+  step(function(){
+    var fr2 = document.createElement('iframe');
+    fr2.style.cssText = 'width:300px;height:200px';
+    fr2.addEventListener('load', function(){
+      try {
+        var w2 = fr2.contentWindow, E2 = w2.NetSimEngine;
+        E2.init(fr2.contentDocument.getElementById('c'), { restore: false, storeKey: 'ns_test_nonstrict' });
+        var pcs = function(extra){ return [ N('PC1','pc','192.168.1.10',merge({ gw: '192.168.1.1' }, extra)), N('SW1','switch'), N('R1','router','192.168.1.1'), N('ISP1','isp') ]; };
+        E2.loadState({ nodes: pcs(), edges: [ U('PC1','SW1'), U('SW1','R1'), U('R1','ISP1') ] });
+        ok('G1 ไม่ส่ง option → ไม่ใช่โหมดเข้ม', E2.dnsStrict() === false);
+        var t = E2.netTarget('google.com'), t2 = E2.netTarget('www.google.com'), t3 = E2.netTarget('1.1.1.1'), t4 = E2.netTarget('8.8.8.8');
+        ok('G2 netTarget เท่าเดิม: google.com มี · 8.8.8.8 มี · www.google.com ไม่มี · 1.1.1.1 ไม่มี (ตาราง alias/DNS ใหม่ใช้เฉพาะโหมดเข้ม)', !!t && t.ip === '142.250.71.14' && !!t4 && t2 === null && t3 === null, JSON.stringify([t2, t3]));
+        var r = E2.resolve('PC1', 'google.com');
+        ok('G3 PC ที่ไม่มี DNS แปลงชื่อเว็บได้เองแบบเดิม (key=google.com ip=142.250.71.14)', r.ok && r.kind === 'net' && r.key === 'google.com' && r.ip === '142.250.71.14', JSON.stringify(r));
+        ok('G3b ชื่อที่ engine ไม่รู้จัก (www.google.com) → ยังไม่รู้จักเหมือนเดิม (nxdomain)', E2.resolve('PC1', 'www.google.com').ok === false);
+        var pn = E2.pingNet('PC1', 'google.com');
+        ok('G4 pingNet ด้วยชื่อ จากเครื่องที่ไม่มี DNS → ผ่านเหมือนเดิม · เลข IP 8.8.8.8 ก็ผ่าน', pn.ok === true && E2.pingNet('PC1', '8.8.8.8').ok === true);
+        E2.loadState({ nodes: pcs({ dns: '192.168.1.99' }), edges: [ U('PC1','SW1'), U('SW1','R1'), U('R1','ISP1') ] });
+        ok('G5 แม้มี dns ผิดติดมา โหมดปกติก็ไม่สน DNS (ชื่อเว็บยังแปลงได้)', E2.resolve('PC1', 'google.com').ok === true && E2.pingNet('PC1', 'google.com').ok === true);
+        E2.loadState({ nodes: pcs(), edges: [ U('PC1','SW1'), U('SW1','R1'), U('R1','ISP1') ] });
+        E2.setNodeIP('PC1', '192.168.1.10', '192.168.1.1', 200);
+        var txt = E2.exportState();
+        ok('G6 ไฟล์ผัง/เซฟของโหมดปกติไม่มีฟิลด์ใหม่ (dns/host/ipmode/lease) ถ้าไม่ได้ตั้ง', !/"dns"|"host"|ipmode|lease/.test(txt), txt.slice(0, 160));
+        ok('G7 setNodeIP 4 อาร์กิวเมนต์แบบเก่ายังทำงาน (ping เลข IP ในวงเดียวกัน)', (function(){ E2.loadState({ nodes: [ N('PC1','pc','192.168.1.10'), N('PC2','pc','192.168.1.11'), N('SW1','switch') ], edges: [ U('PC1','SW1'), U('SW1','PC2') ] }); E2.setNodeIP('PC2', '192.168.1.20', ''); return E2.canPing('PC1', '192.168.1.20').ok; })());
+      } catch (e) { ok('G ไม่ error', false, String(e && e.stack || e).slice(0, 300)); }
+    });
+    fr2.srcdoc = '<svg id="c" width="400" height="300"></svg><script src="js/engine.js"><\/script>';
+    document.body.appendChild(fr2);
+    return 1500;
+  });
+
+  function run(i){
+    if (i >= steps.length) return done();
+    var wait = 0;
+    try { wait = steps[i]() || 0; } catch (e) { ok('STEP ' + (i + 1) + ' ไม่ error', false, String(e && e.stack || e).slice(0, 300)); }
+    setTimeout(function(){ run(i + 1); }, wait);
+  }
+  run(0);
+});
+setTimeout(function(){ if (!log.length){ log.push('FAIL iframe ไม่โหลด'); fail++; done(); } }, 6000);
+</script>
+</body>
+</html>

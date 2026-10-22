@@ -88,6 +88,7 @@
   var statusCb = null, changeCb = null, toastCb = null, configCb = null, wifiCb = null, settingsCb = null;
   var STORE_KEY = 'netsim_builder_v1';
   var arp = {};               // ตาราง ARP รายเครื่อง (ip neigh) — อยู่ใน memory ไม่เซฟ · ล้างเมื่อโหลดผังใหม่
+  var dnsStrict = false;      // true เฉพาะ builder (init opts.dnsStrict) = ชื่อต้องผ่าน DNS ของเครื่อง · false = แปลงชื่อเองเหมือนเดิม (ไฟล์ภารกิจ)
 
   function fresh() {
     state = { nodes: [], edges: [] };
@@ -522,12 +523,13 @@
     }
     return null;
   }
-  function setNodeIP(id, ip, gw, http) {   // ตั้งเอง (Static) — ล้างโหมด DHCP/lease เดิมทิ้ง
+  function setNodeIP(id, ip, gw, http, dns) {   // ตั้งเอง (Static) — ล้างโหมด DHCP/lease เดิมทิ้ง · dns = DNS Server (ไม่บังคับ · ว่าง = ไม่มีฟิลด์)
     var n = nodeById(id); if (!n) return;
     var newIp = (ip || '').trim();
     if ((n.ip || '') !== newIp) delete arp[id];
     n.ip = newIp; n.gw = (gw || '').trim();
     delete n.ipmode; delete n.lease; delete n.dns;
+    var dv = (dns || '').trim(); if (dv) n.dns = dv;
     if (http !== undefined && http !== null && http !== '') n.http = +http;
     paintNode(id);
     save(); changed();
@@ -871,9 +873,18 @@
     'garena.co.th': { ms: 30,  ttl: 54,  ip: '103.10.29.55',  note: 'เซิร์ฟเวอร์เกมในไทย' },
     'roblox.com':   { ms: 178, ttl: 52,  ip: '128.116.112.1', note: 'เซิร์ฟเวอร์ US ไกล ปิงสูง แล็ก' }
   };
+  /* เฉพาะโหมดเข้ม (builder · dnsStrict): ชื่อ www. ของเว็บเดิม + DNS สาธารณะตัวอื่น (ping ได้เหมือน 8.8.8.8)
+   * โหมดปกติ (ไฟล์ภารกิจเทอม 1) ไม่แตะสองตารางนี้ → netTarget ตอบเท่าเดิมทุกตัวอักษร */
+  var NAME_ALIAS = { 'www.google.com': 'google.com', 'www.youtube.com': 'youtube.com', 'www.facebook.com': 'facebook.com',
+    'www.roblox.com': 'roblox.com', 'www.garena.co.th': 'garena.co.th' };
+  var EXTRA_NET = {
+    '8.8.4.4': { ms: 13, ttl: 117, ip: '8.8.4.4', note: 'Google DNS ตัวสำรอง' },
+    '1.1.1.1': { ms: 8,  ttl: 57,  ip: '1.1.1.1', note: 'Cloudflare DNS' }
+  };
   function netTarget(host) {
     host = (host || '').trim().toLowerCase();
-    var h = NET_HOSTS[host];
+    if (dnsStrict && NAME_ALIAS[host]) host = NAME_ALIAS[host];
+    var h = NET_HOSTS[host] || (dnsStrict ? EXTRA_NET[host] : null);
     return h ? { host: host, ip: h.ip, ms: h.ms, ttl: h.ttl, note: h.note } : null;
   }
   function ispNode() {
@@ -916,6 +927,80 @@
     return { ok: true, kind: 'lan', nodes: pc.path, target: { ip: host } };
   }
 
+  /* ================= DNS (wk13-14 · แปลงชื่อ → เลข IP) =================
+   * โหมดเข้ม (dnsStrict · builder เท่านั้น): ชื่อต้องถาม "DNS ของเครื่องต้นทาง" ก่อน
+   *   ไม่มี DNS = nodns · DNS ไปไม่ถึง/ไม่ใช่ DNS = timeout · ถึงแต่ไม่รู้จักชื่อ = nxdomain
+   *   DNS สาธารณะ (8.8.8.8 …) ตอบเมื่อเครื่องออกเน็ตได้จริง · DNS = IP router ที่เปิด DHCP (แบบ MikroTik) ตอบเมื่อ ping ถึง router
+   *   ชื่อเว็บนอกต้องให้ router ถึง ISP ด้วย ไม่งั้นหาไม่เจอ · ชื่อในร้าน = n.host ของ Server (DNS ที่ทำงานได้ตัวไหนก็ตอบ ไม่มีตาราง record)
+   * โหมดปกติ: ไม่ดู DNS ของเครื่องเลย (ชื่อที่ engine รู้จักแปลงได้เองเหมือนเดิม) */
+  var PUBLIC_DNS = { '8.8.8.8': 'dns.google', '8.8.4.4': 'dns.google', '1.1.1.1': 'one.one.one.one' };
+  function isName(s) {   // ชื่อ (มีตัวอักษร ไม่ใช่เลข IP) — เลข IP ไม่ต้องถาม DNS
+    s = String(s || '').trim();
+    return /[A-Za-z]/.test(s) && /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(s) && parseIp(s).bad === 1;
+  }
+  function hostNode(nm) {
+    for (var i = 0; i < state.nodes.length; i++) {
+      var n = state.nodes[i];
+      if (n.host && String(n.host).toLowerCase() === nm) return n;
+    }
+    return null;
+  }
+  function hostError(id, name) {   // ตรวจชื่อเครื่อง (Hostname) ที่ครูตั้งให้ Server · คืนข้อความผิด หรือ null
+    var h = String(name || '').trim().toLowerCase();
+    if (!h) return null;   // เว้นว่าง = ไม่ตั้งชื่อ
+    if (h.length > 40) return 'ยาวเกิน 40 ตัวอักษร';
+    if (!/^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$/.test(h) || /\.\./.test(h) || !/[a-z]/.test(h))
+      return 'ใช้ได้เฉพาะ a-z 0-9 . - และต้องมีตัวอักษรอย่างน้อย 1 ตัว (เช่น shop.local)';
+    if (NET_HOSTS[h] || NAME_ALIAS[h]) return 'ชื่อนี้เป็นชื่อเว็บจริงบนอินเทอร์เน็ตอยู่แล้ว';
+    var o = hostNode(h);
+    if (o && o.id !== id) return 'ชื่อนี้ซ้ำกับ ' + o.id;
+    return null;
+  }
+  function setNodeHost(id, name) {   // Server เท่านั้น · ว่าง = เอาชื่อออก
+    var n = nodeById(id); if (!n || n.type !== 'server') return;
+    var h = String(name || '').trim().toLowerCase();
+    if (h) n.host = h; else delete n.host;
+    save(); changed();
+  }
+  // เซิร์ฟเวอร์ DNS ที่ dns ชี้ไป ตอบได้ไหม → {up, name, upstream}
+  function dnsServer(srcId, dns) {
+    if (PUBLIC_DNS[dns]) return reachInternet(srcId).ok ? { up: true, name: PUBLIC_DNS[dns], upstream: true } : { up: false };
+    var rn = findNodeByIp(dns);
+    if (rn && rn.type === 'router' && rn.dhcp && rn.dhcp.on && pingCheck(srcId, dns).ok) {
+      var isp = ispNode();
+      return { up: true, name: 'UnKnown', upstream: !!(isp && findShortestPathBFS(buildAdj(), rn.id, isp.id)), id: rn.id };
+    }
+    return { up: false };
+  }
+  /* แปลงชื่อ → IP · dnsArg = ระบุ DNS ตรง ๆ (nslookup ชื่อ DNS) · คืน
+   *   ok: {ok:true, kind:'net'|'lan', key:<ส่งต่อ ping/tracePath>, ip, name, dns, dnsName, nonauth}
+   *   ไม่ผ่าน: {ok:false, reason:'srcnoip'|'nodns'|'timeout'|'nxdomain', dns, dnsName, noUpstream} */
+  function resolveName(srcId, name, dnsArg) {
+    var nm = String(name || '').trim().toLowerCase().replace(/\.$/, '');
+    var lit = !parseIp(nm).bad, ext = netTarget(nm);
+    if (!dnsStrict) {   // เดิม: ชื่อที่ engine รู้จักแปลงได้เลย ไม่ดู DNS ของเครื่อง
+      if (!lit && ext) return { ok: true, kind: 'net', key: ext.host, ip: ext.ip, name: nm, nonauth: true };
+      var l0 = lit ? null : hostNode(nm);
+      if (l0 && l0.ip) return { ok: true, kind: 'lan', key: l0.ip, ip: l0.ip, name: nm };
+      return { ok: false, reason: 'nxdomain', dns: '' };
+    }
+    var src = nodeById(srcId);
+    if (!src || !src.ip) return { ok: false, reason: 'srcnoip', dns: '' };
+    var dns = String((dnsArg !== undefined && dnsArg !== null && String(dnsArg).trim() !== '') ? dnsArg : (src.dns || '')).trim();
+    if (!dns) return { ok: false, reason: 'nodns', dns: '' };
+    var srv = dnsServer(srcId, dns);
+    if (!srv.up) return { ok: false, reason: 'timeout', dns: dns };
+    if (!lit) {
+      if (ext) {
+        if (srv.upstream) return { ok: true, kind: 'net', key: ext.host, ip: ext.ip, name: nm, dns: dns, dnsName: srv.name, nonauth: true };
+        return { ok: false, reason: 'nxdomain', dns: dns, dnsName: srv.name, noUpstream: true };   // router ไม่มีทางออก ISP = ถามต่อไม่ได้
+      }
+      var ln = hostNode(nm);
+      if (ln && ln.ip) return { ok: true, kind: 'lan', key: ln.ip, ip: ln.ip, name: nm, dns: dns, dnsName: srv.name };
+    }
+    return { ok: false, reason: 'nxdomain', dns: dns, dnsName: srv.name };
+  }
+
   /* ================= public API ================= */
   global.NetSimEngine = {
     init: function (svgEl, opts) {
@@ -928,6 +1013,7 @@
       attachCanvas();
       opts = opts || {};
       if (opts.storeKey) STORE_KEY = opts.storeKey;   // หน้า scenario เก็บ state แยกจาก builder กลาง
+      dnsStrict = !!opts.dnsStrict;                   // โหมดเข้ม DNS (builder เท่านั้น) · ไม่ส่ง = เหมือนเดิม
       statusCb = opts.onStatus || null;
       changeCb = opts.onChange || null;
       toastCb = opts.onToast || null;
@@ -981,7 +1067,7 @@
     mask: DEFAULT_MASK,
     typeLabel: function (t) { return typeLabel(t); },
     getNode: function (id) { var n = nodeById(id); return n ? { id: n.id, type: n.type, ip: n.ip || '', gw: n.gw || '', http: n.http || 200, wifi: n.wifi || '', fw: !!n.fw, fwAllow: !!n.fwAllow,
-      ipmode: n.ipmode === 'dhcp' ? 'dhcp' : 'static', dns: n.dns || '' } : null; },
+      ipmode: n.ipmode === 'dhcp' ? 'dhcp' : 'static', dns: n.dns || '', host: n.host || '' } : null; },
     /* ----- DHCP / ARP / Linux terminal API ----- */
     canDhcpClient: canDhcpClient,
     requestDhcp: function (id) { return dhcpRequest(id); },        // ขอ IP อัตโนมัติ (renew) → {ok,ip,gw,dns,server,serverIp} หรือ {ok:false,reason,apipa,ip}
@@ -1010,7 +1096,13 @@
         return canHaveIP(n.type);
       }).map(function (n) { return { id: n.id, type: n.type, ip: n.ip || '', gw: n.gw || '' }; });
     },
-    setNodeIP: function (id, ip, gw, http) { setNodeIP(id, ip, gw, http); },
+    setNodeIP: function (id, ip, gw, http, dns) { setNodeIP(id, ip, gw, http, dns); },   // dns = DNS Server (Static · ไม่บังคับ)
+    /* ----- DNS API (โหมดเข้มเฉพาะ builder: init {dnsStrict:true}) ----- */
+    dnsStrict: function () { return dnsStrict; },
+    isName: isName,                                                  // พิมพ์เป็นชื่อ (ไม่ใช่เลข IP) = ต้องแปลงก่อน
+    resolve: function (srcId, name, dnsArg) { return resolveName(srcId, name, dnsArg); },   // → {ok,kind,key,ip,...} หรือ {ok:false,reason}
+    setNodeHost: function (id, name) { setNodeHost(id, name); },     // ชื่อเครื่อง Server (เช่น shop.local)
+    hostError: function (id, name) { return hostError(id, name); },
     ipError: function (ip) { return ipError(ip); },
     ipConflict: function (id, ip) { return ipConflict(id, ip); },
     // ping: ส่ง onArrive(res, hops) เมื่อแพ็กเก็ตถึงปลายทาง · คืน res ทันทีสำหรับ pre-check
