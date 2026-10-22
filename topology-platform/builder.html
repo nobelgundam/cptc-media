@@ -16,6 +16,11 @@
     <button class="btn" id="meBadge" title="เปลี่ยนเลขที่">เลขที่ —</button>
   </div>
 
+  <!-- เปิดผ่านแอป LINE/Facebook = ที่เก็บผังแยกจาก Chrome/Safari → สัปดาห์หน้าเปิดอีกทางแล้วผังหาย -->
+  <div class="statusbar hidden" id="inappWarn" style="background:#fff4e0;border-color:#f0c070;color:#6a4500">
+    <span>⚠️ เปิดผ่านแอป (LINE/Facebook) อยู่ — ผังจะเก็บแยกจาก Chrome/Safari · แตะ ⋮ หรือ ⋯ → <b>เปิดในเบราว์เซอร์</b> แล้วค่อยวาด</span>
+  </div>
+
   <!-- ขั้นตอนใช้งาน: ย้ายขึ้นมาบนสุด (เดิมอยู่ท้ายหน้า บนมือถือต้องไถหา) -->
   <div class="statusbar" style="background:#eef4ff;border-color:#b9cdf5">
     <span>💡 <b>ลำดับ:</b> วางอุปกรณ์ → เชื่อมสาย → ตั้ง IP ที่ PC/Server → พิมพ์ <b>ping</b> ใน Terminal ล่างสุด</span>
@@ -88,6 +93,7 @@
     <button class="btn primary" id="btn-sim"><span class="ic">🧭</span> ชี้เส้นทาง</button>
     <button class="btn" id="btn-speed"><span class="ic">📶</span> ทดสอบความเร็ว</button>
     <button class="btn" id="btn-clear"><span class="ic">🧹</span> ล้างทั้งหมด</button>
+    <button class="btn" id="btn-save"><span class="ic">💾</span> เซฟ/เปิดผัง</button>
   </div>
 
   <div class="legend">
@@ -191,9 +197,28 @@
   </div>
 </div>
 
+<!-- 💾 เซฟ/เปิดผัง — เครื่องเดิมเซฟอัตโนมัติอยู่แล้ว · ไฟล์ = สำรองข้ามสัปดาห์/ข้ามเครื่อง · ลิงก์ = ครูแจกผังมาตรฐาน -->
+<div class="overlay" id="saveOverlay">
+  <div class="dialog">
+    <h3>💾 เซฟ / เปิดผัง</h3>
+    <p class="dlg-note">มือถือเครื่องเดิม + เปิดทางเดิม = ผังยังอยู่ ไม่ต้องกดอะไร · <b>ท้ายคาบกด ⬇️ เซฟเป็นไฟล์ เก็บไว้</b> เผื่อเปลี่ยนเครื่อง ล้างเบราว์เซอร์ หรือ iPhone ลบข้อมูลเว็บที่ไม่ได้เปิดนาน</p>
+    <div class="dlg-actions">
+      <button class="btn primary" id="svDown">⬇️ เซฟเป็นไฟล์</button>
+      <button class="btn" id="svOpen">📂 เปิดไฟล์ผัง</button>
+    </div>
+    <button class="btn hidden" id="svUndo" style="width:100%;margin-top:9px">↩️ เอาผังก่อนหน้าคืน</button>
+    <button class="btn" id="svLink" style="width:100%;margin-top:9px;font-size:13px">🔗 คัดลอกลิงก์ผังนี้ (ครูใช้แจกผัง)</button>
+    <input type="file" id="svFile" class="hidden">
+    <div class="dlg-err" id="svErr"></div>
+    <div class="dlg-actions" style="grid-template-columns:1fr">
+      <button class="btn" id="svClose">ปิด</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
-<script src="js/engine.js?v=20260829b"></script>
+<script src="js/engine.js?v=20261022"></script>
 <script>
 (function(){
   var E = window.NetSimEngine;
@@ -303,10 +328,97 @@
   document.getElementById('btn-clear').addEventListener('click', function(){
     if (E.counts().nodes === 0) return;
     if (confirm('ล้างกระดานทั้งหมด? (ลบทุกอุปกรณ์และสาย)')){
-      E.clearAll(); setMode('place');
-      showToast('ล้างกระดานแล้ว', 'ok');
+      stashPrev(); E.clearAll(); setMode('place');
+      showToast('ล้างกระดานแล้ว · กด 💾 → ↩️ เอาคืนได้', 'ok');
     }
   });
+
+  /* ===== 💾 เซฟ/เปิดผัง — ไฟล์สำรองข้ามสัปดาห์ (2013 wk2 วาด → wk3 ใช้ผังเดิม) + ลิงก์ครูแจกผังมาตรฐาน ===== */
+  var saveOv = document.getElementById('saveOverlay');
+  var svErr  = document.getElementById('svErr');
+  var svFile = document.getElementById('svFile');
+  function boxKey(){ return 'netsim_builder_no' + studentNo; }
+  function lsGet(k){ try { return localStorage.getItem(k); } catch(e){ return null; } }
+  function lsSet(k, v){ try { localStorage.setItem(k, v); } catch(e){} }
+  // เก็บผังบนกระดานไว้ 1 ชุดก่อนถูกแทน (ล้าง/เปิดไฟล์/เปิดลิงก์) → ↩️ เอาคืนได้
+  function stashPrev(){ if (E.counts().nodes) lsSet(boxKey() + '_prev', E.exportState()); }
+  function pad2(n){ return (n < 10 ? '0' : '') + n; }
+  function planFile(){
+    var st = JSON.parse(E.exportState());
+    return { app:'netsim-builder', v:1, no:studentNo, at:new Date().toISOString(), nodes:st.nodes, edges:st.edges };
+  }
+  // ไฟล์ของเลขที่อื่น = บอกก่อนเปิด (ครูเปิดไฟล์ที่เด็กส่งก็เห็นว่าของใคร เซฟเมื่อไร)
+  function applyPlan(obj, from){
+    if (!obj || !obj.nodes || !obj.nodes.length) throw new Error('empty');
+    var who  = obj.no ? 'ผังของเลขที่ ' + obj.no : 'ผังนี้';
+    var when = obj.at ? ' (เซฟ ' + new Date(obj.at).toLocaleString('th-TH', { dateStyle:'medium', timeStyle:'short' }) + ')' : '';
+    var msg  = 'เปิด' + who + when + ' จาก' + from + '?' +
+      (E.counts().nodes ? '\nผังที่อยู่บนกระดานตอนนี้จะถูกแทน (เอาคืนได้ที่ 💾 → ↩️)' : '');
+    if (!confirm(msg)) return false;
+    stashPrev();
+    var n = E.loadState({ nodes: obj.nodes, edges: obj.edges || [] }, { fit: true });
+    if (!n) throw new Error('empty');
+    setMode('place'); refreshTerm();
+    showToast('เปิดผังแล้ว · อุปกรณ์ ' + n + ' ตัว', 'ok');
+    return true;
+  }
+  function b64enc(s){ return btoa(unescape(encodeURIComponent(s))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
+  function b64dec(s){ s = s.replace(/-/g,'+').replace(/_/g,'/'); while (s.length % 4) s += '='; return decodeURIComponent(escape(atob(s))); }
+
+  document.getElementById('btn-save').addEventListener('click', function(){
+    svErr.textContent = '';
+    document.getElementById('svUndo').classList.toggle('hidden', !lsGet(boxKey() + '_prev'));
+    saveOv.classList.add('show');
+  });
+  document.getElementById('svClose').addEventListener('click', function(){ saveOv.classList.remove('show'); });
+  document.getElementById('svDown').addEventListener('click', function(){
+    if (!E.counts().nodes){ svErr.textContent = 'ยังไม่มีอุปกรณ์บนผัง'; return; }
+    var d = new Date();
+    var name = 'ผังเครือข่าย_เลขที่' + studentNo + '_' + d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()) + '.json';
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(planFile())], { type:'application/json' }));
+    a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); }, 5000);
+    showToast('ดาวน์โหลดแล้ว: ' + name, 'ok');
+  });
+  document.getElementById('svOpen').addEventListener('click', function(){ svFile.value = ''; svFile.click(); });
+  svFile.addEventListener('change', function(){
+    var f = svFile.files && svFile.files[0]; if (!f) return;
+    var rd = new FileReader();
+    rd.onload = function(){
+      try { if (applyPlan(JSON.parse(rd.result), 'ไฟล์ ' + f.name)) saveOv.classList.remove('show'); }
+      catch(e){ svErr.textContent = 'เปิดไม่ได้ — ไฟล์นี้ไม่ใช่ไฟล์ผังจากหน้านี้'; }
+    };
+    rd.readAsText(f);
+  });
+  document.getElementById('svUndo').addEventListener('click', function(){
+    var prev = lsGet(boxKey() + '_prev'); if (!prev) return;
+    var cur = E.counts().nodes ? E.exportState() : null;
+    E.loadState(prev, { fit: true });
+    if (cur) lsSet(boxKey() + '_prev', cur);
+    else { try { localStorage.removeItem(boxKey() + '_prev'); } catch(e){} }
+    setMode('place'); refreshTerm();
+    saveOv.classList.remove('show');
+    showToast('เอาผังก่อนหน้าคืนแล้ว (กดอีกครั้ง = สลับกลับ)', 'ok');
+  });
+  document.getElementById('svLink').addEventListener('click', function(){
+    if (!E.counts().nodes){ svErr.textContent = 'ยังไม่มีอุปกรณ์บนผัง'; return; }
+    var f = planFile(); delete f.no; delete f.at;   // ลิงก์แจกทั้งห้อง ไม่ผูกเลขที่
+    var url = location.href.split('#')[0] + '#plan=' + b64enc(JSON.stringify(f));
+    function done(){ svErr.textContent = ''; showToast('คัดลอกลิงก์แล้ว — วางในโพสต์ Classroom ได้เลย', 'ok'); }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(done, function(){ prompt('คัดลอกลิงก์นี้', url); });
+    else prompt('คัดลอกลิงก์นี้', url);
+  });
+  // เปิดจากลิงก์ครู (#plan=...) — เรียกหลังรู้เลขที่ + กระดานพร้อมแล้ว
+  function importFromHash(){
+    var m = /[#&]plan=([^&]+)/.exec(location.hash); if (!m) return;
+    history.replaceState(null, '', location.pathname + location.search);   // reload แล้วไม่ถามซ้ำ
+    try { applyPlan(JSON.parse(b64dec(m[1])), 'ลิงก์'); }
+    catch(e){ showToast('ลิงก์ผังเสีย/ไม่ครบ — ขอลิงก์ใหม่จากครู', 'bad'); }
+  }
+  if (/Line\/|FBAN|FBAV|FB_IAB|Instagram|musical_ly|BytedanceWebview/i.test(navigator.userAgent))
+    document.getElementById('inappWarn').classList.remove('hidden');
 
   document.getElementById('btn-speed').addEventListener('click', function(){
     var aps = E.apNodes();
@@ -699,6 +811,7 @@
     });
     setMode('place');
     refreshTerm();
+    importFromHash();
   }
   if (studentNo) bootEngine();
 })();

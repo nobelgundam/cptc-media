@@ -110,9 +110,11 @@
   }
 
   /* ================= NODES ================= */
+  // ข้าม id ที่มีอยู่แล้ว — ผังที่โหลดเข้ามา (preset/ไฟล์ผัง) มี PC1.. อยู่ก่อน ตัวนับเริ่ม 0 จะชน
   function nextId(type) {
-    seq[type] = (seq[type] || 0) + 1;
-    return TYPES[type].prefix + seq[type];
+    var id;
+    do { seq[type] = (seq[type] || 0) + 1; id = TYPES[type].prefix + seq[type]; } while (nodeById(id));
+    return id;
   }
   function nodeById(id) {
     for (var i = 0; i < state.nodes.length; i++) if (state.nodes[i].id === id) return state.nodes[i];
@@ -272,13 +274,18 @@
     var rerr = roleError(A, B); if (rerr) return { ok: false, reason: 'role', node: rerr.node, msg: rerr.msg };
     // เชื่อมไร้สายเข้า AP/Router ที่ "ตั้งรหัสแล้ว" ต้องใส่รหัสก่อน (ผ่าน connectAuth)
     if (!_authBypass) { var sap = securedAp(a, b, m); if (sap) return { ok: false, reason: 'wifi', node: sap, a: a, b: b, m: m }; }
-    var e = { id: 'e' + (++_edgeSeq), a: a, b: b, media: m };
+    var e = { id: nextEdgeId(), a: a, b: b, media: m };
     state.edges.push(e);
     renderEdge(e);
     changed();
     return { ok: true };
   }
   var _edgeSeq = 0;
+  function nextEdgeId() {
+    var id;
+    do { id = 'e' + (++_edgeSeq); } while (state.edges.some(function (x) { return x.id === id; }));
+    return id;
+  }
   function updateEdgesFor(id) {
     for (var i = 0; i < state.edges.length; i++) {
       var e = state.edges[i];
@@ -672,6 +679,21 @@
       return true;
     } catch (err) { return false; }
   }
+  /* ผังจากจออื่น (ครูวาดบนคอม → เด็กเปิดบนมือถือ) อาจล้นกระดาน → ย่อ+เลื่อนเข้าจอ · ไม่ขยาย · พอดีอยู่แล้วไม่แตะ */
+  function fitToCanvas() {
+    if (!svg || !state.nodes.length) return;
+    var r = svg.getBoundingClientRect(), M = 34, B = 12;   // M = รัศมีไอคอน+ขอบ · B = ป้ายชื่อ/IP ใต้ไอคอน
+    if (r.width < 2 * M + 10 || r.height < 2 * M + B + 10) return;   // กระดานยังไม่แสดง
+    var xs = state.nodes.map(function (n) { return n.x; }), ys = state.nodes.map(function (n) { return n.y; });
+    var x0 = Math.min.apply(null, xs), x1 = Math.max.apply(null, xs);
+    var y0 = Math.min.apply(null, ys), y1 = Math.max.apply(null, ys);
+    if (x0 >= M && y0 >= M && x1 <= r.width - M && y1 <= r.height - M - B) return;
+    var k = Math.min(1, (r.width - 2 * M) / ((x1 - x0) || 1), (r.height - 2 * M - B) / ((y1 - y0) || 1));
+    state.nodes.forEach(function (n) {
+      n.x = Math.round(M + (n.x - x0) * k);
+      n.y = Math.round(M + (n.y - y0) * k);
+    });
+  }
   function renderAll() {
     layers.edges.innerHTML = ''; layers.nodes.innerHTML = ''; layers.packets.innerHTML = '';
     els = { node: {}, edge: {}, edgeHit: {} };
@@ -770,10 +792,28 @@
     removeEdge: function (id) { removeEdge(id); },
     counts: function () { return { nodes: state.nodes.length, edges: state.edges.length }; },
     exportState: function () { return JSON.stringify(state); },
-    loadState: function (obj) {
+    /* โหลดผัง (preset ภารกิจ / ไฟล์ผังที่เด็กเซฟไว้) · กรองของเสียจากไฟล์ทิ้ง กันกระดานพัง
+     * opt.fit = ย่อเข้าจอนี้ · คืนจำนวนอุปกรณ์ที่โหลดได้ */
+    loadState: function (obj, opt) {
       if (typeof obj === 'string') obj = JSON.parse(obj);
-      fresh(); state.nodes = obj.nodes || []; state.edges = obj.edges || [];
+      obj = obj || {};
+      fresh();
+      var ids = {}, eids = {};
+      state.nodes = (obj.nodes || []).filter(function (n) {
+        if (!n || !TYPES[n.type] || !n.id || ids[n.id] || !isFinite(n.x) || !isFinite(n.y)) return false;
+        ids[n.id] = 1; return true;
+      });   // ไม่ใช้เพดาน MAX_NODES ที่นี่ — เพดานกันเด็กแตะรัว ไม่ใช่กันผังครู/preset
+      state.edges = (obj.edges || []).filter(function (e) {
+        return e && ids[e.a] && ids[e.b] && e.a !== e.b && MEDIA_SHORT[e.media];
+      });
+      _edgeSeq = 0;
+      state.edges.forEach(function (e) {   // preset เก่าบางไฟล์ไม่มี id สาย / ไฟล์เสียมี id ซ้ำ → ออกให้ใหม่
+        if (!e.id || eids[e.id]) e.id = nextEdgeId();
+        eids[e.id] = 1;
+      });
+      if (opt && opt.fit) fitToCanvas();
       renderAll(); save(); changed();
+      return state.nodes.length;
     },
     /* ----- IP / Terminal API ----- */
     canHaveIP: canHaveIP,
