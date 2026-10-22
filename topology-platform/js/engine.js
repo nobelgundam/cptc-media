@@ -1034,8 +1034,8 @@
     L.push({ k: 'ชั้นอินเทอร์เน็ต (IP)', t: 'จาก IP ' + e.srcIp + ' ถึง IP ' + e.dstIp +
       ((e.ttl !== null && e.ttl !== undefined) ? ' · TTL = ' + e.ttl + ' (ลด 1 ทุกครั้งที่ผ่านเราเตอร์ · สวิตช์ไม่ลด)' : '') });
     if (e.l4) L.push({ k: 'ชั้นขนส่ง (' + e.l4 + ')', t: 'พอร์ตต้นทาง ' + e.sp + ' → พอร์ตปลายทาง ' + e.dp +
-      (e.l4 === 'TCP' ? ' · TCP = จับมือก่อนส่ง รับประกันว่าถึง' : ' · UDP = ส่งเลย ไม่จับมือ เร็วแต่ไม่รับประกัน') });
-    L.push({ k: e.proto === 'ICMP' ? 'ICMP (ข้อความควบคุมของ IP)' : 'ชั้นแอปพลิเคชัน (' + e.proto + ')', t: e.a });
+      (e.l4 === 'TCP' ? ' · TCP = จับมือก่อนส่ง รับประกันว่าถึง (สื่อนี้ย่อ ไม่แสดงแถวจับมือในตาราง)' : ' · UDP = ส่งเลย ไม่จับมือ เร็วแต่ไม่รับประกัน') });
+    L.push({ k: e.proto === 'ICMP' ? 'ชั้นอินเทอร์เน็ต (ICMP · ข้อความควบคุมของ IP)' : 'ชั้นแอปพลิเคชัน (' + e.proto + ')', t: e.a });
     return L;
   }
   function emit(e) {
@@ -1099,7 +1099,7 @@
     var p = findShortestPathBFS(buildAdj(), srcId, tgtId) || [srcId, tgtId], sg = segsOf(p)[0] || { nodes: [srcId, tgtId] };
     emit({ proto: 'ARP', top: 'link', srcLbl: tgtId, dstLbl: srcId, srcIp: ip, dstIp: s.ip, srcMac: macOf(tgtId), dstMac: macOf(srcId), bcast: false, ttl: null,
       info: ip + ' is at ' + macOf(tgtId), th: 'ตอบเฉพาะคนถาม: ' + ip + ' ใช้ MAC ' + macOf(tgtId),
-      a: 'ตอบกลับ "' + ip + ' คือการ์ดเครือข่ายหมายเลข MAC ' + macOf(tgtId) + '" (ส่งหาคนถามคนเดียว ไม่ใช่ broadcast)', seen: seenSeg(sg) });
+      a: 'ตอบกลับ "' + ip + ' คือการ์ดเครือข่ายหมายเลข MAC ' + macOf(tgtId) + '" (ส่งหาคนถามคนเดียว ไม่ใช่ broadcast = ประกาศหาทุกเครื่อง)', seen: seenSeg(sg) });
   }
   function arpMiss(srcId, ip, times) {   // ถามแล้วไม่มีใครตอบ (ปลายทางไม่มี/สายไม่ถึง)
     var s = nodeById(srcId); if (!pktCb || !s || !s.ip) return;
@@ -1210,7 +1210,7 @@
     one(cid, '0.0.0.0', 'Discover', 'ลูกข่ายตะโกนหา DHCP Server: ขอ IP หน่อย', disc, 68, 67);
     if (!srv) { one(cid, '0.0.0.0', 'Discover', 'ลูกข่ายตะโกนหา DHCP Server อีกรอบ', disc, 68, 67); return; }
     one(srv.id, srv.ip || '-', 'Offer', 'DHCP Server เสนอ IP ' + ip, 'DHCP Offer = เซิร์ฟเวอร์เสนอ IP ' + ip + ' ให้ลูกข่าย (เสนอเฉย ๆ ยังไม่ใช่การให้)', 67, 68);
-    one(cid, '0.0.0.0', 'Request', 'ลูกข่ายตอบรับ: ขอใช้ IP ' + ip, 'DHCP Request = ลูกข่ายตอบรับข้อเสนอ "ขอใช้ IP ' + ip + ' นะ" (ส่งแบบ broadcast ให้ DHCP Server ตัวอื่นรู้ด้วย)', 68, 67);
+    one(cid, '0.0.0.0', 'Request', 'ลูกข่ายตอบรับ: ขอใช้ IP ' + ip, 'DHCP Request = ลูกข่ายตอบรับข้อเสนอ "ขอใช้ IP ' + ip + ' นะ" (ส่งแบบ broadcast = ประกาศหาทุกเครื่อง ให้ DHCP Server ตัวอื่นรู้ด้วย)', 68, 67);
     one(srv.id, srv.ip || '-', 'ACK', 'Server ยืนยัน: ใช้ IP ' + ip + ' ได้', 'DHCP ACK = เซิร์ฟเวอร์ยืนยันว่า ' + ip + ' เป็นของลูกข่ายแล้ว (เริ่มใช้ได้)', 67, 68);
   }
   function setNodeMirror(id, on) {   // Port Mirror เฉพาะสวิตช์ (แบบ RB260GSP) · ปิด = เอาฟิลด์ออก ไฟล์ผังเก่าไม่เปลี่ยน

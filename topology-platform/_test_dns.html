@@ -242,7 +242,7 @@ fr.addEventListener('load', function(){
        has(L, 'Server:  UnKnown') && has(L, 'Address:  192.168.1.99') && has(L, 'DNS request timed out.') && has(L, '*** Request to UnKnown timed-out') && !has(L, 'Name:'), L.join(' ⏎ '));
     shop();
     L = cmd('PC1', 'nslookup www.google.com').now();
-    ok('D2b nslookup (ไม่มี DNS): Address (ยังไม่ตั้ง) + DNS request timed out', has(L, 'Address:  (ยังไม่ตั้ง)') && has(L, 'DNS request timed out.') && !has(L, 'Name:'), L.join(' ⏎ '));
+    ok('D2b nslookup (ไม่มี DNS): Address - (ไม่บอกสาเหตุ) + DNS request timed out', has(L, 'Address:  -') && !has(L, 'ยังไม่ตั้ง') && has(L, 'DNS request timed out.') && !has(L, 'Name:'), L.join(' ⏎ '));
     var timeoutLines = L.filter(function(l){ return l.indexOf('PC1>') === -1; });
     ok('D2c ข้อความ nslookup ที่ล้มไม่ชี้วิธีแก้', timeoutLines.every(function(l){ return !SPOIL.test(l); }), timeoutLines.filter(function(l){ return SPOIL.test(l); }).join(' ⏎ '));
     L = cmd('PC1', 'nslookup www.google.com 8.8.8.8').now();

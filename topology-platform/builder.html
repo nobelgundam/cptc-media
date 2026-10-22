@@ -78,7 +78,7 @@
       <button type="button" id="tabCap">📡 ดักจับ<small>Capture</small><span class="cap-badge hidden" id="capBadge">0</span></button>
     </div>
     <div id="termPane">
-    <div class="term-out" id="termOut"><div class="th">พิมพ์ <b>ipconfig</b> ดูเลข IP · <b>ping &lt;IP&gt;</b> ทดสอบส่งข้อมูล · <b>http &lt;IP&gt;</b> เปิดเว็บที่ Server · <b>tracert &lt;IP&gt;</b> ดูว่าผ่านอุปกรณ์อะไรบ้าง · <b>nslookup &lt;ชื่อ&gt;</b> ถามว่าชื่อนี้คือเลข IP อะไร (ตั้ง IP ที่เครื่องก่อนนะ)<br>แบบ Ubuntu: <b>ip a</b> · <b>ip route</b> · <b>ip neigh</b> · <b>ping -c 4 &lt;IP&gt;</b> · <b>traceroute &lt;IP&gt;</b> · <b>dhclient</b> (ขอ IP อัตโนมัติ) · <b>dig &lt;ชื่อ&gt;</b> · <b>cat /etc/resolv.conf</b><br>📡 อยากเห็นแพ็กเก็ตจริง ๆ → แท็บ <b>ดักจับ</b> (แบบ Wireshark) กดเริ่ม แล้วกลับมาลองสั่ง ping</div></div>
+    <div class="term-out" id="termOut"><div class="th">พิมพ์ <b>ipconfig</b> ดูเลข IP · <b>ping &lt;IP&gt;</b> ทดสอบส่งข้อมูล · <b>http &lt;IP&gt;</b> เปิดเว็บที่ Server · <b>tracert &lt;IP&gt;</b> ดูว่าผ่านอุปกรณ์อะไรบ้าง · <b>nslookup &lt;ชื่อ&gt;</b> ถามว่าชื่อนี้คือเลข IP อะไร<br>แบบ Ubuntu: <b>ip a</b> (ดู IP) · <b>ip route</b> (ดูเส้นทาง) · <b>ip neigh</b> (ดูตาราง MAC) · <b>ping -c 4 &lt;IP&gt;</b> · <b>traceroute &lt;IP&gt;</b> · <b>dhclient</b> (ขอ IP อัตโนมัติ) · <b>dig &lt;ชื่อ&gt;</b> (ถามชื่อ) · <b>cat /etc/resolv.conf</b> (ดู DNS ที่ตั้งไว้)<br>📡 อยากเห็นแพ็กเก็ตจริง ๆ → แท็บ <b>ดักจับ</b> (แบบ Wireshark) กดเริ่ม แล้วกลับมาลองสั่ง ping</div></div>
     <div class="term-chips">
       <button data-fill="ipconfig">ipconfig</button>
       <button data-fill="ping ">ping…</button>
@@ -102,7 +102,7 @@
       <div class="cap-sel">
         <label>ดักที่เครื่อง (Capture on)<select id="capPoint"></select></label>
         <label>กรองโปรโตคอล (Filter)<select id="capFilter">
-          <option value="">ทั้งหมด (All)</option><option value="ARP">ARP</option><option value="ICMP">ICMP (ping)</option>
+          <option value="">ทั้งหมด (All)</option><option value="ARP">ARP (ถามเลข MAC)</option><option value="ICMP">ICMP (ping)</option>
           <option value="DNS">DNS</option><option value="HTTP">HTTP</option><option value="DHCP">DHCP</option></select></label>
       </div>
       <div class="cap-legend">สีแถว = ชั้นสูงสุดของแพ็กเก็ต:
@@ -111,11 +111,11 @@
         <span><i class="cl-app"></i>เหลือง ชั้นแอปพลิเคชัน (DNS · HTTP · DHCP)</span></div>
       <div class="cap-wrap" id="capWrap">
         <table class="cap-tbl"><thead><tr>
-          <th>No.<small>ที่</small></th><th>ต้นทาง<small>Source</small></th><th>ปลายทาง<small>Dest.</small></th><th>โปรโตคอล<small>Protocol</small></th><th>รายละเอียด<small>Info · แตะแถวดูทีละชั้น</small></th>
+          <th>No.<small>ที่</small></th><th>ต้นทาง<small>Source</small></th><th>ปลายทาง<small>Dest.</small></th><th>โปรโตคอล<small>Protocol</small></th><th>รายละเอียด<small>Info</small></th>
         </tr></thead><tbody id="capRows"></tbody></table>
       </div>
       <div class="cap-detail hidden" id="capDetail"></div>
-      <p class="cap-note">💡 ของจริง Wireshark ดักได้เฉพาะข้อมูลที่ผ่านเครื่องตัวเอง · ห้ามดักข้อมูลของคนอื่นโดยไม่ได้รับอนุญาต · สื่อนี้เก็บล่าสุดไม่เกิน 200 แถว ไม่เซฟลงเครื่อง</p>
+      <p class="cap-note">แตะแถวในตาราง = ดูทีละชั้น · 💡 ของจริง Wireshark ดักได้เฉพาะข้อมูลที่ผ่านเครื่องตัวเอง · ห้ามดักข้อมูลของคนอื่นโดยไม่ได้รับอนุญาต · สื่อนี้เก็บล่าสุดไม่เกิน 200 แถว ไม่เซฟลงเครื่อง</p>
     </div>
   </div>
 
@@ -164,7 +164,7 @@
         <button type="button" class="btn on" id="cfgModeStatic">ตั้งเอง<small>(Static)</small></button>
         <button type="button" class="btn" id="cfgModeDhcp">รับอัตโนมัติ<small>(DHCP)</small></button>
       </div>
-      <p class="dlg-note hidden" id="cfgDhcpNote">เครื่องนี้จะ<b>ขอ IP เอง</b>จาก DHCP Server ที่อยู่ในวงเดียวกัน · กด "บันทึก" = ขอทันที · เลขที่ได้ดูใน Terminal</p>
+      <p class="dlg-note hidden" id="cfgDhcpNote">เครื่องนี้จะ<b>ขอ IP เอง</b>จาก DHCP Server · กด "บันทึก" = ขอทันที · เลขที่ได้ดูใน Terminal</p>
       <div id="cfgStaticWrap">
       <p class="dlg-note">กรอกเลข IP 4 ชุด (0–255) · ห้ามลงท้าย .0 / .255 · ห้ามซ้ำเครื่องอื่นในวงเดียวกัน</p>
       <label>IP Address (ไอพีแอดเดรส)</label>
@@ -192,7 +192,7 @@
       <div id="cfgHostWrap" class="hidden">
         <label>ชื่อเครื่อง (Hostname · ไม่บังคับ)</label>
         <input class="full" id="cfgHost" type="text" placeholder="ว่างไว้ = ไม่ตั้งชื่อ" autocomplete="off" autocapitalize="off" spellcheck="false">
-        <p class="dlg-note" style="margin:6px 0 0">ตั้งชื่อ เช่น shop.local — เครื่องอื่นพิมพ์ชื่อแทนเลข IP ได้ ถ้ามี DNS ที่ทำงานอยู่</p>
+        <p class="dlg-note" style="margin:6px 0 0">ตั้งชื่อ เช่น shop.local — เครื่องอื่นพิมพ์ชื่อนี้แทนเลข IP ได้</p>
       </div>
     </div>
     <!-- Router เท่านั้น: DHCP Server แจก IP อัตโนมัติ (ค่าตั้งต้นแบบ MikroTik: .10–.254) -->
@@ -208,7 +208,7 @@
     </div>
     <!-- สวิตช์: Port Mirror (กระจกพอร์ต · แบบ MikroTik RB260GSP) — มีเฉพาะ builder -->
     <div id="cfgMirrorWrap" class="hidden">
-      <p class="dlg-note">สวิตช์ปกติส่งเฟรมไปเฉพาะพอร์ตปลายทาง เครื่องอื่นในวงจึงไม่เห็นข้อมูลของกัน (ยกเว้น broadcast) · <b>Port Mirror (กระจกพอร์ต)</b> = สั่งให้สวิตช์ก๊อปทุกเฟรมที่ผ่านตัวมันให้ตัวดักจับดู (แบบที่ครูสาธิตบน RB260GSP) · เปิดแล้วเลือกสวิตช์นี้เป็นจุดดักในแท็บ 📡 ดักจับ</p>
+      <p class="dlg-note">สวิตช์ปกติส่งเฟรมไปเฉพาะพอร์ตปลายทาง เครื่องอื่นในวงจึงไม่เห็นข้อมูลของกัน (ยกเว้น broadcast = ประกาศหาทุกเครื่อง) · <b>Port Mirror (กระจกพอร์ต)</b> = สั่งให้สวิตช์ก๊อปทุกเฟรมที่ผ่านตัวมันให้ตัวดักจับดู (แบบที่ครูสาธิตบน RB260GSP) · เปิดแล้วเลือกสวิตช์นี้เป็นจุดดักในแท็บ 📡 ดักจับ</p>
       <button type="button" class="btn wide" id="cfgMirrorToggle">🪞 Port Mirror (กระจกพอร์ต): ปิด</button>
     </div>
     <div id="cfgWifiWrap" class="hidden">
@@ -282,7 +282,7 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="js/engine.js?v=20261022d"></script>
+<script src="js/engine.js?v=20261022e"></script>
 <script>
 (function(){
   var E = window.NetSimEngine;
@@ -829,8 +829,8 @@
 
   /* ===== ipconfig (Windows) — ปกติ / /all / /renew / /release ===== */
   function ipBlock(n){   // 3 บรรทัดเดิมของ ipconfig
-    termPrint('IPv4 Address . . : ' + (n.ip || '(ยังไม่ตั้ง)'));
-    termPrint('Subnet Mask  . . : ' + (n.ip ? E.mask : '-'));
+    termPrint((isLL(n.ip) ? 'Autoconfiguration IPv4 Address. . : ' : 'IPv4 Address . . : ') + (n.ip || '(ยังไม่ตั้ง)'));
+    termPrint('Subnet Mask  . . : ' + (n.ip ? (isLL(n.ip) ? '255.255.0.0' : E.mask) : '-'));
     termPrint('Default Gateway  : ' + (n.gw || '(ยังไม่ตั้ง)'));
   }
   function isLL(ip){ return /^169\.254\./.test(ip || ''); }   // 169.254.x.y = ขอ DHCP ไม่ได้
@@ -839,7 +839,7 @@
     termPrint('Ethernet adapter Ethernet:');
     termPrint('Physical Address . . : ' + E.macOf(srcId).toUpperCase().replace(/:/g, '-'));
     termPrint('DHCP Enabled . . . . : ' + (dh ? 'Yes' : 'No'));
-    termPrint((ll ? 'Autoconfiguration IPv4 : ' : 'IPv4 Address . . : ') + (n.ip || '(ยังไม่ตั้ง)'));
+    termPrint((ll ? 'Autoconfiguration IPv4 Address. . : ' : 'IPv4 Address . . : ') + (n.ip || '(ยังไม่ตั้ง)'));
     termPrint('Subnet Mask  . . : ' + (n.ip ? (ll ? '255.255.0.0' : E.mask) : '-'));
     termPrint('Default Gateway  : ' + (n.gw || '(ยังไม่ตั้ง)'));
     if (L) termPrint('DHCP Server . . . : ' + (L.serverIp || '-'));
@@ -871,11 +871,11 @@
   function doIp(srcId, a){
     var args = a.filter(function(x){ return x.charAt(0) !== '-'; });   // ตัด option เช่น -4 / -br
     var obj = (args[0] || '').toLowerCase();
-    if (!obj){ termPrint('Usage: ip [ OPTIONS ] OBJECT { COMMAND | help }  — ลอง: ip a · ip route · ip neigh', 'th'); return; }
+    if (!obj){ termPrint('Usage: ip [ OPTIONS ] OBJECT { COMMAND | help }  — ลอง: ip a (ดู IP) · ip route (ดูเส้นทาง) · ip neigh (ดูตาราง MAC)', 'th'); return; }
     if (obj === 'a' || obj === 'addr' || obj === 'address') return doIpAddr(srcId);
     if (obj === 'r' || obj === 'route') return doIpRoute(srcId);
     if (obj === 'n' || obj === 'neigh' || obj === 'neighbor' || obj === 'neighbour') return doIpNeigh(srcId);
-    termPrint('Object "' + args[0] + '" is unknown, try "ip help". (สื่อนี้รองรับ: addr, route, neigh)', 'bad');
+    termPrint('Object "' + args[0] + '" is unknown, try "ip help". (สื่อนี้รองรับ: addr ดู IP · route ดูเส้นทาง · neigh ดูตาราง MAC)', 'bad');
   }
   function doIpAddr(srcId){
     var n = E.getNode(srcId), up = E.linkCount(srcId) > 0, ll = isLL(n.ip), dyn = (n.ipmode === 'dhcp' && !ll);
@@ -891,21 +891,21 @@
   }
   function doIpRoute(srcId){
     var n = E.getNode(srcId), dh = (n.ipmode === 'dhcp');
-    if (!n.ip){ termPrint('(ว่าง — เครื่องนี้ยังไม่มี IP จึงยังไม่มีเส้นทาง)', 'th'); return; }
+    if (!n.ip){ termPrint('(ว่าง — ไม่มีรายการเส้นทาง)', 'th'); return; }
     if (isLL(n.ip)){ termPrint('169.254.0.0/16 dev eth0 scope link metric 1000'); return; }
     if (n.gw) termPrint('default via ' + n.gw + ' dev eth0' + (dh ? ' proto dhcp metric 100' : ''));
     termPrint(n.ip.replace(/\.\d+$/, '.0') + '/24 dev eth0 proto kernel scope link src ' + n.ip + (dh ? ' metric 100' : ''));
   }
   function doIpNeigh(srcId){
     var L = E.neighbors(srcId);
-    if (!L.length){ termPrint('(ว่าง — เครื่องนี้ยังไม่เคยคุยกับเครื่องไหนสำเร็จ)', 'th'); return; }
+    if (!L.length){ termPrint('(ว่าง — ไม่มีรายการในตาราง)', 'th'); return; }
     L.forEach(function(e){ termPrint(e.ip + ' dev eth0 lladdr ' + e.mac + ' REACHABLE'); });
   }
   function doDhclient(srcId, a){
     var n = E.getNode(srcId);
-    if (!E.canDhcpClient(n.type)){ termPrint('dhclient: เครื่องชนิดนี้ไม่ใช้ DHCP client (ใช้ได้เฉพาะ PC / Server)', 'bad'); return; }
+    if (!E.canDhcpClient(n.type)){ termPrint('dhclient: เครื่องชนิดนี้ขอ IP อัตโนมัติไม่ได้ (DHCP client = เครื่องลูกข่าย · ใช้ได้เฉพาะ PC / Server)', 'bad'); return; }
     if (a.indexOf('-r') > -1){   // sudo dhclient -r = คืน IP
-      if (n.ipmode !== 'dhcp'){ termPrint('(ไม่มี lease ให้คืน — เครื่องนี้ตั้ง IP เอง)', 'th'); return; }
+      if (n.ipmode !== 'dhcp'){ termPrint('(ไม่มี IP ที่เช่าไว้ (lease) ให้คืน)', 'th'); return; }
       var had = E.leaseOf(srcId), oldIp = n.ip;
       E.releaseDhcp(srcId);
       if (had && oldIp) termPrint('DHCPRELEASE of ' + oldIp + ' on eth0 to ' + (had.serverIp || '-') + ' port 67');
@@ -975,7 +975,7 @@
       line(n.ip || id, 0.3 + i * 0.35);
     });
     if (r.kind === 'net' && r.target) line(r.target.ip, r.target.ms);
-    termPrint('📋 จดสมุด: ping บอกแค่ "ถึงหรือไม่ถึง" · traceroute บอกว่า "ไปตกที่ hop ไหน"', 'note');
+    termPrint('📋 จดสมุด: ping บอกแค่ "ถึงหรือไม่ถึง" · traceroute บอกว่า "ไปตกที่ hop (ทอด) ไหน"', 'note');
   }
 
   /* tracert — เดินทีละ hop ให้เห็นว่าแพ็กเก็ตผ่านอุปกรณ์อะไรบ้าง (engine มี tracePath อยู่แล้ว) */
@@ -999,8 +999,8 @@
       hopNo++;
       termPrint('  ' + hopNo + '   ' + r.target.ms + ' ms   ' + r.target.ip + ' — ปลายทางบนอินเทอร์เน็ต', 'ok');
     }
-    termPrint('Trace complete. รวม ' + hopNo + ' hop', 'note');
-    termPrint('📋 จดสมุด: ping บอกแค่ "ถึงหรือไม่ถึง" · tracert บอกว่า "ไปตกที่ hop ไหน"', 'note');
+    termPrint('Trace complete. รวม ' + hopNo + ' hop (ทอด)', 'note');
+    termPrint('📋 จดสมุด: ping บอกแค่ "ถึงหรือไม่ถึง" · tracert บอกว่า "ไปตกที่ hop (ทอด) ไหน"', 'note');
   }
   var TRACE_MSG = {
     srcnoip:'เครื่องต้นทางยังไม่มี IP', srcbad:'IP ต้นทางผิดกฎ', nohost:'ไม่มีเครื่องใดใช้เลขนี้',
@@ -1033,7 +1033,7 @@
     var r = E.resolve(srcId, a[0], a[1]);
     var dead = !r.ok && (r.reason === 'nodns' || r.reason === 'srcnoip' || r.reason === 'timeout');
     termPrint('Server:  ' + (dead ? 'UnKnown' : (r.dnsName || 'UnKnown')));
-    termPrint('Address:  ' + (r.dns || '(ยังไม่ตั้ง)'));
+    termPrint('Address:  ' + (r.dns || '-'));
     termBlank();
     if (dead){
       termPrint('DNS request timed out.', 'bad');
@@ -1128,11 +1128,11 @@
         } else {
           for (var k = 0; k < 3; k++){
             var ms = 1 + Math.round(Math.random() * 3) + hops;
-            termPrint('ตอบกลับจาก ' + ip + ': ไบต์=32 เวลา=' + ms + 'ms TTL=' + (128 - hops), 'ok');
+            termPrint('ตอบกลับจาก ' + ip + ': ไบต์=32 เวลา=' + ms + 'ms TTL=' + (128 - routersOn(r.path)), 'ok');   // TTL ลดเฉพาะตอนผ่าน Router (เหมือนฝั่ง Linux)
           }
         }
         termPrint('📋 จดสมุด: ' + srcId + ' ping ' + lab + ' = ได้ — ' + (r.sameNet ? 'วงเดียวกัน (subnet เดียวกัน)' : 'คนละวง ต้องผ่าน Router'), 'note');
-        showToast('✅ ' + srcId + ' ส่งถึง ' + lab + ' แล้ว (' + hops + ' hop)', 'ok');
+        showToast('✅ ' + srcId + ' ส่งถึง ' + lab + ' แล้ว (' + hops + ' hop = ทอด)', 'ok');
       }, { count: lx || 3 });
     }
     var tag = (rv.name ? ' [' + rv.ip + ']' : '');   // พิมพ์เป็นชื่อ → โชว์เลข IP ที่แปลงได้ในวงเล็บ (เหมือน Windows)

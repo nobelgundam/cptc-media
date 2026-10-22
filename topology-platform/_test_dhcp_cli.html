@@ -265,7 +265,7 @@ fr.addEventListener('load', function(){
     L = cmd('PC4', 'ip route').now();
     ok('H2d ip route ไม่มี IP → บรรทัดเทาบอกว่าว่าง', L.length === 2 && /ว่าง/.test(L[1]), L.join(' ⏎ '));
     L = cmd('PC1', 'ip neigh').now();
-    ok('H3 ip neigh ยังไม่เคยคุย → บรรทัดเทาบอกว่ายังไม่เคยคุยกับเครื่องไหน', L.length === 2 && /ยังไม่เคยคุย/.test(L[1]), L.join(' ⏎ '));
+    ok('H3 ip neigh ยังไม่เคยคุย → บรรทัดเทาบอกว่าตารางว่าง (ไม่บอกสาเหตุ)', L.length === 2 && /ไม่มีรายการในตาราง/.test(L[1]), L.join(' ⏎ '));
     L = cmd('PC1', 'ip foo').now();
     ok('H3b ip <อื่น> → Object "foo" is unknown', has(L, 'Object "foo" is unknown'));
     L = cmd('PC5', 'ip a').now();
@@ -299,7 +299,7 @@ fr.addEventListener('load', function(){
     L = cmd('PC5', 'ipconfig /all').now();
     ok('H7f ipconfig /all หลังขอไม่ได้: 169.254 · ไม่มี Default Gateway · ไม่มี DHCP Server', has(L, 'DHCP Enabled . . . . : Yes') && has(L, 'Autoconfiguration') && has(L, 'Default Gateway  : (ยังไม่ตั้ง)') && !has(L, 'DHCP Server'), L.join(' ⏎ '));
     L = cmd('PC1', 'dhclient -r').now();
-    ok('H7g dhclient -r เครื่อง static → ไม่แตะ IP', E.getNode('PC1').ip === '192.168.1.50' && has(L, 'ไม่มี lease'));
+    ok('H7g dhclient -r เครื่อง static → ไม่แตะ IP', E.getNode('PC1').ip === '192.168.1.50' && has(L, 'ไม่มี IP ที่เช่าไว้ (lease)'));
     L = cmd('R1', 'dhclient').now();
     ok('H7h dhclient บน router → ปฏิเสธ', has(L, 'dhclient:') && E.getNode('R1').ip === '192.168.1.1');
 
@@ -357,7 +357,7 @@ fr.addEventListener('load', function(){
     var L = T.p4.now();
     ok('H13 ping แบบเดิม (ไม่มี -c) ยังเป็น Windows 3 บรรทัด ไม่ใช่ Linux', count(L, 'ตอบกลับจาก 192.168.1.60: ไบต์=32') === 3 && !has(L, '64 bytes from') && has(L, 'กำลัง ping 192.168.1.60'), L.join(' ⏎ '));
     var n = cmd('PC1', 'ip neigh').now();
-    ok('H14 ip neigh หลัง ping สำเร็จ: <ip> dev eth0 lladdr <mac SRV1> REACHABLE', has(n, '192.168.1.60 dev eth0 lladdr ' + E.macOf('SRV1') + ' REACHABLE') && !has(n, 'ยังไม่เคยคุย'), n.join(' ⏎ '));
+    ok('H14 ip neigh หลัง ping สำเร็จ: <ip> dev eth0 lladdr <mac SRV1> REACHABLE', has(n, '192.168.1.60 dev eth0 lladdr ' + E.macOf('SRV1') + ' REACHABLE') && !has(n, 'ไม่มีรายการในตาราง'), n.join(' ⏎ '));
     T.p5 = cmd('PC1', 'ping -c 2 8.8.8.8');
     return 2300;
   });
