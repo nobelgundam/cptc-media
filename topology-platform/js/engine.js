@@ -940,7 +940,7 @@
    * โหมดเข้ม (dnsStrict · builder เท่านั้น): ชื่อต้องถาม "DNS ของเครื่องต้นทาง" ก่อน
    *   ไม่มี DNS = nodns · DNS ไปไม่ถึง/ไม่ใช่ DNS = timeout · ถึงแต่ไม่รู้จักชื่อ = nxdomain
    *   DNS สาธารณะ (8.8.8.8 …) ตอบเมื่อเครื่องออกเน็ตได้จริง · DNS = IP router ที่เปิด DHCP (แบบ MikroTik) ตอบเมื่อ ping ถึง router
-   *   ชื่อเว็บนอกต้องให้ router ถึง ISP ด้วย ไม่งั้นหาไม่เจอ · ชื่อในร้าน = n.host ของ Server (DNS ที่ทำงานได้ตัวไหนก็ตอบ ไม่มีตาราง record)
+   *   ชื่อเว็บนอกต้องให้ router ถึง ISP ด้วย ไม่งั้นหาไม่เจอ · ชื่อในร้าน = n.host ของ Server (ตอบเฉพาะ DNS = router ในร้าน · DNS สาธารณะตอบ nxdomain · ไม่มีตาราง record)
    * โหมดปกติ: ไม่ดู DNS ของเครื่องเลย (ชื่อที่ engine รู้จักแปลงได้เองเหมือนเดิม) */
   var PUBLIC_DNS = { '8.8.8.8': 'dns.google', '8.8.4.4': 'dns.google', '1.1.1.1': 'one.one.one.one' };
   function isName(s) {   // ชื่อ (มีตัวอักษร ไม่ใช่เลข IP) — เลข IP ไม่ต้องถาม DNS
@@ -1009,8 +1009,8 @@
         if (srv.upstream) return { ok: true, kind: 'net', key: ext.host, ip: ext.ip, name: nm, dns: dns, dnsName: srv.name, nonauth: true };
         return { ok: false, reason: 'nxdomain', dns: dns, dnsName: srv.name, noUpstream: true };   // router ไม่มีทางออก ISP = ถามต่อไม่ได้
       }
-      var ln = hostNode(nm);
-      if (ln && ln.ip) return { ok: true, kind: 'lan', key: ln.ip, ip: ln.ip, name: nm, dns: dns, dnsName: srv.name };
+      var ln = hostNode(nm);   // ชื่อในร้าน: ตอบได้เฉพาะ DNS ที่เป็น router ในร้าน (srv.id) · 8.8.8.8 ไม่รู้จักชื่อในร้าน = nxdomain เหมือนของจริง
+      if (ln && ln.ip && srv.id) return { ok: true, kind: 'lan', key: ln.ip, ip: ln.ip, name: nm, dns: dns, dnsName: srv.name };
     }
     return { ok: false, reason: 'nxdomain', dns: dns, dnsName: srv.name };
   }

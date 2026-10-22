@@ -106,7 +106,7 @@ fr.addEventListener('load', function(){
     shop({ dns: '8.8.8.8' });
     var n = E.resolve('PC1', 'no-such-site.example');
     ok('A3e DNS ทำงานแต่ไม่รู้จักชื่อนี้ → nxdomain (บอกชื่อ DNS ที่ตอบ)', n.ok === false && n.reason === 'nxdomain' && n.dnsName === 'dns.google', JSON.stringify(n));
-    ok('A3f ชื่อในร้าน (shop.local) 8.8.8.8 ก็แปลงให้ → 192.168.1.50 (kind=lan)', (function(){ var s = E.resolve('PC1', 'shop.local'); return s.ok && s.kind === 'lan' && s.ip === '192.168.1.50' && s.key === '192.168.1.50'; })());
+    ok('A3f ชื่อในร้าน (shop.local) ถาม 8.8.8.8 → nxdomain (DNS สาธารณะไม่รู้จักชื่อในร้าน เหมือนของจริง)', (function(){ var s = E.resolve('PC1', 'shop.local'); return s.ok === false && s.reason === 'nxdomain' && s.dnsName === 'dns.google'; })());
     ok('A3g เลข IP ไม่ผ่านการแปลงชื่อ (reverse lookup ไม่รองรับ → nxdomain ไม่ crash)', E.resolve('PC1', '8.8.8.8').reason === 'nxdomain');
 
     shop({ dns: '192.168.1.1' });
@@ -228,7 +228,9 @@ fr.addEventListener('load', function(){
     ok('D1 nslookup (DNS ถูก): Server/Address + Non-authoritative answer + Name/Address ของเว็บ',
        has(L, 'Server:  dns.google') && has(L, 'Address:  8.8.8.8') && has(L, 'Non-authoritative answer:') && has(L, 'Name:    www.google.com') && has(L, 'Address:  142.250.71.14') && !has(L, 'timed out'), L.join(' ⏎ '));
     L = cmd('PC1', 'nslookup shop.local').now();
-    ok('D1b nslookup ชื่อในร้าน → 192.168.1.50 (ไม่มีบรรทัด Non-authoritative)', has(L, 'Name:    shop.local') && has(L, 'Address:  192.168.1.50') && !has(L, 'Non-authoritative'), L.join(' ⏎ '));
+    ok('D1b nslookup ชื่อในร้าน ถาม 8.8.8.8 → Non-existent domain (ไม่ได้ 192.168.1.50)', has(L, "can't find shop.local: Non-existent domain") && !has(L, 'Address:  192.168.1.50'), L.join(' ⏎ '));
+    L = cmd('PC1', 'nslookup shop.local 192.168.1.1').now();
+    ok('D1c nslookup ชื่อในร้าน ถาม router → 192.168.1.50 (ไม่มีบรรทัด Non-authoritative)', has(L, 'Name:    shop.local') && has(L, 'Address:  192.168.1.50') && !has(L, 'Non-authoritative'), L.join(' ⏎ '));
     L = cmd('PC1', 'nslookup no-such-site.example').now();
     ok('D1c nslookup ชื่อที่ไม่มี → *** dns.google can\'t find … Non-existent domain', has(L, "*** dns.google can't find no-such-site.example: Non-existent domain") && !has(L, 'Non-authoritative'), L.join(' ⏎ '));
     L = cmd('PC1', 'nslookup').now();
@@ -287,8 +289,10 @@ fr.addEventListener('load', function(){
     shop({ dns: '8.8.8.8' });
     L = cmd('PC1', 'dig www.google.com').now();
     ok('D6 dig (DNS ถูก): ANSWER SECTION มี A 142.250.71.14 + ;; SERVER: 8.8.8.8#53 + status NOERROR', has(L, ';; ANSWER SECTION:') && L.some(function(l){ return /^www\.google\.com\.\s+300\s+IN\s+A\s+142\.250\.71\.14$/.test(l); }) && has(L, ';; SERVER: 8.8.8.8#53(8.8.8.8)') && has(L, 'status: NOERROR') && has(L, ';; QUESTION SECTION:'), L.join(' ⏎ '));
+    L = cmd('PC1', 'dig @192.168.1.1 shop.local').now();
+    ok('D6b dig @DNS ระบุเอง · ชื่อในร้าน → 192.168.1.50 จาก router', has(L, ';; SERVER: 192.168.1.1#53') && L.some(function(l){ return /^shop\.local\.\s+300\s+IN\s+A\s+192\.168\.1\.50$/.test(l); }), L.join(' ⏎ '));
     L = cmd('PC1', 'dig @1.1.1.1 shop.local').now();
-    ok('D6b dig @DNS ระบุเอง · ชื่อในร้าน → 192.168.1.50 จาก 1.1.1.1', has(L, ';; SERVER: 1.1.1.1#53') && L.some(function(l){ return /^shop\.local\.\s+300\s+IN\s+A\s+192\.168\.1\.50$/.test(l); }), L.join(' ⏎ '));
+    ok('D6c dig @1.1.1.1 ชื่อในร้าน → NXDOMAIN (DNS สาธารณะไม่รู้จักชื่อในร้าน)', has(L, 'status: NXDOMAIN') && !L.some(function(l){ return /IN\s+A\s+192\.168\.1\.50$/.test(l); }), L.join(' ⏎ '));
     L = cmd('PC1', 'dig no-such-site.example').now();
     ok('D6c dig ชื่อที่ไม่มี → status NXDOMAIN · ไม่มี ANSWER SECTION · ยังมี ;; SERVER', has(L, 'status: NXDOMAIN') && !has(L, ';; ANSWER SECTION:') && has(L, ';; SERVER: 8.8.8.8#53'), L.join(' ⏎ '));
     shop({ dns: '192.168.1.99' });
@@ -306,7 +310,7 @@ fr.addEventListener('load', function(){
 
   /* ================= E) คำสั่งที่ผ่าน (ต้องรอแพ็กเก็ตวิ่ง) ================= */
   step(function(){
-    shop({ dns: '8.8.8.8' });
+    shop({ dns: '192.168.1.1' });   // DNS = router: ตอบได้ทั้งชื่อเว็บนอก + ชื่อในร้าน (8.8.8.8 ไม่รู้จัก shop.local)
     T.base = termOut.children.length;
     cmd('PC1', 'ping www.google.com');
     cmd('PC1', 'ping -c 2 www.google.com');
