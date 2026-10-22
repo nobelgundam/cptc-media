@@ -87,11 +87,13 @@
   var sel = { connect: null, simSrc: null, delPending: null };
   var statusCb = null, changeCb = null, toastCb = null, configCb = null, wifiCb = null, settingsCb = null;
   var STORE_KEY = 'netsim_builder_v1';
+  var arp = {};               // ตาราง ARP รายเครื่อง (ip neigh) — อยู่ใน memory ไม่เซฟ · ล้างเมื่อโหลดผังใหม่
 
   function fresh() {
     state = { nodes: [], edges: [] };
     seq = {}; els = { node: {}, edge: {}, edgeHit: {} };
     sel = { connect: null, simSrc: null, delPending: null };
+    arp = {};
   }
 
   function mk(name, attrs) {
@@ -140,6 +142,7 @@
       var fwg = mk('text', { 'class': 'node-fw', x: -16, y: -16, 'text-anchor': 'middle' });
       fwg.textContent = n.fwAllow ? '🔓' : '🛡️'; g.appendChild(fwg);
     }
+    dhcpBadge(n, g);   // ป้าย DHCP เล็ก ๆ (router ที่เปิดแจก / เครื่องที่ถือ lease)
     var hit = mk('circle', { 'class': 'node-hit', cx: 0, cy: 0, r: 26 });
     g.appendChild(hit);
     layers.nodes.appendChild(g);
@@ -487,6 +490,13 @@
     for (var i = 0; i < 4; i++) { if (!/^\d+$/.test(a[i]) || +a[i] < 0 || +a[i] > 255) return { bad: 1 }; }
     return { net: a[0] + '.' + a[1] + '.' + a[2], host: +a[3] };
   }
+  // วงเดียวกัน = 3 ชุดแรกตรงกัน (/24) · ยกเว้น 169.254.x.y (APIPA/link-local = /16 ทั้งก้อน → ได้ 169.254 ทั้งคู่ยังคุยกันเองได้)
+  function isLinkLocal(net) { return /^169\.254\./.test(net); }
+  function sameNetwork(ipA, ipB) {
+    var a = parseIp(ipA), b = parseIp(ipB);
+    if (a.bad || b.bad) return false;
+    return a.net === b.net || (isLinkLocal(a.net) && isLinkLocal(b.net));
+  }
   function ipError(ip) {   // กฎพื้นฐาน /24 (generic — ไม่ผูกภารกิจรายสัปดาห์)
     var r = parseIp(ip);
     if (r.bad) return 'รูปแบบผิด — ต้องเลข 4 ชุด 0–255 เช่น 192.168.1.10';
@@ -512,13 +522,162 @@
     }
     return null;
   }
-  function setNodeIP(id, ip, gw, http) {
+  function setNodeIP(id, ip, gw, http) {   // ตั้งเอง (Static) — ล้างโหมด DHCP/lease เดิมทิ้ง
     var n = nodeById(id); if (!n) return;
-    n.ip = (ip || '').trim(); n.gw = (gw || '').trim();
+    var newIp = (ip || '').trim();
+    if ((n.ip || '') !== newIp) delete arp[id];
+    n.ip = newIp; n.gw = (gw || '').trim();
+    delete n.ipmode; delete n.lease; delete n.dns;
     if (http !== undefined && http !== null && http !== '') n.http = +http;
-    var g = els.node[id];
-    if (g) { var t = g.querySelector('.node-ip'); if (t) t.textContent = n.ip; }
+    paintNode(id);
     save(); changed();
+  }
+  function setNodeHttp(id, http) {   // เปลี่ยนแค่ HTTP status ของเซิร์ฟเวอร์ (ไม่แตะ IP — ใช้ตอนโหมด DHCP)
+    var n = nodeById(id); if (!n || http === undefined || http === null || http === '') return;
+    n.http = +http; save(); changed();
+  }
+
+  /* ================= DHCP (wk4 MikroTik · router แจก IP ให้ PC/Server) =================
+   * โมเดลเดิม: router มี IP เดียว (n.ip) และ "ข้ามวง" = มี router อยู่ในเส้นทาง + ต้นทางมี gw → DHCP จึงแจกได้วงเดียว
+   * = วง /24 ของ router · router: n.dhcp = {on,from,to,dns} (from/to = เลขท้าย 1–254) · เครื่องลูก: n.ipmode='dhcp'
+   * + n.lease={server:<routerId>} + n.dns · node ที่ไม่มีฟิลด์เหล่านี้ = ทำงานเหมือนเดิมเป๊ะ */
+  function canDhcpClient(type) { return type === 'pc' || type === 'server'; }
+  function dhcpCfg(r) {   // ค่า DHCP ที่ใช้ได้จริงของ router (null = ปิด/ไม่มี IP) · ค่าเพี้ยนจากไฟล์ → ใช้ค่าตั้งต้น 10–254
+    if (!r || r.type !== 'router' || !r.dhcp || !r.dhcp.on || !r.ip || ipError(r.ip)) return null;
+    var f = Math.floor(+r.dhcp.from), t = Math.floor(+r.dhcp.to);
+    if (!(f >= 1 && f <= 254)) f = 10;
+    if (!(t >= 1 && t <= 254)) t = 254;
+    return { net: parseIp(r.ip).net, from: f, to: t, gw: r.ip, dns: String(r.dhcp.dns || '').trim() || r.ip };
+  }
+  /* DISCOVER เป็น broadcast → ผ่านได้เฉพาะสวิตช์/AP · router = ปลายทางที่หยุด (ไม่ทะลุ router อื่น/PC/ISP)
+   * คืน router ที่เปิด DHCP เรียงใกล้→ไกล (นับ hop · เสมอ = ตามลำดับใน state) */
+  function dhcpServersFor(srcId) {
+    var adj = buildAdj(), dist = {}, queue = [srcId], found = [], order = {};
+    state.nodes.forEach(function (n, i) { order[n.id] = i; });
+    dist[srcId] = 0;
+    while (queue.length) {
+      var cur = queue.shift(), nb = adj[cur] || [];
+      for (var i = 0; i < nb.length; i++) {
+        var id = nb[i]; if (dist[id] !== undefined) continue;
+        dist[id] = dist[cur] + 1;
+        var nn = nodeById(id), t = nn ? nn.type : '';
+        if (t === 'router') { if (dhcpCfg(nn)) found.push({ id: id, d: dist[id] }); }
+        else if (t === 'switch' || t === 'ap') queue.push(id);
+      }
+    }
+    found.sort(function (a, b) { return a.d - b.d || order[a.id] - order[b.id]; });
+    return found.map(function (f) { return f.id; });
+  }
+  function ipInUse(selfId, net, host) {   // มีเครื่องอื่น (static หรือ lease) ถือ net.host อยู่ไหม
+    for (var i = 0; i < state.nodes.length; i++) {
+      var n = state.nodes[i]; if (n.id === selfId || !n.ip) continue;
+      var o = parseIp(n.ip);
+      if (!o.bad && o.net === net && o.host === host) return true;
+    }
+    return false;
+  }
+  // IP ว่างตัวแรกในช่วง · ลูกข่ายเดิมของ server เดิมขอ IP เดิมคืนได้ถ้ายังว่าง (renew แล้วเลขไม่เด้ง)
+  function pickLeaseIp(c, n, srvId) {
+    var old = parseIp(n.ip);
+    if (n.lease && n.lease.server === srvId && !old.bad && old.net === c.net && old.host >= c.from && old.host <= c.to &&
+        !ipInUse(n.id, c.net, old.host)) return n.ip;
+    for (var h = c.from; h <= c.to; h++) if (!ipInUse(n.id, c.net, h)) return c.net + '.' + h;
+    return null;
+  }
+  function hash32(s) { var h = 7; s = String(s); for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 65521; return h; }
+  function hex2(v) { v = v & 255; return (v < 16 ? '0' : '') + v.toString(16); }
+  function macOf(id) { var a = hash32(id), b = hash32(id + '#mac'); return '52:54:00:' + hex2(a >> 8) + ':' + hex2(a) + ':' + hex2(b); }
+  function apipaFor(id) {   // 169.254.x.y คงที่ตาม id (ชนเครื่องอื่นค่อยขยับ y)
+    var h = hash32(id), x = 1 + (h % 254), y = 1 + ((h * 7 + 3) % 254), ip = '';
+    for (var k = 0; k < 254; k++) {
+      ip = '169.254.' + x + '.' + y;
+      var o = findNodeByIp(ip); if (!o || o.id === id) return ip;
+      y = (y % 254) + 1;
+    }
+    return ip;
+  }
+  function dhcpTag(n) {   // ป้าย DHCP เล็ก ๆ ข้างไอคอน: router ที่เปิดแจก (ซ้าย) · เครื่องที่ถือ lease (ขวา)
+    if (n.type === 'router' && n.dhcp && n.dhcp.on) return { x: -20, a: 'end' };
+    if (n.lease && n.lease.server && canDhcpClient(n.type)) return { x: 20, a: 'start' };
+    return null;
+  }
+  function dhcpBadge(n, g) {
+    var old = g.querySelector('.node-dhcp'); if (old) old.remove();
+    var tg = dhcpTag(n); if (!tg) return;
+    var b = mk('text', { 'class': 'node-dhcp', x: tg.x, y: -14, 'text-anchor': tg.a, 'pointer-events': 'none' });
+    b.textContent = 'DHCP'; g.appendChild(b);
+  }
+  function paintNode(id) {   // วาดป้าย IP + ป้าย DHCP ใหม่ตามค่าใน node
+    var n = nodeById(id), g = els.node[id]; if (!n || !g) return;
+    var t = g.querySelector('.node-ip'); if (t) t.textContent = n.ip || '';
+    dhcpBadge(n, g);
+  }
+  // ขอ IP อัตโนมัติ (DISCOVER→OFFER→REQUEST→ACK ก้าวเดียว) — server ใกล้สุดที่ยังมี IP ว่างชนะ · ไม่ได้ = 169.254 ไม่มี gw
+  function dhcpRequest(id) {
+    var n = nodeById(id);
+    if (!n || !canDhcpClient(n.type)) return { ok: false, reason: 'notclient' };
+    var servers = dhcpServersFor(id), oldIp = n.ip || '';
+    for (var i = 0; i < servers.length; i++) {
+      var srv = nodeById(servers[i]), c = dhcpCfg(srv), ip = pickLeaseIp(c, n, srv.id);
+      if (!ip) continue;   // ช่วงเต็ม → ลอง server ตัวถัดไป (ถ้ามี)
+      n.ip = ip; n.gw = c.gw; n.dns = c.dns; n.ipmode = 'dhcp'; n.lease = { server: srv.id };
+      if (oldIp !== ip) delete arp[id];
+      paintNode(id); changed();
+      return { ok: true, ip: ip, gw: c.gw, dns: c.dns, server: srv.id, serverIp: srv.ip };
+    }
+    n.ip = apipaFor(id); n.gw = ''; n.dns = ''; n.ipmode = 'dhcp'; delete n.lease;
+    if (oldIp !== n.ip) delete arp[id];
+    paintNode(id); changed();
+    return { ok: false, reason: servers.length ? 'full' : 'noserver', apipa: true, ip: n.ip };
+  }
+  function dhcpRelease(id) {   // คืน IP: ล้าง ip/gw/dns/lease แต่ยังอยู่โหมด DHCP (ipmode คงเดิม)
+    var n = nodeById(id);
+    if (!n || !canDhcpClient(n.type)) return { ok: false, reason: 'notclient' };
+    if (n.ipmode !== 'dhcp') return { ok: false, reason: 'static' };
+    var had = leaseOf(id), oldIp = n.ip || '';
+    n.ip = ''; n.gw = ''; n.dns = ''; delete n.lease; delete arp[id];
+    paintNode(id); changed();
+    return { ok: true, ip: oldIp, lease: had };
+  }
+  function leaseOf(id) {   // lease ปัจจุบัน {server, serverIp} หรือ null
+    var n = nodeById(id); if (!n || !n.lease || !n.lease.server) return null;
+    var s = nodeById(n.lease.server);
+    return { server: n.lease.server, serverIp: s ? (s.ip || '') : '' };
+  }
+  function setNodeDhcp(id, cfg) {   // router เท่านั้น · cfg = {on,from,to,dns}
+    var n = nodeById(id); if (!n || n.type !== 'router' || !cfg) return;
+    n.dhcp = { on: !!cfg.on, from: +cfg.from || 10, to: +cfg.to || 254, dns: String(cfg.dns || '').trim() };
+    paintNode(id); changed();
+  }
+  function getDhcp(id) {   // ค่า DHCP ที่ router นี้เก็บไว้ (null = ไม่เคยตั้ง)
+    var n = nodeById(id); if (!n || n.type !== 'router' || !n.dhcp) return null;
+    return { on: !!n.dhcp.on, from: +n.dhcp.from || 10, to: +n.dhcp.to || 254, dns: String(n.dhcp.dns || '') };
+  }
+
+  /* ---------- ตาราง ARP (ip neigh): เครื่องในวงเดียวกันที่เคยคุยสำเร็จ + gateway เมื่อเคยออกนอกวง ---------- */
+  function arpAdd(srcId, id, ip, isGw) {
+    var l = arp[srcId] || (arp[srcId] = []);
+    for (var i = 0; i < l.length; i++) if (l[i].ip === ip) { l[i].id = id; return; }
+    l.push({ id: id, ip: ip, gw: !!isGw });
+  }
+  function arpNote(srcId, targetId, path) {   // เรียกเมื่อ ping/http/ping เน็ต "สำเร็จ"
+    var s = nodeById(srcId); if (!s || !s.ip) return;
+    var t = targetId ? nodeById(targetId) : null;
+    if (t && t.ip && sameNetwork(s.ip, t.ip)) { arpAdd(srcId, t.id, t.ip, false); return; }
+    if (!s.gw) return;
+    var gn = findNodeByIp(s.gw), gid = gn ? gn.id : null;
+    if (!gid) for (var i = 0; i < (path || []).length; i++) { if ((nodeById(path[i]) || {}).type === 'router') { gid = path[i]; break; } }
+    if (gid) arpAdd(srcId, gid, s.gw, true);
+  }
+  function arpList(srcId) {   // ตัดรายการที่ปลายทางหายไป/เปลี่ยน IP แล้วออก
+    return (arp[srcId] || []).filter(function (e) {
+      var t = nodeById(e.id); return t && (e.gw || t.ip === e.ip);
+    }).map(function (e) { return { ip: e.ip, id: e.id, mac: macOf(e.id) }; });
+  }
+  function linkCount(id) {
+    var c = 0;
+    for (var i = 0; i < state.edges.length; i++) if (state.edges[i].a === id || state.edges[i].b === id) c++;
+    return c;
   }
 
   /* ================= ความปลอดภัย Wi-Fi (wk7 1009) ================= */
@@ -583,7 +742,7 @@
     if (sp.net === tr.net && sp.host === tr.host) return { ok: false, reason: 'self' };
     var target = findNodeByIp(targetIp);
     if (!target) return { ok: false, reason: 'nohost' };
-    var sameNet = (sp.net === tr.net);
+    var sameNet = (sp.net === tr.net) || (isLinkLocal(sp.net) && isLinkLocal(tr.net));
     var path = findShortestPathBFS(buildAdj(), srcId, target.id);
     if (!path) return { ok: false, reason: 'unwired', sameNet: sameNet, target: target.id };
     var fwBlock = !!(target.fw && !target.fwAllow);   // 🛡️ Firewall ปลายทางบล็อก แม้สาย+วงถูกครบ (ตอน 3)
@@ -740,6 +899,7 @@
     if (!t) return { ok: false, reason: 'dns' };
     var r = reachInternet(srcId);
     if (!r.ok) return { ok: false, reason: r.reason, target: t };
+    arpNote(srcId, null, r.path);   // ออกนอกวงสำเร็จ → gateway เข้า ip neigh
     animateAlong(r.path, function (hops) { if (onArrive) onArrive(t, hops); });
     return { ok: true, target: t, path: r.path };
   }
@@ -820,7 +980,19 @@
     canHaveWifi: function (t) { return canHaveWifi(t); },
     mask: DEFAULT_MASK,
     typeLabel: function (t) { return typeLabel(t); },
-    getNode: function (id) { var n = nodeById(id); return n ? { id: n.id, type: n.type, ip: n.ip || '', gw: n.gw || '', http: n.http || 200, wifi: n.wifi || '', fw: !!n.fw, fwAllow: !!n.fwAllow } : null; },
+    getNode: function (id) { var n = nodeById(id); return n ? { id: n.id, type: n.type, ip: n.ip || '', gw: n.gw || '', http: n.http || 200, wifi: n.wifi || '', fw: !!n.fw, fwAllow: !!n.fwAllow,
+      ipmode: n.ipmode === 'dhcp' ? 'dhcp' : 'static', dns: n.dns || '' } : null; },
+    /* ----- DHCP / ARP / Linux terminal API ----- */
+    canDhcpClient: canDhcpClient,
+    requestDhcp: function (id) { return dhcpRequest(id); },        // ขอ IP อัตโนมัติ (renew) → {ok,ip,gw,dns,server,serverIp} หรือ {ok:false,reason,apipa,ip}
+    releaseDhcp: function (id) { return dhcpRelease(id); },        // คืน IP → {ok,ip,lease}
+    leaseOf: function (id) { return leaseOf(id); },                // {server, serverIp} | null
+    setNodeDhcp: function (id, cfg) { setNodeDhcp(id, cfg); },     // router: {on,from,to,dns}
+    getDhcp: function (id) { return getDhcp(id); },
+    setNodeHttp: function (id, http) { setNodeHttp(id, http); },
+    neighbors: function (id) { return arpList(id); },              // [{ip,id,mac}] — ip neigh
+    macOf: function (id) { return macOf(id); },
+    linkCount: function (id) { return linkCount(id); },            // 0 = ไม่มีสายเลย (NO-CARRIER)
     /* ----- 🛡️ Firewall API (reusable · wk10 1009) ----- */
     canHaveFirewall: canHaveFirewall,
     setFirewall: function (id, blocking) { setFirewall(id, blocking); },
@@ -847,13 +1019,13 @@
     canReachNet: function (srcId) { return reachInternet(srcId); },
     ping: function (srcId, targetIp, onArrive) {
       var res = pingCheck(srcId, targetIp);
-      if (res.ok) animateAlong(res.path, function (hops) { if (onArrive) onArrive(res, hops); });
+      if (res.ok) { arpNote(srcId, res.target, res.path); animateAlong(res.path, function (hops) { if (onArrive) onArrive(res, hops); }); }
       return res;
     },
     // http: ส่ง onArrive(status, hops, targetId) เมื่อ packet ถึง server · คืน res ทันที (pre-check)
     http: function (srcId, targetIp, onArrive) {
       var res = httpRequest(srcId, targetIp);
-      if (res.ok) animateAlong(res.path, function (hops) { if (onArrive) onArrive(res.status, hops, res.target); });
+      if (res.ok) { arpNote(srcId, res.target, res.path); animateAlong(res.path, function (hops) { if (onArrive) onArrive(res.status, hops, res.target); }); }
       return res;
     },
     // ----- อินเทอร์เน็ตภายนอก (ping เว็บ/DNS · tracert) -----

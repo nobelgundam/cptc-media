@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>สร้างเครือข่าย — Builder</title>
-<link rel="stylesheet" href="css/style.css?v=20260829b">
+<link rel="stylesheet" href="css/style.css?v=20261022b">
 </head>
 <body>
 <div class="wrap wide">
@@ -73,7 +73,7 @@
         <select id="srcSel" title="เลือกเครื่องที่จะพิมพ์คำสั่ง"></select>
       </label>
     </div>
-    <div class="term-out" id="termOut"><div class="th">พิมพ์ <b>ipconfig</b> ดูเลข IP · <b>ping &lt;IP&gt;</b> ทดสอบส่งข้อมูล · <b>http &lt;IP&gt;</b> เปิดเว็บที่ Server · <b>tracert &lt;IP&gt;</b> ดูว่าผ่านอุปกรณ์อะไรบ้าง (ตั้ง IP ที่เครื่องก่อนนะ)</div></div>
+    <div class="term-out" id="termOut"><div class="th">พิมพ์ <b>ipconfig</b> ดูเลข IP · <b>ping &lt;IP&gt;</b> ทดสอบส่งข้อมูล · <b>http &lt;IP&gt;</b> เปิดเว็บที่ Server · <b>tracert &lt;IP&gt;</b> ดูว่าผ่านอุปกรณ์อะไรบ้าง (ตั้ง IP ที่เครื่องก่อนนะ)<br>แบบ Ubuntu: <b>ip a</b> · <b>ip route</b> · <b>ip neigh</b> · <b>ping -c 4 &lt;IP&gt;</b> · <b>traceroute &lt;IP&gt;</b> · <b>dhclient</b> (ขอ IP อัตโนมัติ)</div></div>
     <div class="term-chips">
       <button data-fill="ipconfig">ipconfig</button>
       <button data-fill="ping ">ping…</button>
@@ -128,6 +128,13 @@
   <div class="dialog">
     <h3 id="cfgTitle">⚙️ ตั้งค่า IP</h3>
     <div id="cfgIpWrap">
+      <!-- PC/Server เลือกได้: ตั้งเอง หรือ ขอ IP อัตโนมัติจาก DHCP Server (Router ไม่มีตัวเลือกนี้) -->
+      <div class="seg hidden" id="cfgModeWrap">
+        <button type="button" class="btn on" id="cfgModeStatic">ตั้งเอง<small>(Static)</small></button>
+        <button type="button" class="btn" id="cfgModeDhcp">รับอัตโนมัติ<small>(DHCP)</small></button>
+      </div>
+      <p class="dlg-note hidden" id="cfgDhcpNote">เครื่องนี้จะ<b>ขอ IP เอง</b>จาก DHCP Server ที่อยู่ในวงเดียวกัน · กด "บันทึก" = ขอทันที · เลขที่ได้ดูใน Terminal</p>
+      <div id="cfgStaticWrap">
       <p class="dlg-note">กรอกเลข IP 4 ชุด (0–255) · ห้ามลงท้าย .0 / .255 · ห้ามซ้ำเครื่องอื่นในวงเดียวกัน</p>
       <label>IP Address (ไอพีแอดเดรส)</label>
       <input class="full" id="cfgIp" type="text" placeholder="192.168.1.10" autocomplete="off" autocapitalize="off" spellcheck="false">
@@ -135,6 +142,7 @@
       <input class="full" id="cfgSub" type="text" value="255.255.255.0" readonly>
       <label>Default Gateway (เกตเวย์ — ถ้าต้องออกข้ามวง)</label>
       <input class="full" id="cfgGw" type="text" placeholder="192.168.1.1 (ไม่บังคับ)" autocomplete="off">
+      </div>
       <div id="cfgHttpWrap" class="hidden">
         <label>เว็บเซิร์ฟเวอร์นี้ตอบ HTTP status อะไร (เมื่อมีคน http มา)</label>
         <select class="full" id="cfgHttp">
@@ -145,6 +153,17 @@
           <option value="500">500 Internal Server Error — เซิร์ฟเวอร์พัง (5xx)</option>
           <option value="503">503 Service Unavailable — ปิดปรับปรุง (5xx)</option>
         </select>
+      </div>
+    </div>
+    <!-- Router เท่านั้น: DHCP Server แจก IP อัตโนมัติ (ค่าตั้งต้นแบบ MikroTik: .10–.254) -->
+    <div id="cfgDhcpSrvWrap" class="hidden">
+      <button type="button" class="btn wide" id="cfgDhcpToggle" style="margin-top:12px">📡 DHCP Server (แจก IP อัตโนมัติ): ปิด</button>
+      <div id="cfgDhcpFields" class="hidden">
+        <label>ช่วง IP ที่แจก (Pool) — เลขท้ายของวงนี้</label>
+        <div class="rng"><span class="to">จาก</span><span class="pfx cfgPfx">192.168.1.</span><input class="full" id="cfgDhcpFrom" type="text" inputmode="numeric" value="10" autocomplete="off"></div>
+        <div class="rng"><span class="to">ถึง</span><span class="pfx cfgPfx">192.168.1.</span><input class="full" id="cfgDhcpTo" type="text" inputmode="numeric" value="254" autocomplete="off"></div>
+        <label>DNS Server ที่แจกให้ (เว้นว่าง = ใช้ IP ของ Router เอง)</label>
+        <input class="full" id="cfgDhcpDns" type="text" value="" autocomplete="off" autocapitalize="off" spellcheck="false">
       </div>
     </div>
     <div id="cfgWifiWrap" class="hidden">
@@ -218,7 +237,7 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="js/engine.js?v=20261022"></script>
+<script src="js/engine.js?v=20261022b"></script>
 <script>
 (function(){
   var E = window.NetSimEngine;
@@ -467,6 +486,7 @@
     var wifiOnly = E.canHaveWifi(n.type) && !isRouter;
     document.getElementById('cfgIpWrap').classList.toggle('hidden', wifiOnly);
     document.getElementById('cfgWifiWrap').classList.toggle('hidden', !(wifiOnly || isRouter));
+    document.getElementById('cfgDhcpSrvWrap').classList.toggle('hidden', !isRouter);   // AP ไม่มีส่วน DHCP
     if (wifiOnly || isRouter){
       document.getElementById('cfgWifi').value = n.wifi || '';
       refreshPw(n.wifi || '');
@@ -485,9 +505,50 @@
     var httpWrap = document.getElementById('cfgHttpWrap');
     if (n.type === 'server'){ httpWrap.classList.remove('hidden'); document.getElementById('cfgHttp').value = String(n.http || 200); }
     else httpWrap.classList.add('hidden');
+    /* DHCP: PC/Server เลือก ตั้งเอง/รับอัตโนมัติ · Router มีสวิตช์ DHCP Server + ช่วงแจก */
+    var canAuto = E.canDhcpClient(n.type);
+    document.getElementById('cfgModeWrap').classList.toggle('hidden', !canAuto);
+    setCfgMode(canAuto && n.ipmode === 'dhcp' ? 'dhcp' : 'static');
+    document.getElementById('cfgDhcpSrvWrap').classList.toggle('hidden', !isRouter);
+    if (isRouter){
+      var dc = E.getDhcp(id);
+      document.getElementById('cfgDhcpFrom').value = dc ? dc.from : 10;
+      document.getElementById('cfgDhcpTo').value   = dc ? dc.to : 254;
+      document.getElementById('cfgDhcpDns').value  = dc ? dc.dns : '';
+      setDhcpOn(!!(dc && dc.on));
+      refreshPfx();
+    }
     overlay.classList.add('show');
-    setTimeout(function(){ cfgIp.focus(); cfgIp.setSelectionRange(cfgIp.value.length, cfgIp.value.length); }, 50);
+    if (cfgMode === 'static') setTimeout(function(){ cfgIp.focus(); cfgIp.setSelectionRange(cfgIp.value.length, cfgIp.value.length); }, 50);
   }
+
+  /* ---- โหมด DHCP ในหน้าตั้งค่า ---- */
+  var cfgMode = 'static', dhcpOn = false;
+  function setCfgMode(m){      // PC/Server: static = กรอกเอง · dhcp = ขอ IP จาก DHCP Server
+    cfgMode = m;
+    document.getElementById('cfgModeStatic').classList.toggle('on', m === 'static');
+    document.getElementById('cfgModeDhcp').classList.toggle('on', m === 'dhcp');
+    document.getElementById('cfgStaticWrap').classList.toggle('hidden', m === 'dhcp');
+    document.getElementById('cfgDhcpNote').classList.toggle('hidden', m !== 'dhcp');
+    cfgErr.textContent = '';
+  }
+  document.getElementById('cfgModeStatic').addEventListener('click', function(){ setCfgMode('static'); });
+  document.getElementById('cfgModeDhcp').addEventListener('click', function(){ setCfgMode('dhcp'); });
+  function setDhcpOn(v){       // Router: เปิด/ปิด DHCP Server
+    dhcpOn = v;
+    var t = document.getElementById('cfgDhcpToggle');
+    t.classList.toggle('on', v);
+    t.textContent = '📡 DHCP Server (แจก IP อัตโนมัติ): ' + (v ? 'เปิด ✓' : 'ปิด');
+    document.getElementById('cfgDhcpFields').classList.toggle('hidden', !v);
+  }
+  document.getElementById('cfgDhcpToggle').addEventListener('click', function(){ cfgErr.textContent = ''; setDhcpOn(!dhcpOn); });
+  function refreshPfx(){       // คำนำหน้าวง (3 ชุดแรกของ IP router) หน้าช่องเลขท้าย
+    var m = /^(\d+\.\d+\.\d+)\./.exec(cfgIp.value.trim());
+    var pfx = m ? m[1] + '.' : '?.?.?.';
+    var ss = document.querySelectorAll('.cfgPfx');
+    for (var i = 0; i < ss.length; i++) ss[i].textContent = pfx;
+  }
+  cfgIp.addEventListener('input', refreshPfx);
   document.getElementById('cfgCancel').addEventListener('click', function(){ overlay.classList.remove('show'); });
   overlay.addEventListener('click', function(e){ if (e.target===overlay) overlay.classList.remove('show'); });
   document.getElementById('cfgSave').addEventListener('click', function(){
@@ -505,18 +566,45 @@
         return;
       }
     }
+    var isServer = !document.getElementById('cfgHttpWrap').classList.contains('hidden');
+    // PC/Server เลือก "รับอัตโนมัติ (DHCP)" → ขอ IP ทันที (ไม่ต้องกรอก/ตรวจ IP)
+    if (cfgMode === 'dhcp' && !document.getElementById('cfgModeWrap').classList.contains('hidden')){
+      if (isServer) E.setNodeHttp(cfgId, document.getElementById('cfgHttp').value);
+      var rq = E.requestDhcp(cfgId);
+      overlay.classList.remove('show');
+      dhcpToast(cfgId, rq);
+      refreshTerm();
+      return;
+    }
     var ip = cfgIp.value.trim(), gw = cfgGw.value.trim();
     var err = E.ipError(ip);
     if (err){ cfgErr.textContent = '❌ ' + err; return; }
     var conflict = E.ipConflict(cfgId, ip);
     if (conflict){ cfgErr.textContent = '❌ IP ซ้ำกับ ' + conflict + ' (ในวงเดียวกันห้ามซ้ำ)'; return; }
+    // router + DHCP Server: ตรวจช่วงแจกก่อนบันทึกอะไรทั้งสิ้น
+    var dhcpCfg = null, isRouterDlg = !document.getElementById('cfgDhcpSrvWrap').classList.contains('hidden');
+    if (isRouterDlg){
+      var old = E.getDhcp(cfgId);
+      if (dhcpOn){
+        var fr = document.getElementById('cfgDhcpFrom').value.trim(), to = document.getElementById('cfgDhcpTo').value.trim();
+        var dns = document.getElementById('cfgDhcpDns').value.trim() || ip;   // เว้นว่าง = IP ของ router (ค่าตั้งต้นแบบ MikroTik)
+        if (!/^\d+$/.test(fr) || !/^\d+$/.test(to) || +fr < 1 || +fr > 254 || +to < 1 || +to > 254){ cfgErr.textContent = '❌ ช่วงที่แจกต้องเป็นเลขท้าย 1–254'; return; }
+        if (+fr > +to){ cfgErr.textContent = '❌ เลขเริ่มต้องไม่มากกว่าเลขสุดท้าย'; return; }
+        var derr = E.ipError(dns);
+        if (derr){ cfgErr.textContent = '❌ DNS Server: ' + derr; return; }
+        dhcpCfg = { on: true, from: +fr, to: +to, dns: dns };
+      } else if (old){
+        dhcpCfg = { on: false, from: old.from, to: old.to, dns: old.dns };   // ปิดแต่เก็บค่าช่วงเดิมไว้ เปิดใหม่ไม่ต้องกรอก
+      }
+    }
     // router: ผ่าน validate ครบแล้วค่อยบันทึก Wi-Fi พร้อมกัน (กันเคสกรอก IP ผิดแล้วรหัสถูกเขียนไปก่อน)
     if (wifiShown && ipShown) E.setNodeWifi(cfgId, pass);
-    var isServer = !document.getElementById('cfgHttpWrap').classList.contains('hidden');
     var http = isServer ? document.getElementById('cfgHttp').value : undefined;
     E.setNodeIP(cfgId, ip, gw, http);
+    if (dhcpCfg) E.setNodeDhcp(cfgId, dhcpCfg);
     overlay.classList.remove('show');
-    showToast('ตั้ง IP ' + cfgId + ' = ' + ip + (isServer ? ' · HTTP ' + http : ''), 'ok');
+    showToast('ตั้ง IP ' + cfgId + ' = ' + ip + (isServer ? ' · HTTP ' + http : '') +
+      (dhcpCfg && dhcpCfg.on ? ' · DHCP แจก ' + dhcpCfg.from + '–' + dhcpCfg.to : ''), 'ok');
     refreshTerm();
   });
 
@@ -617,15 +705,21 @@
     var srcId = srcSel.value;
     if (!srcId){ termPrint('ยังไม่มีเครื่อง PC/Server — วางก่อนนะ', 'bad'); return; }
     termPrint((srcId) + '> ' + raw, 'cmd');
-    var p = raw.split(/\s+/), cmd = p[0].toLowerCase();
+    var p = raw.split(/\s+/);
+    if (p.length > 1 && p[0].toLowerCase() === 'sudo') p.shift();   // sudo นำหน้า (แบบ Ubuntu) = ข้ามไป ใช้คำสั่งที่ตามหลัง
+    var cmd = p[0].toLowerCase();
     if (cmd === 'ipconfig'){
-      var n = E.getNode(srcId);
-      termPrint('IPv4 Address . . : ' + (n.ip || '(ยังไม่ตั้ง)'));
-      termPrint('Subnet Mask  . . : ' + (n.ip ? E.mask : '-'));
-      termPrint('Default Gateway  : ' + (n.gw || '(ยังไม่ตั้ง)'));
+      var ia = (p[1] || '').toLowerCase();
+      if (ia === '/all') doIpconfigAll(srcId);
+      else if (ia === '/renew') doRenew(srcId);
+      else if (ia === '/release') doRelease(srcId);
+      else ipBlock(E.getNode(srcId));
       return;
     }
+    if (cmd === 'ip'){ doIp(srcId, p.slice(1)); return; }
+    if (cmd === 'dhclient'){ doDhclient(srcId, p.slice(1)); return; }
     if (cmd === 'ping'){
+      if (p[1] && /^-c\d*$/i.test(p[1])){ doPingC(srcId, p); return; }   // ping -c N (แบบ Ubuntu)
       if (!p[1]){ termPrint('ใช้: ping <IP> เช่น ping 192.168.1.20', 'th'); return; }
       doPing(srcId, p[1]);
       return;
@@ -635,12 +729,167 @@
       doHttp(srcId, p[1]);
       return;
     }
-    if (cmd === 'tracert' || cmd === 'traceroute'){
+    if (cmd === 'tracert'){
       if (!p[1]){ termPrint('ใช้: tracert <IP หรือชื่อเว็บ> เช่น tracert 8.8.8.8', 'th'); return; }
       doTracert(srcId, p[1]);
       return;
     }
-    termPrint("'" + cmd + "' ไม่ใช่คำสั่งที่รองรับ — ใช้ได้: ping, ipconfig, http, tracert", 'th');
+    if (cmd === 'traceroute'){
+      if (!p[1]){ termPrint('ใช้: traceroute <IP หรือชื่อเว็บ> เช่น traceroute 8.8.8.8', 'th'); return; }
+      doTraceroute(srcId, p[1]);
+      return;
+    }
+    termPrint("'" + cmd + "' ไม่ใช่คำสั่งที่รองรับ — ใช้ได้: ping, ipconfig, http, tracert · แบบ Ubuntu: ip, traceroute, dhclient", 'th');
+  }
+
+  /* ===== ipconfig (Windows) — ปกติ / /all / /renew / /release ===== */
+  function ipBlock(n){   // 3 บรรทัดเดิมของ ipconfig
+    termPrint('IPv4 Address . . : ' + (n.ip || '(ยังไม่ตั้ง)'));
+    termPrint('Subnet Mask  . . : ' + (n.ip ? E.mask : '-'));
+    termPrint('Default Gateway  : ' + (n.gw || '(ยังไม่ตั้ง)'));
+  }
+  function isLL(ip){ return /^169\.254\./.test(ip || ''); }   // 169.254.x.y = ขอ DHCP ไม่ได้
+  function doIpconfigAll(srcId){
+    var n = E.getNode(srcId), dh = (n.ipmode === 'dhcp'), L = E.leaseOf(srcId), ll = isLL(n.ip);
+    termPrint('Ethernet adapter Ethernet:');
+    termPrint('Physical Address . . : ' + E.macOf(srcId).toUpperCase().replace(/:/g, '-'));
+    termPrint('DHCP Enabled . . . . : ' + (dh ? 'Yes' : 'No'));
+    termPrint((ll ? 'Autoconfiguration IPv4 : ' : 'IPv4 Address . . : ') + (n.ip || '(ยังไม่ตั้ง)'));
+    termPrint('Subnet Mask  . . : ' + (n.ip ? (ll ? '255.255.0.0' : E.mask) : '-'));
+    termPrint('Default Gateway  : ' + (n.gw || '(ยังไม่ตั้ง)'));
+    if (L) termPrint('DHCP Server . . . : ' + (L.serverIp || '-'));
+    if (n.dns) termPrint('DNS Servers . . . : ' + n.dns);
+  }
+  function dhcpToast(id, r){
+    // ไม่บอกว่าใครแจก — ให้เด็กไปดู ipconfig /all (DHCP Server) เองตอนสืบว่าใครตอบ
+    if (r.ok) showToast('ตั้ง IP ' + id + ' = ' + r.ip + ' (DHCP)', 'ok');
+    else showToast('⚠️ ' + id + ' ขอ IP อัตโนมัติไม่ได้ — ได้ ' + r.ip + ' แทน', 'bad');
+  }
+  var NO_ADAPTER = 'The operation failed as no adapter is in the state permissible for this operation.';
+  function doRenew(srcId){
+    var n = E.getNode(srcId);
+    if (n.ipmode !== 'dhcp' || !E.canDhcpClient(n.type)){ termPrint(NO_ADAPTER, 'bad'); return; }
+    var r = E.requestDhcp(srcId);
+    if (r.ok){ termPrint('Ethernet adapter Ethernet:'); ipBlock(E.getNode(srcId)); }
+    else termPrint('An error occurred while renewing interface Ethernet : unable to contact your DHCP server. Request has timed out.', 'bad');
+    dhcpToast(srcId, r);
+  }
+  function doRelease(srcId){
+    var n = E.getNode(srcId);
+    if (n.ipmode !== 'dhcp' || !E.canDhcpClient(n.type)){ termPrint(NO_ADAPTER, 'bad'); return; }
+    E.releaseDhcp(srcId);
+    termPrint('Ethernet adapter Ethernet:'); ipBlock(E.getNode(srcId));
+    showToast(srcId + ' คืน IP แล้ว', 'ok');
+  }
+
+  /* ===== คำสั่งแบบ Ubuntu: ip addr / ip route / ip neigh · dhclient · ping -c · traceroute ===== */
+  function doIp(srcId, a){
+    var args = a.filter(function(x){ return x.charAt(0) !== '-'; });   // ตัด option เช่น -4 / -br
+    var obj = (args[0] || '').toLowerCase();
+    if (!obj){ termPrint('Usage: ip [ OPTIONS ] OBJECT { COMMAND | help }  — ลอง: ip a · ip route · ip neigh', 'th'); return; }
+    if (obj === 'a' || obj === 'addr' || obj === 'address') return doIpAddr(srcId);
+    if (obj === 'r' || obj === 'route') return doIpRoute(srcId);
+    if (obj === 'n' || obj === 'neigh' || obj === 'neighbor' || obj === 'neighbour') return doIpNeigh(srcId);
+    termPrint('Object "' + args[0] + '" is unknown, try "ip help". (สื่อนี้รองรับ: addr, route, neigh)', 'bad');
+  }
+  function doIpAddr(srcId){
+    var n = E.getNode(srcId), up = E.linkCount(srcId) > 0, ll = isLL(n.ip), dyn = (n.ipmode === 'dhcp' && !ll);
+    termPrint('1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1000');
+    termPrint('    inet 127.0.0.1/8 scope host lo');
+    termPrint('2: eth0: ' + (up ? '<BROADCAST,MULTICAST,UP,LOWER_UP>' : '<NO-CARRIER,BROADCAST,MULTICAST,UP>') +
+      ' mtu 1500 qdisc fq_codel state ' + (up ? 'UP' : 'DOWN') + ' group default qlen 1000');
+    termPrint('    link/ether ' + E.macOf(srcId) + ' brd ff:ff:ff:ff:ff:ff');
+    if (!n.ip) return;   // ยังไม่มี IP = ไม่มีบรรทัด inet
+    termPrint('    inet ' + n.ip + '/' + (ll ? 16 : 24) + ' brd ' + (ll ? '169.254.255.255' : n.ip.replace(/\.\d+$/, '.255')) +
+      ' scope ' + (ll ? 'link' : 'global') + (dyn ? ' dynamic' : '') + ' eth0');
+    if (dyn) termPrint('       valid_lft 86398sec preferred_lft 86398sec');
+  }
+  function doIpRoute(srcId){
+    var n = E.getNode(srcId), dh = (n.ipmode === 'dhcp');
+    if (!n.ip){ termPrint('(ว่าง — เครื่องนี้ยังไม่มี IP จึงยังไม่มีเส้นทาง)', 'th'); return; }
+    if (isLL(n.ip)){ termPrint('169.254.0.0/16 dev eth0 scope link metric 1000'); return; }
+    if (n.gw) termPrint('default via ' + n.gw + ' dev eth0' + (dh ? ' proto dhcp metric 100' : ''));
+    termPrint(n.ip.replace(/\.\d+$/, '.0') + '/24 dev eth0 proto kernel scope link src ' + n.ip + (dh ? ' metric 100' : ''));
+  }
+  function doIpNeigh(srcId){
+    var L = E.neighbors(srcId);
+    if (!L.length){ termPrint('(ว่าง — เครื่องนี้ยังไม่เคยคุยกับเครื่องไหนสำเร็จ)', 'th'); return; }
+    L.forEach(function(e){ termPrint(e.ip + ' dev eth0 lladdr ' + e.mac + ' REACHABLE'); });
+  }
+  function doDhclient(srcId, a){
+    var n = E.getNode(srcId);
+    if (!E.canDhcpClient(n.type)){ termPrint('dhclient: เครื่องชนิดนี้ไม่ใช้ DHCP client (ใช้ได้เฉพาะ PC / Server)', 'bad'); return; }
+    if (a.indexOf('-r') > -1){   // sudo dhclient -r = คืน IP
+      if (n.ipmode !== 'dhcp'){ termPrint('(ไม่มี lease ให้คืน — เครื่องนี้ตั้ง IP เอง)', 'th'); return; }
+      var had = E.leaseOf(srcId), oldIp = n.ip;
+      E.releaseDhcp(srcId);
+      if (had && oldIp) termPrint('DHCPRELEASE of ' + oldIp + ' on eth0 to ' + (had.serverIp || '-') + ' port 67');
+      showToast(srcId + ' คืน IP แล้ว', 'ok');
+      return;
+    }
+    var r = E.requestDhcp(srcId);
+    termPrint('DHCPDISCOVER on eth0 to 255.255.255.255 port 67 interval 3');
+    if (r.ok){
+      termPrint('DHCPOFFER of ' + r.ip + ' from ' + r.serverIp);
+      termPrint('DHCPREQUEST for ' + r.ip + ' on eth0 to 255.255.255.255 port 67');
+      termPrint('DHCPACK of ' + r.ip + ' from ' + r.serverIp);
+      termPrint('bound to ' + r.ip + ' -- renewal in 38000 seconds.', 'ok');
+    } else {
+      termPrint('DHCPDISCOVER on eth0 to 255.255.255.255 port 67 interval 7');
+      termPrint('No DHCPOFFERS received.', 'bad');
+      termPrint('No working leases in persistent database - sleeping.', 'bad');
+    }
+    dhcpToast(srcId, r);
+  }
+  // ping -c N <เป้า> · -cN · -c <เป้า> (ไม่ใส่เลข = 4) · เพดาน 10 ครั้ง
+  function doPingC(srcId, p){
+    var cnt = 4, i = 2, m = /^-c(\d*)$/i.exec(p[1]);
+    if (m[1] !== ''){ cnt = +m[1]; i = 2; }
+    else if (p[2] && p[3] && !/^\d+$/.test(p[2])){ termPrint('ping: invalid argument: \'' + p[2] + '\'', 'bad'); return; }
+    else if (p[2] && /^\d+$/.test(p[2])){ cnt = +p[2]; i = 3; }
+    if (cnt < 1){ termPrint('ping: invalid argument: \'' + cnt + '\'', 'bad'); return; }
+    if (!p[i]){ termPrint('ใช้: ping -c 4 <IP> เช่น ping -c 4 192.168.1.20', 'th'); return; }
+    if (cnt > 10){ cnt = 10; termPrint('(สื่อจำลองตอบสูงสุด 10 ครั้ง)', 'th'); }
+    doPing(srcId, p[i], cnt);
+  }
+  function routersOn(path){ return (path || []).filter(function(id){ return (E.getNode(id) || {}).type === 'router'; }).length; }
+  // รายงานผลแบบ Linux: N บรรทัด 64 bytes from ... + สรุป statistics + rtt
+  function linuxPingOut(ip, shown, cnt, baseMs, ttl){
+    var sum = 0, sq = 0, mn = 1e9, mx = 0, k;
+    for (k = 1; k <= cnt; k++){
+      var ms = baseMs + Math.random() * 0.6;
+      sum += ms; sq += ms * ms; if (ms < mn) mn = ms; if (ms > mx) mx = ms;
+      termPrint('64 bytes from ' + shown + ': icmp_seq=' + k + ' ttl=' + ttl + ' time=' + ms.toFixed(2) + ' ms', 'ok');
+    }
+    var avg = sum / cnt, mdev = Math.sqrt(Math.max(0, sq / cnt - avg * avg));
+    termPrint('--- ' + ip + ' ping statistics ---');
+    termPrint(cnt + ' packets transmitted, ' + cnt + ' received, 0% packet loss, time ' + ((cnt - 1) * 1001) + 'ms');
+    termPrint('rtt min/avg/max/mdev = ' + mn.toFixed(3) + '/' + avg.toFixed(3) + '/' + mx.toFixed(3) + '/' + mdev.toFixed(3) + ' ms');
+  }
+  // traceroute แบบ Linux — เส้นทางเดียวกับ tracert (engine.tracePath) แต่หน้าตา Ubuntu
+  function doTraceroute(srcId, host){
+    var r = E.tracePath(srcId, host);
+    if (!r.ok){
+      if (r.reason === 'badtarget'){ termPrint('traceroute: unknown host ' + host, 'bad'); return; }
+      termPrint('traceroute to ' + host + ' (' + host + '), 30 hops max, 60 byte packets');
+      termPrint(' 1  * * *', 'bad');
+      termPrint('✗ ไล่เส้นทางไม่ได้ — ' + (TRACE_MSG[r.reason] || 'ส่งไม่ถึงปลายทาง'), 'bad');
+      return;
+    }
+    var shown = (r.target && r.target.ip) ? r.target.ip : host, hopNo = 0;
+    function line(name, base){
+      hopNo++;
+      var t = []; for (var k = 0; k < 3; k++) t.push((base + Math.random() * 0.4).toFixed(3) + ' ms');
+      termPrint((hopNo < 10 ? ' ' : '') + hopNo + '  ' + name + '  ' + t.join('  '), 'ok');
+    }
+    termPrint('traceroute to ' + host + ' (' + shown + '), 30 hops max, 60 byte packets');
+    r.nodes.forEach(function(id, i){
+      if (i === 0) return;
+      var n = E.getNode(id) || {};
+      line(n.ip || id, 0.3 + i * 0.35);
+    });
+    if (r.kind === 'net' && r.target) line(r.target.ip, r.target.ms);
+    termPrint('📋 จดสมุด: ping บอกแค่ "ถึงหรือไม่ถึง" · traceroute บอกว่า "ไปตกที่ hop ไหน"', 'note');
   }
 
   /* tracert — เดินทีละ hop ให้เห็นว่าแพ็กเก็ตผ่านอุปกรณ์อะไรบ้าง (engine มี tracePath อยู่แล้ว) */
@@ -686,26 +935,38 @@
     } catch (e){}
   }
 
-  function doPing(srcId, ip){
+  function doPing(srcId, ip, lx){   // lx = จำนวนครั้งของ ping -c (แบบ Ubuntu) · ไม่ส่ง = แบบ Windows เดิมเป๊ะ
     var net = E.netTarget(ip);      // 8.8.8.8 / google.com … = ปลายทางนอกวง (ออกอินเทอร์เน็ต)
     var res;
     if (net){
       res = E.pingNet(srcId, ip, function(){
-        termPrint('ตอบกลับจาก ' + net.ip + ': เวลา ' + net.ms + 'ms TTL=' + net.ttl + ' (' + net.note + ')', 'ok');
+        if (lx){
+          linuxPingOut(ip, net.ip, lx, net.ms, net.ttl);
+        } else {
+          termPrint('ตอบกลับจาก ' + net.ip + ': เวลา ' + net.ms + 'ms TTL=' + net.ttl + ' (' + net.note + ')', 'ok');
+        }
         termPrint('📋 จดสมุด: ' + srcId + ' ping ' + ip + ' = ได้ — ออกอินเทอร์เน็ตผ่าน Router', 'note');
         showToast('✅ ออกเน็ตได้ (' + net.ms + 'ms)', 'ok');
       });
     } else {
       res = E.ping(srcId, ip, function(r, hops){
-        for (var k = 0; k < 3; k++){
-          var ms = 1 + Math.round(Math.random() * 3) + hops;
-          termPrint('ตอบกลับจาก ' + ip + ': ไบต์=32 เวลา=' + ms + 'ms TTL=' + (128 - hops), 'ok');
+        if (lx){
+          linuxPingOut(ip, ip, lx, 0.2 + hops * 0.15, 64 - routersOn(r.path));   // TTL ลดเฉพาะตอนผ่าน Router
+        } else {
+          for (var k = 0; k < 3; k++){
+            var ms = 1 + Math.round(Math.random() * 3) + hops;
+            termPrint('ตอบกลับจาก ' + ip + ': ไบต์=32 เวลา=' + ms + 'ms TTL=' + (128 - hops), 'ok');
+          }
         }
         termPrint('📋 จดสมุด: ' + srcId + ' ping ' + ip + ' = ได้ — ' + (r.sameNet ? 'วงเดียวกัน (subnet เดียวกัน)' : 'คนละวง ต้องผ่าน Router'), 'note');
         showToast('✅ ' + srcId + ' ส่งถึง ' + ip + ' แล้ว (' + hops + ' hop)', 'ok');
       });
     }
-    if (res.ok){ termPrint('กำลัง ping ' + ip + ' ...'); statusEl.textContent = '📦 กำลัง ping ' + ip + ' จาก ' + srcId + ' ...'; lookAtBoard(); return; }
+    if (res.ok){
+      if (lx) termPrint('PING ' + ip + ' (' + (net ? net.ip : ip) + ') 56(84) bytes of data.');
+      else termPrint('กำลัง ping ' + ip + ' ...');
+      statusEl.textContent = '📦 กำลัง ping ' + ip + ' จาก ' + srcId + ' ...'; lookAtBoard(); return;
+    }
     var MSG = {
       /* ⚠️ ข้อความพวกนี้บอก "อาการที่ตรวจพบ" เท่านั้น ห้ามบอกวิธีแก้เป็นขั้นตอน
        * (แก้ 29 ส.ค. 69 — ของเดิมบอกถึงขั้นให้ไปกดปุ่มไหน เด็กทำตามได้โดยไม่ต้องวิเคราะห์) */
@@ -723,7 +984,21 @@
       dns:      'ไม่รู้จักชื่อเว็บนี้ — สะกดถูกไหม'
     };
     var m = MSG[res.reason] || 'ส่งไม่ถึง';
-    termPrint('✗ Request timed out — ' + m, 'bad');
+    if (lx){   // Ubuntu: บรรทัด error แบบ Linux + อาการ (ไทย) ชุดเดียวกับ Windows — ไม่บอกวิธีแก้
+      var sn = E.getNode(srcId) || {}, rs = res.reason, st = true;
+      termPrint('PING ' + ip + ' (' + (net ? net.ip : ip) + ') 56(84) bytes of data.');
+      if (rs === 'badtarget' || rs === 'dns'){ termPrint('ping: ' + ip + ': Name or service not known', 'bad'); st = false; }
+      else if (rs === 'srcnoip' || rs === 'srcbad' || rs === 'nogw' || (rs === 'diffnet' && !sn.gw)){ termPrint('ping: connect: Network is unreachable', 'bad'); st = false; }
+      else if (rs === 'self'){ st = false; }
+      else if (rs !== 'firewall'){ termPrint('From ' + sn.ip + ' icmp_seq=1 Destination Host Unreachable', 'bad'); }
+      termPrint('✗ ' + m, 'bad');
+      if (st){
+        termPrint('--- ' + ip + ' ping statistics ---');
+        termPrint(lx + ' packets transmitted, 0 received, 100% packet loss, time ' + ((lx - 1) * 1001) + 'ms', 'bad');
+      }
+    } else {
+      termPrint('✗ Request timed out — ' + m, 'bad');
+    }
     showToast('⛔ ปิงไม่สำเร็จ: ' + m, 'bad');   // เด้งเด่นกลางจอ — กันครู/เด็กมองไม่เห็นใน Terminal
   }
 

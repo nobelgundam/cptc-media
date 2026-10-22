@@ -163,6 +163,7 @@ svg.cut-on .edge{stroke-dasharray:8 5;opacity:0.85;}
   font-family:'Consolas','Menlo',monospace;paint-order:stroke;stroke:#0d1a30;stroke-width:3px;}
 .node-lock{pointer-events:none;font-size:14px;}
 .node-fw{pointer-events:none;font-size:15px;}
+.node-dhcp{pointer-events:none;font-size:8px;font-weight:700;fill:#7fe0ff;font-family:inherit;paint-order:stroke;stroke:#0d1a30;stroke-width:2.5px;}
 .fw-toggle{display:grid;gap:9px;margin:10px 0 4px;}
 .fw-opt{display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left;
   padding:12px 14px;border:2px solid #26405f;border-radius:11px;background:#12243a;color:inherit;
@@ -200,10 +201,11 @@ svg.cut-on .edge{stroke-dasharray:8 5;opacity:0.85;}
 .term-in .btn.go{flex:0 0 auto;min-height:40px;padding:8px 14px;font-size:14px;}
 
 /* ===== overlay IP dialog ===== */
+/* overflow-y:auto + margin:auto — dialog สูงกว่าจอ (router มี IP+DHCP+Wi-Fi) เลื่อนดูได้ ไม่ถูกตัดหัว/ท้าย (ISSUES#1) */
 .overlay{position:fixed;inset:0;background:rgba(6,12,22,.72);display:none;align-items:center;justify-content:center;
-  z-index:90;padding:18px;-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);}
+  z-index:90;padding:18px;overflow-y:auto;-webkit-overflow-scrolling:touch;-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);}
 .overlay.show{display:flex;}
-.dialog{width:100%;max-width:340px;background:var(--panel);border:1px solid rgba(255,255,255,.14);
+.dialog{width:100%;max-width:340px;margin:auto;background:var(--panel);border:1px solid rgba(255,255,255,.14);
   border-radius:18px;padding:18px 18px 16px;box-shadow:0 18px 50px rgba(0,0,0,.5);}
 .dialog h3{margin:0 0 6px;font-size:16px;}
 .dialog .dlg-note{font-size:12px;color:var(--muted);margin:0 0 12px;line-height:1.55;}
@@ -213,6 +215,15 @@ svg.cut-on .edge{stroke-dasharray:8 5;opacity:0.85;}
 .dialog input[readonly]{opacity:.6;}
 .dlg-err{color:#ff8a98;font-size:12.5px;font-weight:600;min-height:18px;margin:9px 0 2px;line-height:1.4;}
 .dlg-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:6px;}
+/* ตั้ง IP: เลือก ตั้งเอง/DHCP · ช่วงแจก DHCP ของ router */
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:2px 0 10px;}
+.seg .btn{flex-direction:column;gap:0;line-height:1.25;padding:8px 6px;}
+.seg .btn small{font-size:11px;font-weight:600;opacity:.8;}
+#cfgDhcpSrvWrap{margin-bottom:12px;}
+.rng{display:flex;align-items:center;gap:6px;margin:4px 0;}
+.rng .to{flex:0 0 32px;font-size:12px;color:var(--muted);font-weight:600;}
+.rng .pfx{font-family:'Consolas','Menlo',monospace;font-size:14px;color:#9affd6;}
+.dialog .rng input.full{width:70px;flex:0 0 70px;}
 
 /* ===== มือถือแคบ ===== */
 @media(max-width:560px){

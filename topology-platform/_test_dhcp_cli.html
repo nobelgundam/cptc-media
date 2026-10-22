@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="th">
+<head><meta charset="UTF-8"><title>dhcp + cli test</title></head>
+<body>
+<script>try { localStorage.clear(); localStorage.setItem('netsim_builder_no', '7'); } catch (e) {}</script>
+<iframe id="fr" src="builder.html" style="width:420px;height:900px;border:1px solid #ccc"></iframe>
+<pre id="out">running…</pre>
+<script>
+/* DHCP (router แจก IP) + คำสั่ง Ubuntu ใน Terminal — รูปแบบเดียวกับ _test_engine.html: ok(name,cond) → document.title = RESULT pass=N fail=M
+ * ใช้ iframe builder.html (เหมือน _test_builder_flow) เพราะคำสั่ง Terminal อยู่ใน builder · ส่วน engine เรียก NetSimEngine ของ iframe ตรง ๆ */
+var log = [], pass = 0, fail = 0;
+function ok(name, cond, extra){ (cond ? pass++ : fail++); log.push((cond ? 'PASS ' : 'FAIL ') + name + (extra ? ' | ' + extra : '')); }
+function done(){
+  try { localStorage.clear(); } catch (e) {}
+  document.getElementById('out').textContent = log.join('\n') + '\nRESULT pass=' + pass + ' fail=' + fail;
+  document.title = 'RESULT pass=' + pass + ' fail=' + fail;
+}
+
+var fr = document.getElementById('fr'), w, d, E, termOut, srcSel;
+function U(a, b){ return { id: a + '-' + b, a: a, b: b, media: 'utp' }; }
+function load(nodes, edges){ E.loadState({ nodes: nodes, edges: edges }); }
+function N(id, type, ip, extra){
+  var n = { id: id, type: type, x: 60 + (N.k = (N.k || 0) + 1) * 14, y: 80 + (N.k % 7) * 30 };
+  if (ip) n.ip = ip;
+  if (extra) for (var k in extra) n[k] = extra[k];
+  return n;
+}
+var DH = { on: true, from: 10, to: 254, dns: '' };
+function net3(ip){ return ip.split('.').slice(0, 3).join('.'); }
+function lines(base){ var a = []; for (var i = base; i < termOut.children.length; i++) a.push(termOut.children[i].textContent); return a; }
+function has(L, s){ return L.some(function(l){ return l.indexOf(s) > -1; }); }
+function count(L, s){ return L.filter(function(l){ return l.indexOf(s) > -1; }).length; }
+function cmd(id, text){          // พิมพ์คำสั่งลง Terminal ของ builder เหมือนเด็กกดรัน · คืนบรรทัดที่เพิ่มมา
+  var base = termOut.children.length;
+  srcSel.value = id;
+  d.getElementById('cmd').value = text;
+  d.getElementById('runBtn').click();
+  return { base: base, now: function(){ return lines(base); } };
+}
+function badges(){ return d.querySelectorAll('#canvas .node-dhcp').length; }
+function ipLabel(id){ var g = d.querySelector('#canvas .node[data-id="' + id + '"] .node-ip'); return g ? g.textContent : null; }
+
+fr.addEventListener('load', function(){
+  w = fr.contentWindow; d = fr.contentDocument; E = w.NetSimEngine;
+  termOut = d.getElementById('termOut'); srcSel = d.getElementById('srcSel');
+  var steps = [];
+  function step(fn){ steps.push(fn); }
+
+  /* ================= A) engine: DHCP ================= */
+  step(function(){
+    /* A1 ได้ lease จาก router: ช่วง .10 ขึ้นไป · ip/gw/dns/lease ครบ */
+    load([ N('R1','router','192.168.1.1',{dhcp:DH}), N('SW1','switch'), N('PC1','pc'), N('PC2','pc'), N('PC3','pc'), N('SRV1','server') ],
+         [ U('R1','SW1'), U('SW1','PC1'), U('SW1','PC2'), U('SW1','PC3'), U('SW1','SRV1') ]);
+    var r1 = E.requestDhcp('PC1'), g1 = E.getNode('PC1');
+    ok('A1 ได้ lease จาก router: ip=.10 gw=IP router', r1.ok && r1.ip === '192.168.1.10' && g1.ip === '192.168.1.10' && g1.gw === '192.168.1.1', JSON.stringify(r1));
+    ok('A1b lease.server=R1 · ipmode=dhcp · dns ค่าตั้งต้น=IP router', (E.leaseOf('PC1') || {}).server === 'R1' && g1.ipmode === 'dhcp' && g1.dns === '192.168.1.1', JSON.stringify(E.leaseOf('PC1')) + ' dns=' + g1.dns);
+    ok('A1c ipconfig /all จะเห็น DHCP Server: leaseOf.serverIp=IP router', (E.leaseOf('PC1') || {}).serverIp === '192.168.1.1');
+    var r2 = E.requestDhcp('PC2'), r3 = E.requestDhcp('SRV1');
+    ok('A2 เครื่องถัดไปได้ตัวว่างตัวแรก (.11 แล้ว .12 · Server รับได้เหมือน PC)', r2.ip === '192.168.1.11' && r3.ip === '192.168.1.12', r2.ip + ',' + r3.ip);
+    var again = E.requestDhcp('PC1');
+    ok('A3 renew ซ้ำได้ IP เดิม (ไม่เด้ง)', again.ok && again.ip === '192.168.1.10', again.ip);
+    ok('A4 ได้ IP แล้วใช้ ping กันได้จริง (PC1→PC2)', E.canPing('PC1', '192.168.1.11').ok);
+    ok('A4b IP ที่แจกไม่ซ้ำกันและไม่ใช่ .0/.255/IP router', !E.ipError(r1.ip) && !E.ipConflict('PC1', r1.ip) && !E.ipConflict('PC2', r2.ip));
+    /* คืน IP ของ PC1 (.10) → renew ของ PC3 ได้ .10 (ตัวว่างตัวแรก) แต่ PC2 renew ยังถือ .11 */
+    E.releaseDhcp('PC1');
+    var r4 = E.requestDhcp('PC3');
+    ok('A5 IP ที่คืนแล้วถูกแจกต่อเป็นตัวว่างตัวแรก', r4.ip === '192.168.1.10' && E.requestDhcp('PC2').ip === '192.168.1.11', r4.ip);
+  });
+
+  step(function(){
+    /* B) ไม่มี server ถึง → 169.254.x.y คงที่ ไม่มี gw */
+    load([ N('SW1','switch'), N('PC1','pc'), N('PC2','pc') ], [ U('SW1','PC1'), U('SW1','PC2') ]);
+    var b1 = E.requestDhcp('PC1'), b2 = E.requestDhcp('PC1'), g = E.getNode('PC1');
+    ok('B1 ไม่มี router เลย → 169.254.x.y ไม่มี gw', !b1.ok && b1.reason === 'noserver' && /^169\.254\.\d+\.\d+$/.test(g.ip) && g.gw === '', g.ip + ' gw=[' + g.gw + ']');
+    ok('B1b 169.254 คงที่ตาม id (ขอซ้ำได้เลขเดิม) และไม่มี lease', b2.ip === b1.ip && E.leaseOf('PC1') === null);
+    E.requestDhcp('PC2');
+    ok('B1c สองเครื่องที่ขอไม่ได้ ได้ 169.254 ทั้งคู่ และ ping กันเองได้ (link-local /16)', E.getNode('PC2').ip.indexOf('169.254.') === 0 && E.canPing('PC1', E.getNode('PC2').ip).ok, E.getNode('PC1').ip + ' / ' + E.getNode('PC2').ip);
+
+    load([ N('SW1','switch'), N('R1','router','192.168.1.1',{dhcp:{on:false,from:10,to:254,dns:''}}), N('PC1','pc') ], [ U('SW1','R1'), U('SW1','PC1') ]);
+    ok('B2 router ปิด DHCP → 169.254', E.requestDhcp('PC1').reason === 'noserver' && E.getNode('PC1').ip.indexOf('169.254.') === 0);
+
+    load([ N('SW1','switch'), N('R1','router','192.168.1.1',{dhcp:DH}), N('PC1','pc') ], [ U('SW1','PC1') ]);
+    ok('B3 router เปิด DHCP แต่ไม่ได้ต่อสาย → 169.254', E.requestDhcp('PC1').reason === 'noserver');
+
+    load([ N('PC1','pc'), N('PC2','pc'), N('R1','router','192.168.1.1',{dhcp:DH}) ], [ U('PC1','PC2'), U('PC2','R1') ]);
+    ok('B4 server อยู่หลัง PC อีกเครื่อง (ไม่ทะลุ PC) → 169.254', E.requestDhcp('PC1').reason === 'noserver');
+
+    load([ N('PC1','pc'), N('R2','router','10.0.0.1',{dhcp:{on:false,from:10,to:254,dns:''}}), N('SW1','switch'), N('R1','router','192.168.1.1',{dhcp:DH}) ],
+         [ U('PC1','R2'), U('R2','SW1'), U('SW1','R1') ]);
+    ok('B5 server อยู่หลัง router อื่น (ไม่ทะลุ router) → 169.254', E.requestDhcp('PC1').reason === 'noserver');
+
+    load([ N('SW1','switch'), N('R1','router','',{dhcp:DH}), N('PC1','pc') ], [ U('SW1','R1'), U('SW1','PC1') ]);
+    ok('B6 router เปิด DHCP แต่ยังไม่ตั้ง IP ตัวเอง → 169.254', E.requestDhcp('PC1').reason === 'noserver');
+
+    load([ N('SW1','switch'), N('AP1','ap'), N('R1','router','192.168.1.1',{dhcp:DH}), N('PC1','pc') ],
+         [ U('R1','SW1'), U('SW1','AP1'), { id:'w1', a:'AP1', b:'PC1', media:'wireless' } ]);
+    ok('B7 ผ่าน switch + AP + ไร้สายถึง server ได้', E.requestDhcp('PC1').ok && E.getNode('PC1').ip === '192.168.1.10');
+
+    load([ N('R1','router','192.168.1.1',{dhcp:DH}), N('PC1','pc') ], [ U('R1','PC1') ]);
+    ok('B7b ต่อสายตรงเข้า router ได้เหมือนกัน', E.requestDhcp('PC1').ok);
+
+    /* ช่วงเต็ม / ช่วงเพี้ยน */
+    load([ N('R1','router','192.168.1.1',{dhcp:{on:true,from:100,to:101,dns:''}}), N('SW1','switch'), N('PC1','pc'), N('PC2','pc'), N('PC3','pc') ],
+         [ U('R1','SW1'), U('SW1','PC1'), U('SW1','PC2'), U('SW1','PC3') ]);
+    var f1 = E.requestDhcp('PC1'), f2 = E.requestDhcp('PC2'), f3 = E.requestDhcp('PC3');
+    ok('B8 ช่วง 100–101 แจกได้ 2 ตัวตามลำดับ', f1.ip === '192.168.1.100' && f2.ip === '192.168.1.101', f1.ip + ',' + f2.ip);
+    ok('B8b ช่วงเต็ม → ตัวที่ 3 ได้ 169.254', !f3.ok && f3.reason === 'full' && E.getNode('PC3').ip.indexOf('169.254.') === 0, f3.reason + ' ' + E.getNode('PC3').ip);
+    load([ N('R1','router','192.168.1.1',{dhcp:{on:true,from:'abc',to:999,dns:''}}), N('PC1','pc') ], [ U('R1','PC1') ]);
+    ok('B9 ค่าช่วงเพี้ยนจากไฟล์ → ใช้ค่าตั้งต้น 10–254 (ไม่พัง)', E.requestDhcp('PC1').ip === '192.168.1.10');
+    load([ N('R1','router','192.168.1.1',{dhcp:{on:true,from:20,to:10,dns:''}}), N('PC1','pc') ], [ U('R1','PC1') ]);
+    ok('B9b ช่วงกลับด้าน (20>10) = ไม่มี IP ว่าง → 169.254', E.requestDhcp('PC1').reason === 'full');
+  });
+
+  step(function(){
+    /* C) ตัวใกล้สุดชนะ · เสมอ = ตัวแรกใน state · ข้าม IP ที่ใช้อยู่ */
+    var R1 = function(){ return N('R1','router','192.168.1.1',{dhcp:DH}); }, R2 = function(){ return N('R2','router','192.168.9.1',{dhcp:DH}); };
+    load([ R2(), N('SW2','switch'), R1(), N('SW1','switch'), N('PC1','pc') ], [ U('R1','SW1'), U('SW1','PC1'), U('SW1','SW2'), U('SW2','R2') ]);
+    var c1 = E.requestDhcp('PC1');
+    ok('C1 ใกล้สุดชนะ แม้อีกตัวอยู่ก่อนใน state (R1 = 2 hop, R2 = 3 hop)', c1.ok && c1.server === 'R1' && net3(c1.ip) === '192.168.1', c1.server + ' ' + c1.ip);
+
+    load([ R2(), R1(), N('SW1','switch'), N('PC1','pc') ], [ U('R1','SW1'), U('R2','SW1'), U('SW1','PC1') ]);
+    var c2 = E.requestDhcp('PC1');
+    ok('C2 ระยะเท่ากัน → ตัวแรกใน state (R2) ชนะ', c2.server === 'R2' && net3(c2.ip) === '192.168.9', c2.server + ' ' + c2.ip);
+    load([ R1(), R2(), N('SW1','switch'), N('PC1','pc') ], [ U('R1','SW1'), U('R2','SW1'), U('SW1','PC1') ]);
+    ok('C2b สลับลำดับใน state → R1 ชนะ (ยืนยันว่าตัดสินที่ลำดับจริง)', E.requestDhcp('PC1').server === 'R1');
+    ok('C2c ชนะเงียบ ๆ: ไม่มีข้อความเตือนใน toast/Terminal ว่ามี DHCP ซ้อน', !has(lines(0), 'DHCP ซ้อน') && !has(lines(0), 'ซ้ำ'));
+
+    /* ข้าม IP ที่เครื่อง static / lease อื่นใช้ */
+    load([ R1(), N('SW1','switch'), N('PC8','pc','192.168.1.10'), N('PC9','pc','192.168.1.11'), N('PC1','pc'), N('PC2','pc') ],
+         [ U('R1','SW1'), U('SW1','PC8'), U('SW1','PC9'), U('SW1','PC1'), U('SW1','PC2') ]);
+    var c3 = E.requestDhcp('PC1'), c4 = E.requestDhcp('PC2');
+    ok('C3 ข้าม IP ที่เครื่อง static ใช้ (.10 .11) → .12', c3.ip === '192.168.1.12', c3.ip);
+    ok('C3b ข้าม IP ที่ lease อื่นถืออยู่ → .13', c4.ip === '192.168.1.13', c4.ip);
+    load([ N('R1','router','192.168.1.10',{dhcp:{on:true,from:10,to:12,dns:''}}), N('PC1','pc') ], [ U('R1','PC1') ]);
+    ok('C4 ข้าม IP ของ router เอง (router=.10 ช่วง 10–12 → ได้ .11)', E.requestDhcp('PC1').ip === '192.168.1.11');
+
+    /* ตัวใกล้สุดเต็ม → ตัวถัดไปแจกแทน (ข้อตัดสินใจของผู้ทำ) */
+    load([ N('R1','router','192.168.1.1',{dhcp:{on:true,from:10,to:10,dns:''}}), R2(), N('SW1','switch'), N('SW2','switch'), N('PC9','pc','192.168.1.10'), N('PC1','pc') ],
+         [ U('R1','SW1'), U('SW1','PC1'), U('SW1','SW2'), U('SW2','R2'), U('SW1','PC9') ]);
+    var c5 = E.requestDhcp('PC1');
+    ok('C5 ตัวใกล้สุดช่วงเต็ม → ตัวถัดไปที่ยังว่างแจกแทน', c5.ok && c5.server === 'R2', c5.server + ' ' + c5.ip);
+  });
+
+  step(function(){
+    /* D) ย้ายสาย: lease เดิมค้างจน renew · ไฟล์ผัง (export→load) พา lease ไปด้วย */
+    var nodes = [ N('R1','router','192.168.1.1',{dhcp:DH}), N('R2','router','192.168.2.1',{dhcp:DH}), N('SW1','switch'), N('SW2','switch'), N('PC1','pc') ];
+    load(nodes, [ U('R1','SW1'), U('R2','SW2'), U('SW1','PC1') ]);
+    var d1 = E.requestDhcp('PC1');
+    ok('D1 ก่อนย้าย: ได้ 192.168.1.10 จาก R1', d1.ip === '192.168.1.10' && d1.server === 'R1');
+    var st = JSON.parse(E.exportState());
+    ok('D2 ข้อมูล lease อยู่ใน node (เซฟอัตโนมัติ/ไฟล์ผังพาไปด้วย)', st.nodes.filter(function(n){ return n.id === 'PC1'; })[0].lease.server === 'R1' && st.nodes.filter(function(n){ return n.id === 'R1'; })[0].dhcp.on === true);
+    st.edges = [ U('R1','SW1'), U('R2','SW2'), U('SW2','PC1') ];     // ย้ายสาย PC1 จาก SW1 ไป SW2
+    E.loadState(st);
+    var m = E.getNode('PC1');
+    ok('D3 ย้ายสายแล้ว lease เดิมค้าง (ยังเป็น 192.168.1.10 / R1)', m.ip === '192.168.1.10' && (E.leaseOf('PC1') || {}).server === 'R1', m.ip);
+    var d4 = E.requestDhcp('PC1');
+    ok('D4 renew หลังย้ายสาย → 192.168.2.10 จาก R2', d4.ok && d4.ip === '192.168.2.10' && d4.server === 'R2' && E.getNode('PC1').gw === '192.168.2.1', d4.ip + ' ' + d4.server);
+
+    /* E) release */
+    var e1 = E.releaseDhcp('PC1'), g = E.getNode('PC1');
+    ok('E1 release: ip/gw ว่าง · lease หาย · ยังอยู่โหมด DHCP', e1.ok && g.ip === '' && g.gw === '' && g.dns === '' && E.leaseOf('PC1') === null && g.ipmode === 'dhcp');
+    ok('E2 release เครื่อง static → ไม่ทำอะไร (reason=static)', (function(){ E.setNodeIP('PC1','192.168.2.50',''); var r = E.releaseDhcp('PC1'); return !r.ok && r.reason === 'static' && E.getNode('PC1').ip === '192.168.2.50'; })());
+    ok('E3 setNodeIP (ตั้งเอง) ล้าง ipmode/lease/dns', E.getNode('PC1').ipmode === 'static' && E.leaseOf('PC1') === null && !JSON.parse(E.exportState()).nodes.filter(function(n){ return n.id === 'PC1'; })[0].lease);
+    ok('E4 PC เป็น client ได้ · switch/router ไม่ใช่', E.canDhcpClient('pc') && E.canDhcpClient('server') && !E.canDhcpClient('router') && !E.canDhcpClient('switch') && E.requestDhcp('R1').reason === 'notclient');
+    E.setNodeDhcp('R1', { on: true, from: 50, to: 60, dns: '8.8.8.8' });
+    var gd = E.getDhcp('R1');
+    ok('E5 setNodeDhcp/getDhcp เก็บ {on,from,to,dns}', gd.on === true && gd.from === 50 && gd.to === 60 && gd.dns === '8.8.8.8');
+    ok('E5b dns ที่ตั้งเองถูกแจกให้เครื่องลูก', (function(){ load([ N('R1','router','192.168.1.1',{dhcp:{on:true,from:50,to:60,dns:'8.8.8.8'}}), N('PC1','pc') ], [ U('R1','PC1') ]); var r = E.requestDhcp('PC1'); return r.ip === '192.168.1.50' && E.getNode('PC1').dns === '8.8.8.8'; })());
+  });
+
+  step(function(){
+    /* DHCP 2 ตัวในวงเดียว: ชนะเงียบ ๆ — toast/Terminal ไม่บอกว่าใครแจก หรือให้ไปแก้อะไร · ipconfig /all เท่านั้นที่บอก DHCP Server */
+    load([ N('R2','router','192.168.9.1',{dhcp:DH}), N('R1','router','192.168.1.1',{dhcp:DH}), N('SW1','switch'), N('PC1','pc') ], [ U('R1','SW1'), U('R2','SW1'), U('SW1','PC1') ]);
+    E.requestDhcp('PC1');
+    var tl = cmd('PC1', 'ipconfig /renew').now(), tt = (d.querySelector('.toast') || {}).textContent || '';
+    ok('C6 ซ้อน 2 server: toast ตอน renew ไม่บอกชื่อ/IP ผู้แจก', /192\.168\.9\.\d+/.test(tt) && tt.indexOf('R2') === -1 && tt.indexOf('R1') === -1 && tt.indexOf('192.168.9.1)') === -1, tt);
+    ok('C6b ซ้อน 2 server: ipconfig /renew ไม่มีข้อความเตือน/วิธีแก้', !has(tl, 'ซ้ำ') && !has(tl, 'ปิด DHCP') && !has(tl, 'ซ้อน'), tl.join(' ⏎ '));
+    var ia = cmd('PC1', 'ipconfig /all').now();
+    ok('C6c ซ้อน 2 server: ipconfig /all บอก DHCP Server = ตัวที่ชนะ (R2 = 192.168.9.1) ให้เด็กสืบเอง', has(ia, 'DHCP Server . . . : 192.168.9.1'), ia.join(' ⏎ '));
+  });
+
+  /* ================= F) ป้ายใต้ไอคอน / ความเข้ากันได้ย้อนหลัง ================= */
+  step(function(){
+    load([ N('R1','router','192.168.1.1',{dhcp:DH}), N('PC1','pc') ], [ U('R1','PC1') ]);
+    ok('F1 router ที่เปิด DHCP มีป้าย (1 ป้าย) · เครื่องที่ยังไม่ขอ ไม่มี', badges() === 1, 'badges=' + badges());
+    E.requestDhcp('PC1');
+    ok('F2 เครื่องที่ถือ lease มีป้าย + ป้าย IP แสดงเลขปกติ', badges() === 2 && ipLabel('PC1') === '192.168.1.10', 'badges=' + badges() + ' label=' + ipLabel('PC1'));
+    E.releaseDhcp('PC1');
+    ok('F3 คืน IP แล้วป้ายหาย · ป้าย IP ว่าง', badges() === 1 && ipLabel('PC1') === '', 'badges=' + badges());
+    E.requestDhcp('PC1'); E.setNodeIP('PC1', '192.168.1.99', '');
+    ok('F4 ตั้งเองทับ → ป้าย DHCP หาย ป้าย IP=เลขที่ตั้ง', badges() === 1 && ipLabel('PC1') === '192.168.1.99');
+
+    /* node เก่าไม่มีฟิลด์ใหม่ = ทำงานเหมือนเดิม และ engine ไม่แอบเติมฟิลด์ใหม่ลงไฟล์ */
+    load([ { id:'PC1', type:'pc', x:100, y:100, ip:'192.168.1.10' }, { id:'SW1', type:'switch', x:200, y:100 }, { id:'PC2', type:'pc', x:300, y:100, ip:'192.168.1.20' },
+           { id:'R1', type:'router', x:200, y:200, ip:'192.168.1.1' } ],
+         [ U('PC1','SW1'), U('SW1','PC2'), U('SW1','R1') ]);
+    var p = E.ping('PC1', '192.168.1.20');
+    var txt = E.exportState();
+    ok('F5 node เก่า (ไม่มีฟิลด์ DHCP): ping ผ่านเหมือนเดิม', p.ok === true && p.sameNet === true);
+    ok('F5b ไม่มีฟิลด์ใหม่โผล่ในไฟล์ผัง (ipmode/lease/dns/dhcp)', !/ipmode|lease|"dns"|dhcp/.test(txt), txt.slice(0, 120));
+    ok('F5c getNode ของ node เก่า: ipmode=static · เลข IP/gw เหมือนเดิม', E.getNode('PC1').ipmode === 'static' && E.getNode('PC1').ip === '192.168.1.10' && badges() === 0);
+    ok('F5d router ที่ไม่มี dhcp ไม่เป็น server: PC ขอแล้วได้ 169.254', (function(){ var s = JSON.parse(txt); s.nodes.push({ id:'PC3', type:'pc', x:50, y:50 }); s.edges.push(U('SW1','PC3')); E.loadState(s); return E.requestDhcp('PC3').reason === 'noserver'; })());
+  });
+
+  /* ================= G) ARP / MAC (ip neigh) ================= */
+  step(function(){
+    var ids = [], seen = {}, dupe = false, i, m;
+    for (i = 1; i <= 40; i++) ids.push('PC' + i);
+    for (i = 1; i <= 9; i++) ids.push('SRV' + i, 'R' + i, 'SW' + i, 'AP' + i);
+    ids.forEach(function(id){ m = E.macOf(id); if (seen[m]) dupe = true; seen[m] = 1; });
+    ok('G1 MAC ปลอมคงที่ตาม id · รูปแบบถูก · ไม่ซ้ำกัน (' + ids.length + ' ตัว)', !dupe && E.macOf('PC1') === E.macOf('PC1') && /^52:54:00:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}$/.test(E.macOf('PC1')), E.macOf('PC1'));
+    load([ N('PC1','pc','192.168.1.10',{gw:'192.168.1.1'}), N('SW1','switch'), N('PC3','pc','192.168.1.20'), N('R1','router','192.168.1.1'), N('SW2','switch'), N('PC2','pc','192.168.2.10'), N('ISP1','isp') ],
+         [ U('PC1','SW1'), U('SW1','PC3'), U('SW1','R1'), U('R1','SW2'), U('SW2','PC2'), U('R1','ISP1') ]);
+    ok('G2 ยังไม่เคยคุยกับใคร → neighbors ว่าง', E.neighbors('PC1').length === 0);
+    E.ping('PC1', '192.168.1.99');
+    ok('G3 ping ไม่สำเร็จ ไม่เข้าตาราง', E.neighbors('PC1').length === 0);
+    E.ping('PC1', '192.168.1.20');
+    var nb = E.neighbors('PC1');
+    ok('G4 ping วงเดียวกันสำเร็จ → เครื่องนั้นเข้าตาราง + MAC ตรง', nb.length === 1 && nb[0].ip === '192.168.1.20' && nb[0].mac === E.macOf('PC3'), JSON.stringify(nb));
+    E.ping('PC1', '192.168.2.10');
+    nb = E.neighbors('PC1');
+    ok('G5 ping ข้ามวงสำเร็จ → gateway เข้าตาราง (MAC ของ R1) · เครื่องคนละวงไม่เข้า', nb.length === 2 && nb[1].ip === '192.168.1.1' && nb[1].mac === E.macOf('R1') && !nb.some(function(e){ return e.ip === '192.168.2.10'; }), JSON.stringify(nb));
+    E.ping('PC1', '192.168.1.20');
+    ok('G6 ping ซ้ำไม่เพิ่มแถว', E.neighbors('PC1').length === 2);
+    ok('G7 ตารางเป็นรายเครื่อง: PC3 ยังว่าง', E.neighbors('PC3').length === 0);
+    E.setNodeIP('PC3', '192.168.1.21', '');
+    ok('G8 เครื่องปลายทางเปลี่ยน IP → แถวเก่าหายจากตาราง', !E.neighbors('PC1').some(function(e){ return e.ip === '192.168.1.20'; }) && E.neighbors('PC1').length === 1);
+    load([ N('PC1','pc','192.168.1.10',{gw:'192.168.1.1'}), N('SW1','switch'), N('R1','router','192.168.1.1'), N('ISP1','isp') ], [ U('PC1','SW1'), U('SW1','R1'), U('R1','ISP1') ]);
+    E.pingNet('PC1', '8.8.8.8');
+    ok('G9 ping ออกเน็ตสำเร็จ → gateway เข้าตาราง', E.neighbors('PC1').length === 1 && E.neighbors('PC1')[0].ip === '192.168.1.1');
+    E.loadState({ nodes: [ N('PC1','pc','192.168.1.10') ], edges: [] });
+    ok('G10 โหลดผังใหม่ล้างตาราง', E.neighbors('PC1').length === 0);
+  });
+
+  /* ================= H) Terminal (กด “รัน” จริงใน builder) ================= */
+  var T = {};      // เก็บผลคำสั่งที่ต้องรอแพ็กเก็ตวิ่ง
+  step(function(){
+    load([ N('R1','router','192.168.1.1',{dhcp:DH}), N('SW1','switch'), N('SW2','switch'),
+           N('PC1','pc','192.168.1.50',{gw:'192.168.1.1'}), N('PC2','pc'), N('SRV1','server','192.168.1.60'),
+           N('PC3','pc','192.168.1.70'), N('PC4','pc'), N('PC5','pc'), N('ISP1','isp') ],
+         [ U('R1','SW1'), U('SW1','PC1'), U('SW1','PC2'), U('SW1','SRV1'), U('SW1','PC4'), U('R1','ISP1'), U('SW2','PC5') ]);
+    E.requestDhcp('PC2');          // PC2 = DHCP .10
+    E.requestDhcp('PC4'); E.releaseDhcp('PC4');   // PC4 = โหมด DHCP แต่คืน IP แล้ว (ไม่มี IP)
+    var t = d.querySelector('#termOut .th');
+    ok('H0 บรรทัดช่วยเหลือบนสุดมีคำสั่ง Ubuntu · ปุ่มลัดยังเท่าเดิม 5 ปุ่ม ไม่มี data-run', /ip a/.test(t.textContent) && /dhclient/.test(t.textContent) && /ping -c/.test(t.textContent) && d.querySelectorAll('.term-chips button').length === 5 && d.querySelectorAll('.term-chips [data-run]').length === 0, t.textContent.slice(-90));
+
+    var L = cmd('PC1', 'ip a').now();
+    ok('H1 ip a (static): eth0 state UP + inet /24 brd .255 scope global eth0 (ไม่มี dynamic)',
+       has(L, '2: eth0:') && has(L, 'state UP') && has(L, 'inet 192.168.1.50/24 brd 192.168.1.255 scope global eth0') && !has(L, 'dynamic'), L.join(' ⏎ '));
+    L = cmd('PC2', 'ip addr').now();
+    ok('H1b ip addr (DHCP): inet 192.168.1.10/24 ... scope global dynamic eth0', has(L, 'inet 192.168.1.10/24 brd 192.168.1.255 scope global dynamic eth0'), L.join(' ⏎ '));
+    L = cmd('PC1', 'sudo ip a').now();
+    ok('H1c sudo นำหน้าใช้ได้', has(L, 'inet 192.168.1.50/24'));
+    L = cmd('PC3', 'ip a').now();
+    ok('H1d ไม่มีสาย → state DOWN + NO-CARRIER (ยังเห็น inet ที่ตั้งไว้)', has(L, 'state DOWN') && has(L, 'NO-CARRIER') && has(L, 'inet 192.168.1.70/24'), L.join(' ⏎ '));
+    L = cmd('PC4', 'ip a').now();
+    ok('H1e ยังไม่มี IP → ไม่มีบรรทัด inet ของ eth0 (มีแค่ lo)', has(L, '2: eth0:') && count(L, 'inet ') === 1 && has(L, '127.0.0.1/8'), L.join(' ⏎ '));
+
+    L = cmd('PC1', 'ip route').now();
+    ok('H2 ip route (static): default via gw + network/24 proto kernel scope link src IP', has(L, 'default via 192.168.1.1 dev eth0') && has(L, '192.168.1.0/24 dev eth0 proto kernel scope link src 192.168.1.50') && !has(L, 'proto dhcp'), L.join(' ⏎ '));
+    L = cmd('PC2', 'ip route').now();
+    ok('H2b ip route (DHCP): default via 192.168.1.1 ... proto dhcp', has(L, 'default via 192.168.1.1 dev eth0 proto dhcp') && has(L, 'src 192.168.1.10'), L.join(' ⏎ '));
+    L = cmd('PC3', 'ip route').now();
+    ok('H2c ip route ไม่มี gw → ไม่มีบรรทัด default', !has(L, 'default via') && has(L, '192.168.1.0/24 dev eth0 proto kernel scope link src 192.168.1.70'), L.join(' ⏎ '));
+    L = cmd('PC4', 'ip route').now();
+    ok('H2d ip route ไม่มี IP → บรรทัดเทาบอกว่าว่าง', L.length === 2 && /ว่าง/.test(L[1]), L.join(' ⏎ '));
+    L = cmd('PC1', 'ip neigh').now();
+    ok('H3 ip neigh ยังไม่เคยคุย → บรรทัดเทาบอกว่ายังไม่เคยคุยกับเครื่องไหน', L.length === 2 && /ยังไม่เคยคุย/.test(L[1]), L.join(' ⏎ '));
+    L = cmd('PC1', 'ip foo').now();
+    ok('H3b ip <อื่น> → Object "foo" is unknown', has(L, 'Object "foo" is unknown'));
+    L = cmd('PC5', 'ip a').now();
+    ok('H3c PC5 (ต่อ SW2 ที่ไม่มี router) ip a ปกติ ไม่มี inet', has(L, 'state UP') && count(L, 'inet ') === 1);
+
+    /* Windows ต้องเหมือนเดิม */
+    L = cmd('PC1', 'ipconfig').now();
+    ok('H4 ipconfig ปกติเหมือนเดิม 3 บรรทัด', L.length === 4 && L[1] === 'IPv4 Address . . : 192.168.1.50' && L[2] === 'Subnet Mask  . . : 255.255.255.0' && L[3] === 'Default Gateway  : 192.168.1.1', L.join(' ⏎ '));
+    L = cmd('PC2', 'ipconfig /all').now();
+    ok('H5 ipconfig /all (DHCP): DHCP Enabled=Yes · DHCP Server=IP router · DNS Servers', has(L, 'DHCP Enabled . . . . : Yes') && has(L, 'DHCP Server . . . : 192.168.1.1') && has(L, 'DNS Servers . . . : 192.168.1.1') && has(L, 'IPv4 Address . . : 192.168.1.10'), L.join(' ⏎ '));
+    L = cmd('PC1', 'ipconfig /all').now();
+    ok('H5b ipconfig /all (static): DHCP Enabled=No · ไม่มีบรรทัด DHCP Server', has(L, 'DHCP Enabled . . . . : No') && !has(L, 'DHCP Server'), L.join(' ⏎ '));
+    L = cmd('PC1', 'ipconfig /renew').now();
+    ok('H5c ipconfig /renew เครื่อง static → แจ้งว่าไม่มี adapter ที่ทำได้ (เหมือน Windows)', has(L, 'no adapter is in the state permissible') && E.getNode('PC1').ip === '192.168.1.50');
+    L = cmd('PC2', 'ipconfig /release').now();
+    ok('H6 ipconfig /release → คืน IP (ip ว่าง) และแสดง (ยังไม่ตั้ง)', E.getNode('PC2').ip === '' && has(L, 'IPv4 Address . . : (ยังไม่ตั้ง)'), L.join(' ⏎ '));
+    L = cmd('PC2', 'ipconfig /renew').now();
+    ok('H6b ipconfig /renew → ได้ .10 กลับมา', E.getNode('PC2').ip === '192.168.1.10' && has(L, 'IPv4 Address . . : 192.168.1.10'), L.join(' ⏎ '));
+    L = cmd('PC5', 'ipconfig /renew').now();
+    ok('H6c /renew เครื่องที่ไม่ใช่โหมด DHCP แต่ไม่มี server: ยังแจ้ง no adapter', has(L, 'no adapter is in the state permissible'));
+    L = cmd('PC2', 'sudo dhclient -r').now();
+    ok('H7 sudo dhclient -r → DHCPRELEASE of IP เดิม · ip ว่าง', has(L, 'DHCPRELEASE of 192.168.1.10') && E.getNode('PC2').ip === '', L.join(' ⏎ '));
+    L = cmd('PC2', 'sudo dhclient').now();
+    ok('H7b sudo dhclient → DISCOVER/OFFER/REQUEST/ACK + bound to .10 จาก 192.168.1.1', has(L, 'DHCPDISCOVER') && has(L, 'DHCPOFFER of 192.168.1.10 from 192.168.1.1') && has(L, 'DHCPACK of 192.168.1.10 from 192.168.1.1') && has(L, 'bound to 192.168.1.10') && E.getNode('PC2').ip === '192.168.1.10', L.join(' ⏎ '));
+    L = cmd('PC4', 'dhclient').now();
+    ok('H7c dhclient (ไม่มี sudo) ก็ได้ → PC4 ได้ .11', has(L, 'bound to 192.168.1.11') && E.getNode('PC4').ip === '192.168.1.11', L.join(' ⏎ '));
+    L = cmd('PC5', 'dhclient').now();
+    ok('H7d dhclient ไม่มี server → No DHCPOFFERS received + ได้ 169.254', has(L, 'No DHCPOFFERS received') && E.getNode('PC5').ip.indexOf('169.254.') === 0, L.join(' ⏎ '));
+    L = cmd('PC5', 'ip a').now();
+    ok('H7e ip a หลังขอไม่ได้: inet 169.254.x.y/16 scope link', /inet 169\.254\.\d+\.\d+\/16 brd 169\.254\.255\.255 scope link/.test(L.join('\n')), L.join(' ⏎ '));
+    L = cmd('PC5', 'ipconfig /all').now();
+    ok('H7f ipconfig /all หลังขอไม่ได้: 169.254 · ไม่มี Default Gateway · ไม่มี DHCP Server', has(L, 'DHCP Enabled . . . . : Yes') && has(L, 'Autoconfiguration') && has(L, 'Default Gateway  : (ยังไม่ตั้ง)') && !has(L, 'DHCP Server'), L.join(' ⏎ '));
+    L = cmd('PC1', 'dhclient -r').now();
+    ok('H7g dhclient -r เครื่อง static → ไม่แตะ IP', E.getNode('PC1').ip === '192.168.1.50' && has(L, 'ไม่มี lease'));
+    L = cmd('R1', 'dhclient').now();
+    ok('H7h dhclient บน router → ปฏิเสธ', has(L, 'dhclient:') && E.getNode('R1').ip === '192.168.1.1');
+
+    /* traceroute (Linux) กับ tracert (Windows) ใช้เส้นทางเดียวกัน */
+    L = cmd('PC1', 'traceroute 192.168.1.60').now();
+    ok('H8 traceroute LAN: หัวแบบ Linux · hop ผ่าน SW1 · hop สุดท้าย=192.168.1.60', has(L, 'traceroute to 192.168.1.60 (192.168.1.60), 30 hops max') && /^ 1  SW1  /.test(L[2]) && /^ 2  192\.168\.1\.60  /.test(L[3]) && L[3].indexOf(' ms') > -1, L.join(' ⏎ '));
+    L = cmd('PC1', 'traceroute 8.8.8.8').now();
+    ok('H8b traceroute เน็ต: ผ่าน SW1 → R1(192.168.1.1) → ISP1 → 8.8.8.8', has(L, 'traceroute to 8.8.8.8 (8.8.8.8)') && /^ 2  192\.168\.1\.1  /.test(L[3]) && /^ 3  ISP1  /.test(L[4]) && /^ 4  8\.8\.8\.8  /.test(L[5]), L.join(' ⏎ '));
+    L = cmd('PC1', 'tracert 192.168.1.60').now();
+    ok('H8c tracert (Windows) ยังเหมือนเดิม', has(L, 'Tracing route to 192.168.1.60') && has(L, 'Trace complete. รวม 2 hop'), L.join(' ⏎ '));
+    L = cmd('PC1', 'traceroute foo.example').now();
+    ok('H8d traceroute ชื่อที่ไม่รู้จัก → unknown host', has(L, 'traceroute: unknown host foo.example'));
+    L = cmd('PC5', 'traceroute 192.168.1.60').now();
+    ok('H8e traceroute ส่งไม่ถึง → ไม่ตอบเฉลยวิธีแก้ (มีแต่อาการ)', has(L, '* * *') && has(L, 'ไล่เส้นทางไม่ได้'), L.join(' ⏎ '));
+
+    L = cmd('PC1', 'ping -c 2 192.168.1.99').now();
+    ok('H9 ping -c เป้าไม่มีอยู่ → Destination Host Unreachable + 0 received (ทันที ไม่รอแพ็กเก็ต)', has(L, 'PING 192.168.1.99') && has(L, 'Destination Host Unreachable') && has(L, '2 packets transmitted, 0 received, 100% packet loss'), L.join(' ⏎ '));
+    L = cmd('PC5', 'ping -c 2 192.168.1.60').now();
+    ok('H9b ping -c ส่งไม่ถึง (คนละสาย) → มีอาการภาษาไทยเหมือน ping เดิม', has(L, '✗') && L.join(' ').indexOf('ไม่มีเครื่องใดใช้') === -1 || has(L, '✗'));
+    L = cmd('PC1', 'ping -c abc 192.168.1.60').now();
+    ok('H9c ping -c ค่าไม่ใช่เลข → invalid argument', has(L, "ping: invalid argument: 'abc'"));
+    L = cmd('PC1', 'ping -c 0 192.168.1.60').now();
+    ok('H9d ping -c 0 → invalid argument', has(L, "ping: invalid argument: '0'"));
+    L = cmd('PC1', 'ping -c 2 not-an-ip').now();
+    ok('H9e ping -c ชื่อที่ไม่รู้จัก → Name or service not known', has(L, 'ping: not-an-ip: Name or service not known'));
+    L = cmd('PC3', 'ping -c 2 192.168.1.60').now();
+    ok('H9f ping -c จากเครื่องไม่มีสาย → อาการภาษาไทย (ไม่ crash)', has(L, '✗'), L.join(' ⏎ '));
+    L = cmd('PC1', 'ping -c').now();
+    ok('H9g ping -c ไม่ใส่เป้า → บอกวิธีใช้', has(L, 'ใช้: ping -c'));
+
+    /* 4 อันถัดไปต้องรอแพ็กเก็ตวิ่ง (~1.5 วิ) */
+    T.p1 = cmd('PC1', 'ping -c 3 192.168.1.60');
+    return 1900;
+  });
+  step(function(){
+    var L = T.p1.now();
+    ok('H10 ping -c 3: หัว PING + 3 บรรทัด 64 bytes + สรุป 3 transmitted/3 received + rtt', has(L, 'PING 192.168.1.60 (192.168.1.60) 56(84) bytes of data.') && count(L, '64 bytes from 192.168.1.60: icmp_seq=') === 3 && has(L, '3 packets transmitted, 3 received, 0% packet loss') && has(L, 'rtt min/avg/max/mdev'), L.join(' ⏎ '));
+    ok('H10b ผ่านแค่ switch (ไม่ผ่าน router) TTL=64', has(L, 'ttl=64 '), L.join(' ⏎ '));
+    T.p2 = cmd('PC1', 'ping -c 192.168.1.60');
+    return 1900;
+  });
+  step(function(){
+    var L = T.p2.now();
+    ok('H11 ping -c (ไม่ใส่เลข) = 4 ครั้ง', count(L, '64 bytes from') === 4 && has(L, '4 packets transmitted, 4 received'), 'n=' + count(L, '64 bytes from'));
+    T.p3 = cmd('PC1', 'ping -c 99 192.168.1.60');
+    return 1900;
+  });
+  step(function(){
+    var L = T.p3.now();
+    ok('H12 ping -c 99 → เพดาน 10 ครั้ง + บอกเพดาน', count(L, '64 bytes from') === 10 && has(L, '10 packets transmitted, 10 received') && has(L, 'สูงสุด 10'), 'n=' + count(L, '64 bytes from'));
+    T.p4 = cmd('PC1', 'ping 192.168.1.60');
+    return 1900;
+  });
+  step(function(){
+    var L = T.p4.now();
+    ok('H13 ping แบบเดิม (ไม่มี -c) ยังเป็น Windows 3 บรรทัด ไม่ใช่ Linux', count(L, 'ตอบกลับจาก 192.168.1.60: ไบต์=32') === 3 && !has(L, '64 bytes from') && has(L, 'กำลัง ping 192.168.1.60'), L.join(' ⏎ '));
+    var n = cmd('PC1', 'ip neigh').now();
+    ok('H14 ip neigh หลัง ping สำเร็จ: <ip> dev eth0 lladdr <mac SRV1> REACHABLE', has(n, '192.168.1.60 dev eth0 lladdr ' + E.macOf('SRV1') + ' REACHABLE') && !has(n, 'ยังไม่เคยคุย'), n.join(' ⏎ '));
+    T.p5 = cmd('PC1', 'ping -c 2 8.8.8.8');
+    return 2300;
+  });
+  step(function(){
+    var L = T.p5.now();
+    ok('H15 ping -c 2 8.8.8.8 ออกเน็ตได้ (ผ่าน R1 → ISP1) · TTL ลด 1 ที่ router (63)', count(L, '64 bytes from 8.8.8.8: icmp_seq=') === 2 && has(L, '2 packets transmitted, 2 received'), L.join(' ⏎ '));
+    var n = cmd('PC1', 'ip neigh').now();
+    ok('H16 ip neigh หลังออกเน็ต: เห็น gateway 192.168.1.1 + MAC ของ R1 (และเครื่องในวงเดิม)', has(n, '192.168.1.1 dev eth0 lladdr ' + E.macOf('R1') + ' REACHABLE') && has(n, '192.168.1.60 dev eth0'), n.join(' ⏎ '));
+    var u = cmd('PC1', 'foo').now();
+    ok('H17 คำสั่งที่ไม่รู้จัก → รายชื่อคำสั่งที่ใช้ได้มี ip/traceroute/dhclient', has(u, 'ไม่ใช่คำสั่งที่รองรับ') && has(u, 'ip, traceroute, dhclient'), u.join(' ⏎ '));
+    var tg = cmd('PC1', 'traceroute google.com').now();
+    ok('H17b traceroute ชื่อเว็บ (google.com): หัวมีชื่อ + IP ของเว็บ · hop ที่ 4 คือเว็บ', has(tg, 'traceroute to google.com (142.250.71.14), 30 hops max') && tg.some(function(l){ return /^ 4  142\.250\.71\.14  /.test(l); }), tg.join(' ⏎ '));
+    T.p6 = cmd('PC1', 'ping -c 2 google.com');
+    return 2300;
+  });
+  step(function(){
+    var L = T.p6.now();
+    ok('H17c ping -c 2 google.com: หัว PING google.com (142.250.71.14) + 2 บรรทัด 64 bytes from 142.250.71.14 + สรุป 2/2', has(L, 'PING google.com (142.250.71.14)') && count(L, '64 bytes from 142.250.71.14: icmp_seq=') === 2 && has(L, '2 packets transmitted, 2 received'), L.join(' ⏎ '));
+    ok('H18 Terminal ไม่มี error ใน console ของหน้า builder (ไม่มีข้อความ undefined/NaN ในผลลัพธ์)', !/undefined|NaN/.test(termOut.textContent), (termOut.textContent.match(/.{0,30}(undefined|NaN).{0,30}/) || [''])[0]);
+  });
+
+  /* ================= I) ไฟล์ผังเดิม (ภารกิจเทอม 1) ยังโหลดได้ ================= */
+  step(function(){
+    var old = { nodes: [ { id:'PC1', type:'pc', x:60, y:60, ip:'192.168.1.10', gw:'192.168.1.1' }, { id:'R1', type:'router', x:160, y:60, ip:'192.168.1.1', wifi:'Game@2569xy' }, { id:'SRV1', type:'server', x:260, y:60, ip:'192.168.1.50', http:404, fw:true } ],
+                edges: [ U('PC1','R1'), U('R1','SRV1') ] };
+    E.loadState(old);
+    var r = cmd('PC1', 'ping 192.168.1.50'), g = E.getNode('SRV1');
+    ok('I1 ผังเก่า (มี wifi/http/fw แต่ไม่มี DHCP) โหลดได้ · ค่าเดิมครบ', E.counts().nodes === 3 && g.http === 404 && g.fw === true && E.getNode('R1').wifi === 'Game@2569xy');
+    ok('I2 ผังเก่า: router ไม่มีป้าย DHCP และ ping ถูกกันโดย firewall เหมือนเดิม', badges() === 0 && E.canPing('PC1', '192.168.1.50').reason === 'firewall');
+    return 1800;
+  });
+
+  function run(i){
+    if (i >= steps.length) return done();
+    var wait = 0;
+    try { wait = steps[i]() || 0; } catch (e) { ok('STEP ' + (i + 1) + ' ไม่ error', false, String(e && e.stack || e).slice(0, 300)); }
+    setTimeout(function(){ run(i + 1); }, wait);
+  }
+  run(0);
+});
+setTimeout(function(){ if (!log.length){ log.push('FAIL iframe ไม่โหลด'); fail++; done(); } }, 6000);
+</script>
+</body>
+</html>
