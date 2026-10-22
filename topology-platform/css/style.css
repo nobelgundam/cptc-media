@@ -257,3 +257,52 @@ svg.cut-on .edge{stroke-dasharray:8 5;opacity:0.85;}
 .win-msg{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:60;max-width:92%;text-align:center;background:#163f2b;border:1.5px solid #3ddc97;color:#caffe2;border-radius:12px;padding:10px 16px;font-size:.9rem;font-weight:600;display:none;box-shadow:0 8px 24px rgba(0,0,0,.35);}
 .win-msg.show{display:block;}
 #fx{position:fixed;inset:0;pointer-events:none;z-index:55;}
+
+/* ===== builder เท่านั้น (#tbTerm): Terminal สูงขึ้นให้เห็น ~10 บรรทัด (nslookup/traceroute 6-10 บรรทัด) + แท็บ "ดักจับ" (Wireshark ย่อ)
+ * ใช้ #tbTerm นำหน้าทุกตัว → ไม่กระทบ wk*.html ที่ใช้ .term-out ร่วมกัน ===== */
+#tbTerm .term-out{height:232px;}
+#tbTerm .term-tabs{display:grid;grid-template-columns:1fr 1fr;background:#0c2031;border-bottom:1px solid #173049;}
+#tbTerm .term-tabs button{font-family:inherit;font-size:14px;font-weight:700;color:var(--muted);background:transparent;border:0;
+  border-bottom:3px solid transparent;padding:8px 6px;min-height:44px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;
+  -webkit-tap-highlight-color:transparent;}
+#tbTerm .term-tabs button small{font-size:10px;font-weight:600;opacity:.8;}
+#tbTerm .term-tabs button.on{color:#fff;border-bottom-color:var(--accent2);background:#102a40;}
+.cap-badge{background:#ff5566;color:#fff;border-radius:999px;font-size:11px;padding:1px 7px;font-weight:700;}
+.cap{padding:8px 10px 10px;}
+.cap-bar{display:flex;gap:8px;align-items:center;}
+.cap-bar .btn{flex-direction:column;gap:0;line-height:1.2;min-height:46px;font-size:14px;padding:6px 12px;}
+.cap-bar .btn small{font-size:10px;font-weight:600;opacity:.85;}
+.cap-bar .btn.rec{background:linear-gradient(180deg,#ff6377,#e23a52);border-color:#ff9aa8;color:#fff;}
+.cap-rec{color:#ff8a98;font-weight:700;font-size:12px;animation:capblink 1s steps(2) infinite;}
+@keyframes capblink{50%{opacity:.25;}}
+.cap-sel{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;}
+.cap-sel label{font-size:11px;color:var(--muted);font-weight:600;display:flex;flex-direction:column;gap:3px;min-width:0;}
+.cap-sel select{font-family:inherit;font-size:13px;background:#13283c;color:var(--ink);border:1px solid #2c456a;border-radius:8px;padding:8px 6px;min-height:42px;width:100%;}
+.cap-legend{display:flex;flex-wrap:wrap;gap:3px 10px;font-size:11px;margin:8px 0 6px;color:var(--muted);}
+.cap-legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:4px;vertical-align:-1px;border:1px solid rgba(255,255,255,.25);}
+.cap-wrap{max-height:300px;overflow-y:auto;border:1px solid #20415f;border-radius:10px;-webkit-overflow-scrolling:touch;}
+.cap-tbl{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12px;}
+.cap-tbl th{position:sticky;top:0;z-index:2;background:#0c2031;color:var(--ink);font-size:11px;text-align:left;padding:5px 4px;border-bottom:1px solid #20415f;line-height:1.25;}
+.cap-tbl th small{display:block;font-size:9.5px;color:var(--muted);font-weight:600;}
+.cap-tbl th:nth-child(1){width:34px;} .cap-tbl th:nth-child(2),.cap-tbl th:nth-child(3){width:21%;} .cap-tbl th:nth-child(4){width:15%;}
+.cap-tbl td{padding:6px 4px;vertical-align:top;word-break:break-all;border-bottom:1px solid rgba(255,255,255,.06);line-height:1.35;}
+.cap-tbl tr.cap-row{cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.cap-tbl tr.cap-row:active{outline:2px solid #fff;outline-offset:-2px;}
+.cap-tbl .cap-th{display:block;font-size:11px;opacity:.78;margin-top:2px;word-break:normal;}
+.cap-tbl .cap-empty{padding:16px 10px;color:var(--muted);text-align:center;word-break:normal;}
+.cap-tbl tr.cap-link{background:#2b3442;color:#d9e1ec;}
+.cap-tbl tr.cap-inet{background:#1d3f6e;color:#e0edff;}
+.cap-tbl tr.cap-tran{background:#5b3a1c;color:#ffe6cc;}
+.cap-tbl tr.cap-app{background:#5a4a14;color:#fff3c4;}
+.cl-link{background:#2b3442;} .cl-inet{background:#1d3f6e;} .cl-app{background:#5a4a14;}
+.cap-note{font-size:11.5px;color:var(--muted);margin:8px 0 0;line-height:1.55;}
+.cap-detail{border:1px solid #20415f;border-radius:10px;padding:10px;background:#0a1a28;}
+.cap-detail .btn{min-height:42px;font-size:14px;padding:6px 12px;}
+.cap-detail h4{margin:10px 0 6px;font-size:14px;}
+.cap-kv{display:grid;grid-template-columns:96px 1fr;gap:3px 8px;font-size:12.5px;margin:0 0 8px;}
+.cap-kv b{color:var(--muted);font-weight:600;}
+.cap-kv span{word-break:break-all;}
+.cap-ly{font-size:13px;line-height:1.55;padding:7px 9px;margin:5px 0;border-radius:8px;border-left:4px solid #2d8cf0;background:#102a40;}
+.cap-ly b.cap-n{color:#ffd54a;margin-right:4px;}
+.cap-ly u{text-decoration:none;font-weight:700;color:#9fe;}
+.cap-ly.l-link{border-left-color:#8794a8;} .cap-ly.l-inet{border-left-color:#4a8be0;} .cap-ly.l-app{border-left-color:#e0b93a;}

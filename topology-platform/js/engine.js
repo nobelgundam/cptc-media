@@ -89,6 +89,7 @@
   var STORE_KEY = 'netsim_builder_v1';
   var arp = {};               // ตาราง ARP รายเครื่อง (ip neigh) — อยู่ใน memory ไม่เซฟ · ล้างเมื่อโหลดผังใหม่
   var dnsStrict = false;      // true เฉพาะ builder (init opts.dnsStrict) = ชื่อต้องผ่าน DNS ของเครื่อง · false = แปลงชื่อเองเหมือนเดิม (ไฟล์ภารกิจ)
+  var pktCb = null, pktN = 0; // callback ดักจับแพ็กเก็ต (init opts.onPacket) · null = ไม่ปล่อยเหตุการณ์ใด ๆ ไม่แตะ ARP cache เพิ่ม (ไฟล์ภารกิจเทอม 1)
 
   function fresh() {
     state = { nodes: [], edges: [] };
@@ -624,12 +625,12 @@
       if (!ip) continue;   // ช่วงเต็ม → ลอง server ตัวถัดไป (ถ้ามี)
       n.ip = ip; n.gw = c.gw; n.dns = c.dns; n.ipmode = 'dhcp'; n.lease = { server: srv.id };
       if (oldIp !== ip) delete arp[id];
-      paintNode(id); changed();
+      paintNode(id); capDhcp(id, srv, ip); changed();
       return { ok: true, ip: ip, gw: c.gw, dns: c.dns, server: srv.id, serverIp: srv.ip };
     }
     n.ip = apipaFor(id); n.gw = ''; n.dns = ''; n.ipmode = 'dhcp'; delete n.lease;
     if (oldIp !== n.ip) delete arp[id];
-    paintNode(id); changed();
+    paintNode(id); capDhcp(id, null, ''); changed();
     return { ok: false, reason: servers.length ? 'full' : 'noserver', apipa: true, ip: n.ip };
   }
   function dhcpRelease(id) {   // คืน IP: ล้าง ip/gw/dns/lease แต่ยังอยู่โหมด DHCP (ipmode คงเดิม)
@@ -659,17 +660,18 @@
   /* ---------- ตาราง ARP (ip neigh): เครื่องในวงเดียวกันที่เคยคุยสำเร็จ + gateway เมื่อเคยออกนอกวง ---------- */
   function arpAdd(srcId, id, ip, isGw) {
     var l = arp[srcId] || (arp[srcId] = []);
-    for (var i = 0; i < l.length; i++) if (l[i].ip === ip) { l[i].id = id; return; }
+    for (var i = 0; i < l.length; i++) if (l[i].ip === ip) { l[i].id = id; return false; }
     l.push({ id: id, ip: ip, gw: !!isGw });
+    return true;   // รายการใหม่ (ถามจริงครั้งแรก → ดักจับเห็น ARP request/reply)
   }
   function arpNote(srcId, targetId, path) {   // เรียกเมื่อ ping/http/ping เน็ต "สำเร็จ"
     var s = nodeById(srcId); if (!s || !s.ip) return;
     var t = targetId ? nodeById(targetId) : null;
-    if (t && t.ip && sameNetwork(s.ip, t.ip)) { arpAdd(srcId, t.id, t.ip, false); return; }
+    if (t && t.ip && sameNetwork(s.ip, t.ip)) { if (arpAdd(srcId, t.id, t.ip, false)) arpPair(srcId, t.id, t.ip); return; }
     if (!s.gw) return;
     var gn = findNodeByIp(s.gw), gid = gn ? gn.id : null;
     if (!gid) for (var i = 0; i < (path || []).length; i++) { if ((nodeById(path[i]) || {}).type === 'router') { gid = path[i]; break; } }
-    if (gid) arpAdd(srcId, gid, s.gw, true);
+    if (gid && arpAdd(srcId, gid, s.gw, true)) arpPair(srcId, gid, s.gw);
   }
   function arpList(srcId) {   // ตัดรายการที่ปลายทางหายไป/เปลี่ยน IP แล้วออก
     return (arp[srcId] || []).filter(function (e) {
@@ -794,6 +796,7 @@
 
   function tapConfig(id) {
     var n = nodeById(id); if (!n) return;
+    if (n.type === 'switch' && pktCb) { if (configCb) configCb(id); return; }   // builder (มี onPacket): สวิตช์ตั้ง Port Mirror ได้
     if (canHaveIP(n.type) || canHaveWifi(n.type)) { if (configCb) configCb(id); return; }
     toast('อุปกรณ์นี้ตั้งค่าไม่ได้ · ตั้ง IP = PC/Server · ตั้งรหัส Wi-Fi = AP/Router', 'bad');
   }
@@ -905,12 +908,16 @@
     if (!src.gw) return { ok: false, reason: 'nogw' };
     return { ok: true, path: path, isp: isp.id };
   }
-  function pingNet(srcId, host, onArrive) {
+  function pingNet(srcId, host, onArrive, opt) {   // opt = {count, http:true, host} (เฉพาะดักจับ: http → ปล่อย HTTP แทน ICMP)
     var t = netTarget(host);
     if (!t) return { ok: false, reason: 'dns' };
     var r = reachInternet(srcId);
     if (!r.ok) return { ok: false, reason: r.reason, target: t };
     arpNote(srcId, null, r.path);   // ออกนอกวงสำเร็จ → gateway เข้า ip neigh
+    if (pktCb) {
+      if (opt && opt.http) capHttp(srcId, t.ip, t.ip, r.path, opt.host || t.host, 200, t.ttl);
+      else capEcho(srcId, t.ip, t.ip, r.path, cntOf(opt), t.ttl, true);
+    }
     animateAlong(r.path, function (hops) { if (onArrive) onArrive(t, hops); });
     return { ok: true, target: t, path: r.path };
   }
@@ -920,10 +927,12 @@
     if (t) {
       var r = reachInternet(srcId);
       if (!r.ok) return { ok: false, reason: r.reason, target: t };
+      capTrace(srcId, 'net', r.path, t);
       return { ok: true, kind: 'net', nodes: r.path, target: t };
     }
     var pc = pingCheck(srcId, host);
     if (!pc.ok) return { ok: false, reason: pc.reason };
+    capTrace(srcId, 'lan', pc.path, { ip: host });
     return { ok: true, kind: 'lan', nodes: pc.path, target: { ip: host } };
   }
 
@@ -976,6 +985,11 @@
    *   ok: {ok:true, kind:'net'|'lan', key:<ส่งต่อ ping/tracePath>, ip, name, dns, dnsName, nonauth}
    *   ไม่ผ่าน: {ok:false, reason:'srcnoip'|'nodns'|'timeout'|'nxdomain', dns, dnsName, noUpstream} */
   function resolveName(srcId, name, dnsArg) {
+    var r = resolveCore(srcId, name, dnsArg);
+    if (pktCb && dnsStrict) { try { capDns(srcId, name, r); } catch (err) {} }   // ดักจับ: ปล่อย Standard query / response
+    return r;
+  }
+  function resolveCore(srcId, name, dnsArg) {
     var nm = String(name || '').trim().toLowerCase().replace(/\.$/, '');
     var lit = !parseIp(nm).bad, ext = netTarget(nm);
     if (!dnsStrict) {   // เดิม: ชื่อที่ engine รู้จักแปลงได้เลย ไม่ดู DNS ของเครื่อง
@@ -1001,6 +1015,210 @@
     return { ok: false, reason: 'nxdomain', dns: dns, dnsName: srv.name };
   }
 
+  /* ================= 📡 ดักจับแพ็กเก็ต (แบบ Wireshark ย่อ · ทำงานเฉพาะเมื่อ init ส่ง onPacket) =================
+   * 1 เหตุการณ์ = 1 เฟรมบน 1 "ช่วงสาย" (ระหว่าง PC/Server/Router/ISP) ส่งเข้า pktCb(ev)
+   * ev = {n, proto:'ARP'|'ICMP'|'DNS'|'HTTP'|'DHCP', top:'link'|'inet'|'app', srcLbl,dstLbl, srcIp,dstIp, srcMac,dstMac, bcast, ttl,
+   *       info (อังกฤษแบบ Wireshark) , th (ไทยสั้น) , layers:[{k,t}] (ทีละชั้น) , seen:[id จุดดักจับที่เห็นเฟรมนี้]}
+   * ใครเห็น: PC/Server = เฟรมที่เข้า-ออกตัวเอง + broadcast ในวงเดียวกัน · สวิตช์ = เฉพาะตัวที่เปิด Port Mirror (n.mirror) เห็นทุกเฟรมที่ผ่าน
+   * ข้ามเราเตอร์ = คนละช่วงสาย (MAC เปลี่ยน · TTL ลด 1) · สวิตช์/AP ไม่ลด TTL · ไม่ส่ง onPacket = ฟังก์ชันพวกนี้ไม่ทำอะไรเลย */
+  var BC_MAC = 'ff:ff:ff:ff:ff:ff';
+  var HTTP_TXT = { 200: 'OK', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 500: 'Internal Server Error', 503: 'Service Unavailable' };
+  function capNode(n) { return !!n && (n.type === 'pc' || n.type === 'server' || (n.type === 'switch' && !!n.mirror)); }
+  function hex4(s) { var h = hash32(s); return hex2(h >> 8) + hex2(h); }
+  function xv(X, n) { return (X === null || X === undefined) ? 64 - (n - 1) : X; }   // TTL ของ reply ตอนถึงต้นทาง (ปลายทางในวง = 64 ลดตามเราเตอร์)
+  function cntOf(opt) { var c = opt ? +opt.count : 0; return c >= 1 ? Math.min(Math.floor(c), 10) : 3; }
+  function layersOf(e) {   // แกะทีละชั้น (ล่างขึ้นบน) เป็นข้อความไทย
+    var L = [];
+    L.push({ k: 'ชั้นเชื่อมต่อเครือข่าย (Ethernet)', t: 'ส่งจาก MAC ' + e.srcMac + ' ถึง ' + (e.bcast ? BC_MAC + ' (ทุกเครื่องในวง)' : e.dstMac) });
+    if (e.proto === 'ARP') { L.push({ k: 'ARP (ถาม-ตอบหมายเลข MAC)', t: e.a }); return L; }
+    L.push({ k: 'ชั้นอินเทอร์เน็ต (IP)', t: 'จาก IP ' + e.srcIp + ' ถึง IP ' + e.dstIp +
+      ((e.ttl !== null && e.ttl !== undefined) ? ' · TTL = ' + e.ttl + ' (ลด 1 ทุกครั้งที่ผ่านเราเตอร์ · สวิตช์ไม่ลด)' : '') });
+    if (e.l4) L.push({ k: 'ชั้นขนส่ง (' + e.l4 + ')', t: 'พอร์ตต้นทาง ' + e.sp + ' → พอร์ตปลายทาง ' + e.dp +
+      (e.l4 === 'TCP' ? ' · TCP = จับมือก่อนส่ง รับประกันว่าถึง' : ' · UDP = ส่งเลย ไม่จับมือ เร็วแต่ไม่รับประกัน') });
+    L.push({ k: e.proto === 'ICMP' ? 'ICMP (ข้อความควบคุมของ IP)' : 'ชั้นแอปพลิเคชัน (' + e.proto + ')', t: e.a });
+    return L;
+  }
+  function emit(e) {
+    if (!pktCb) return;
+    e.n = ++pktN; e.layers = layersOf(e);
+    try { pktCb(e); } catch (err) {}
+  }
+  // ใครเห็น broadcast ที่ออกจาก srcId: เครื่องปลายทางในวงเดียวกัน (เดินผ่านสวิตช์/AP ได้ · หยุดที่ router) + สวิตช์ที่เปิด mirror
+  function l2Seen(srcId) {
+    var adj = buildAdj(), seen = {}, out = [], q = [srcId];
+    seen[srcId] = 1; if (capNode(nodeById(srcId))) out.push(srcId);
+    while (q.length) {
+      var cur = q.shift(), nb = adj[cur] || [];
+      for (var i = 0; i < nb.length; i++) {
+        var id = nb[i]; if (seen[id]) continue; seen[id] = 1;
+        var nn = nodeById(id), t = nn ? nn.type : '';
+        if (t === 'switch' || t === 'ap') q.push(id);
+        if (capNode(nn)) out.push(id);
+      }
+    }
+    return out;
+  }
+  // ตัดเส้นทางเป็นช่วงสาย: ปิดช่วงทุกครั้งที่เจออุปกรณ์ที่ไม่ใช่สวิตช์/AP (PC/Server/Router/ISP)
+  function segsOf(path) {
+    var segs = [], cur = { a: path[0], nodes: [path[0]] };
+    for (var i = 1; i < path.length; i++) {
+      var nn = nodeById(path[i]), t = nn ? nn.type : '';
+      cur.nodes.push(path[i]);
+      if (t !== 'switch' && t !== 'ap') { cur.b = path[i]; segs.push(cur); cur = { a: path[i], nodes: [path[i]] }; }
+    }
+    return segs;
+  }
+  function seenSeg(seg) {
+    var o = [], i;
+    for (i = 0; i < seg.nodes.length; i++) { var n = nodeById(seg.nodes[i]); if (capNode(n) && o.indexOf(n.id) < 0) o.push(n.id); }
+    return o;
+  }
+  // ส่งเฟรม unicast ตามช่วงสาย (rev = ขากลับ) · ttl0 = TTL ในช่วงแรกที่เดิน ลดทีละ 1 ทุกช่วง
+  function flow(segs, rev, b, ttl0) {
+    var order = rev ? segs.slice().reverse() : segs, i, k;
+    for (i = 0; i < order.length; i++) {
+      var sg = order[i], e = {};
+      for (k in b) e[k] = b[k];
+      e.srcMac = macOf(rev ? sg.b : sg.a); e.dstMac = macOf(rev ? sg.a : sg.b);
+      e.ttl = (ttl0 === null || ttl0 === undefined) ? null : ttl0 - i;
+      if (typeof b.info === 'function') e.info = b.info(e.ttl);
+      e.seen = seenSeg(sg); e.bcast = false;
+      emit(e);
+    }
+  }
+  /* --- ARP --- */
+  function arpReq(srcId, ip) {
+    var s = nodeById(srcId);
+    emit({ proto: 'ARP', top: 'link', srcLbl: srcId, dstLbl: 'ทุกเครื่อง', srcIp: s.ip, dstIp: ip, srcMac: macOf(srcId), dstMac: BC_MAC, bcast: true, ttl: null,
+      info: 'Who has ' + ip + '? Tell ' + s.ip, th: 'ถามทุกเครื่อง: ใครคือ ' + ip + ' ? บอก MAC หน่อย',
+      a: 'ถามทุกเครื่องในวงว่า "' + ip + ' ใช้การ์ดเครือข่ายหมายเลข MAC อะไร" (ผู้ถามคือ ' + s.ip + ')', seen: l2Seen(srcId) });
+  }
+  function arpPair(srcId, tgtId, ip) {   // ถามครั้งแรก (ยังไม่มีใน ARP cache) → ได้คำตอบ
+    var s = nodeById(srcId), t = nodeById(tgtId); if (!pktCb || !s || !t) return;
+    arpReq(srcId, ip);
+    var p = findShortestPathBFS(buildAdj(), srcId, tgtId) || [srcId, tgtId], sg = segsOf(p)[0] || { nodes: [srcId, tgtId] };
+    emit({ proto: 'ARP', top: 'link', srcLbl: tgtId, dstLbl: srcId, srcIp: ip, dstIp: s.ip, srcMac: macOf(tgtId), dstMac: macOf(srcId), bcast: false, ttl: null,
+      info: ip + ' is at ' + macOf(tgtId), th: 'ตอบเฉพาะคนถาม: ' + ip + ' ใช้ MAC ' + macOf(tgtId),
+      a: 'ตอบกลับ "' + ip + ' คือการ์ดเครือข่ายหมายเลข MAC ' + macOf(tgtId) + '" (ส่งหาคนถามคนเดียว ไม่ใช่ broadcast)', seen: seenSeg(sg) });
+  }
+  function arpMiss(srcId, ip, times) {   // ถามแล้วไม่มีใครตอบ (ปลายทางไม่มี/สายไม่ถึง)
+    var s = nodeById(srcId); if (!pktCb || !s || !s.ip) return;
+    for (var i = 0; i < times; i++) arpReq(srcId, ip);
+  }
+  /* --- ICMP: ping / traceroute --- */
+  function echoReq(s, srcId, dstIp, dstLbl, idh, seq) {
+    return { proto: 'ICMP', top: 'inet', srcLbl: srcId, dstLbl: dstLbl, srcIp: s.ip, dstIp: dstIp,
+      info: function (t) { return 'Echo (ping) request  id=' + idh + ', seq=' + seq + ', ttl=' + t; },
+      th: 'ping ถาม: ยังอยู่ไหม? (ครั้งที่ ' + seq + ')',
+      a: 'ICMP Echo Request (ชนิด 8) = คำสั่ง ping ถามว่า "' + dstIp + ' ยังอยู่ไหม" · ลำดับที่ ' + seq };
+  }
+  function echoRep(s, srcId, dstIp, dstLbl, idh, seq) {
+    return { proto: 'ICMP', top: 'inet', srcLbl: dstLbl, dstLbl: srcId, srcIp: dstIp, dstIp: s.ip,
+      info: function (t) { return 'Echo (ping) reply    id=' + idh + ', seq=' + seq + ', ttl=' + t; },
+      th: 'ตอบ: ยังอยู่ (ครั้งที่ ' + seq + ')',
+      a: 'ICMP Echo Reply (ชนิด 0) = ตอบ ping ว่า "' + dstIp + ' ยังอยู่" · ลำดับที่ ' + seq };
+  }
+  function capEcho(srcId, dstIp, dstLbl, path, cnt, X, answered) {   // ping N ครั้ง · request/reply สลับกัน · answered=false → มีแต่ request
+    var s = nodeById(srcId); if (!pktCb || !s || !path || path.length < 2) return;
+    var segs = segsOf(path), n = segs.length, idh = '0x' + hex4(srcId), k;
+    for (k = 1; k <= cnt; k++) {
+      flow(segs, false, echoReq(s, srcId, dstIp, dstLbl, idh, k), 64);
+      if (answered !== false) flow(segs, true, echoRep(s, srcId, dstIp, dstLbl, idh, k), xv(X, n) + n - 1);
+    }
+  }
+  function capPing(srcId, targetIp, res, opt) { if (pktCb) capEcho(srcId, targetIp, res.target, res.path, cntOf(opt), null, true); }
+  function capPingFail(srcId, targetIp, res, opt) {   // ping ไม่สำเร็จ: ดูว่าแพ็กเก็ตอะไรออกไปบนสายจริง ๆ
+    var s = nodeById(srcId); if (!pktCb || !s || !s.ip) return;
+    if (res.reason === 'firewall') {   // ARP ได้คำตอบ (ARP ไม่ถูกกัน) แต่ ping ไม่มีคำตอบ
+      arpNote(srcId, res.target, res.path);
+      capEcho(srcId, targetIp, res.target, res.path, cntOf(opt), null, false);
+      return;
+    }
+    if ((res.reason === 'nohost' || res.reason === 'unwired') && sameNetwork(s.ip, targetIp)) arpMiss(srcId, targetIp, 3);
+  }
+  function traceHop(s, srcId, dstIp, dstLbl, idh, segs, t, hop) {   // ping ที่ TTL = t → เราเตอร์ตัวที่ t ทิ้งแล้วแจ้งกลับ
+    flow(segs, false, echoReq(s, srcId, dstIp, dstLbl, idh, t), t);
+    flow(segs, true, { proto: 'ICMP', top: 'inet', srcLbl: hop.id, dstLbl: srcId, srcIp: hop.ip || '-', dstIp: s.ip,
+      info: 'Time-to-live exceeded (Time to live exceeded in transit)', th: hop.id + ' แจ้งกลับ: TTL หมดตรงนี้',
+      a: 'ICMP Time Exceeded (ชนิด 11) = ' + hop.id + ' รับแพ็กเก็ตที่ TTL ลดเหลือ 0 จึงทิ้ง แล้วแจ้งต้นทางกลับ (traceroute/tracert รู้ว่าผ่านเราเตอร์ตัวไหนจากข้อความนี้)' }, 64);
+  }
+  function capTrace(srcId, kind, nodes, target) {
+    var s = nodeById(srcId); if (!pktCb || !s || !s.ip || !nodes || nodes.length < 2) return;
+    var last = nodeById(nodes[nodes.length - 1]);
+    arpNote(srcId, kind === 'lan' ? last : null, nodes);
+    var segs = segsOf(nodes), n = segs.length, routers = (kind === 'net') ? n : n - 1;
+    var dstIp = target.ip, dstLbl = (kind === 'lan' && last) ? last.id : target.ip, idh = '0x' + hex4(srcId + '#tr'), i;
+    for (i = 1; i <= routers; i++) traceHop(s, srcId, dstIp, dstLbl, idh, segs.slice(0, i), i, nodeById(segs[i - 1].b));
+    var X = (kind === 'net' && target.ttl) ? target.ttl : null;
+    flow(segs, false, echoReq(s, srcId, dstIp, dstLbl, idh, routers + 1), routers + 1);
+    flow(segs, true, echoRep(s, srcId, dstIp, dstLbl, idh, routers + 1), xv(X, n) + n - 1);
+  }
+  /* --- HTTP (TCP 80) --- */
+  function capHttp(srcId, dstIp, dstLbl, path, host, status, X) {
+    var s = nodeById(srcId); if (!pktCb || !s || !path || path.length < 2) return;
+    var segs = segsOf(path), n = segs.length, sp = 49152 + hash32(srcId + 'h' + pktN) % 10000, txt = HTTP_TXT[status] || '';
+    flow(segs, false, { proto: 'HTTP', top: 'app', srcLbl: srcId, dstLbl: dstLbl, srcIp: s.ip, dstIp: dstIp, l4: 'TCP', sp: sp, dp: 80,
+      info: 'GET / HTTP/1.1', th: 'เปิดเว็บ: ขอหน้าแรกของ ' + host,
+      a: 'HTTP GET / = ขอหน้าแรกของเว็บ "' + host + '" (HTTP วิ่งบน TCP พอร์ต 80)' }, 64);
+    flow(segs, true, { proto: 'HTTP', top: 'app', srcLbl: dstLbl, dstLbl: srcId, srcIp: dstIp, dstIp: s.ip, l4: 'TCP', sp: 80, dp: sp,
+      info: 'HTTP/1.1 ' + status + ' ' + txt, th: 'เว็บเซิร์ฟเวอร์ตอบรหัส ' + status + (status < 400 ? ' (สำเร็จ)' : ' (มีปัญหา)'),
+      a: 'HTTP Response รหัส ' + status + ' ' + txt + ' = เว็บเซิร์ฟเวอร์ตอบกลับสถานะของคำขอ' }, xv(X, n) + n - 1);
+  }
+  /* --- DNS (UDP 53) : ถามได้เฉพาะเมื่อเครื่องมี DNS Server ตั้งไว้ --- */
+  function capDns(srcId, name, r) {
+    var s = nodeById(srcId), nm = String(name || '').trim().toLowerCase().replace(/\.$/, '');
+    if (!pktCb || !s || !s.ip || !r.dns || !parseIp(nm).bad) return;   // ไม่มี DNS / พิมพ์เป็นเลข IP = ไม่มีการถามชื่อ
+    var dns = r.dns, sx = 49152 + hash32(srcId + nm) % 10000, xid = '0x' + hex4(srcId + nm);
+    var dn = findNodeByIp(dns), path = null, up = (r.reason !== 'timeout');
+    if (dn && dn.id === srcId) return;
+    if (up) {
+      if (dn) path = findShortestPathBFS(buildAdj(), srcId, dn.id);
+      else { var ri = reachInternet(srcId); path = ri.ok ? ri.path : null; }
+      if (!path || path.length < 2) return;
+      arpNote(srcId, dn || null, path);
+    } else if (sameNetwork(s.ip, dns)) {   // DNS อยู่ในวงเดียวกันแต่ไม่ตอบ (ไม่มีเครื่อง / ไม่ใช่ DNS)
+      if (dn) path = findShortestPathBFS(buildAdj(), srcId, dn.id);
+      if (!path || path.length < 2) { arpMiss(srcId, dns, 3); return; }
+      arpNote(srcId, dn, path);
+    } else {   // DNS อยู่นอกวง → ส่งไปที่ gateway
+      if (!s.gw) return;
+      var gn = findNodeByIp(s.gw);
+      if (gn) path = findShortestPathBFS(buildAdj(), srcId, gn.id);
+      if (!path || path.length < 2) { arpMiss(srcId, s.gw, 3); return; }
+      arpNote(srcId, null, path);
+    }
+    var segs = segsOf(path), n = segs.length, tt = (!dn && PUBLIC_DNS[dns]) ? netTarget(dns) : null, dl = dn ? dn.id : dns, q;
+    for (q = 0; q < (up ? 1 : 2); q++)
+      flow(segs, false, { proto: 'DNS', top: 'app', srcLbl: srcId, dstLbl: dl, srcIp: s.ip, dstIp: dns, l4: 'UDP', sp: sx, dp: 53,
+        info: 'Standard query ' + xid + ' A ' + nm, th: 'ถาม DNS: ' + nm + ' คือเลข IP อะไร?',
+        a: 'DNS Query (ชนิด A) = ถามหาเลข IP ของชื่อ "' + nm + '" ไปที่ DNS Server ' + dns }, 64);
+    if (!up) return;
+    flow(segs, true, { proto: 'DNS', top: 'app', srcLbl: dl, dstLbl: srcId, srcIp: dns, dstIp: s.ip, l4: 'UDP', sp: 53, dp: sx,
+      info: r.ok ? 'Standard query response ' + xid + ' A ' + nm + ' A ' + r.ip : 'Standard query response ' + xid + ' No such name A ' + nm,
+      th: r.ok ? 'DNS ตอบ: ' + nm + ' = ' + r.ip : 'DNS ตอบ: ไม่มีชื่อ ' + nm,
+      a: r.ok ? 'DNS Response = ตอบว่าชื่อ "' + nm + '" คือเลข IP ' + r.ip : 'DNS Response = ตอบว่า "ไม่มีชื่อนี้" (No such name / NXDOMAIN)' }, xv(tt ? tt.ttl : null, n) + n - 1);
+  }
+  /* --- DHCP (UDP 67/68) : ทั้ง 4 ขั้นเป็น broadcast ในวงของลูกข่าย --- */
+  function capDhcp(cid, srv, ip) {   // srv = router ที่ตอบ (null = ไม่มีใครตอบ → Discover ซ้ำ 2 ครั้ง)
+    var c = nodeById(cid); if (!pktCb || !c) return;
+    var xid = '0x' + hex4(cid + '#x') + hex4(cid + pktN), seen = l2Seen(cid);
+    function one(fromId, fromIp, what, th, a, sp, dp) {
+      emit({ proto: 'DHCP', top: 'app', srcLbl: fromId, dstLbl: 'ทุกเครื่อง', srcIp: fromIp, dstIp: '255.255.255.255', srcMac: macOf(fromId), dstMac: BC_MAC,
+        bcast: true, ttl: null, l4: 'UDP', sp: sp, dp: dp, info: 'DHCP ' + what + ' - Transaction ID ' + xid, th: th, a: a, seen: seen });
+    }
+    var disc = 'DHCP Discover = ลูกข่ายที่ยังไม่มี IP ตะโกนถามทุกเครื่องว่า "ใครเป็น DHCP Server ช่วยแจก IP ให้หน่อย"';
+    one(cid, '0.0.0.0', 'Discover', 'ลูกข่ายตะโกนหา DHCP Server: ขอ IP หน่อย', disc, 68, 67);
+    if (!srv) { one(cid, '0.0.0.0', 'Discover', 'ลูกข่ายตะโกนหา DHCP Server อีกรอบ', disc, 68, 67); return; }
+    one(srv.id, srv.ip || '-', 'Offer', 'DHCP Server เสนอ IP ' + ip, 'DHCP Offer = เซิร์ฟเวอร์เสนอ IP ' + ip + ' ให้ลูกข่าย (เสนอเฉย ๆ ยังไม่ใช่การให้)', 67, 68);
+    one(cid, '0.0.0.0', 'Request', 'ลูกข่ายตอบรับ: ขอใช้ IP ' + ip, 'DHCP Request = ลูกข่ายตอบรับข้อเสนอ "ขอใช้ IP ' + ip + ' นะ" (ส่งแบบ broadcast ให้ DHCP Server ตัวอื่นรู้ด้วย)', 68, 67);
+    one(srv.id, srv.ip || '-', 'ACK', 'Server ยืนยัน: ใช้ IP ' + ip + ' ได้', 'DHCP ACK = เซิร์ฟเวอร์ยืนยันว่า ' + ip + ' เป็นของลูกข่ายแล้ว (เริ่มใช้ได้)', 67, 68);
+  }
+  function setNodeMirror(id, on) {   // Port Mirror เฉพาะสวิตช์ (แบบ RB260GSP) · ปิด = เอาฟิลด์ออก ไฟล์ผังเก่าไม่เปลี่ยน
+    var n = nodeById(id); if (!n || n.type !== 'switch') return;
+    if (on) n.mirror = true; else delete n.mirror;
+    save(); changed();
+  }
+
   /* ================= public API ================= */
   global.NetSimEngine = {
     init: function (svgEl, opts) {
@@ -1020,6 +1238,7 @@
       configCb = opts.onConfig || null;
       wifiCb = opts.onWifi || null;
       settingsCb = opts.onSettings || null;
+      pktCb = opts.onPacket || null;                  // ดักจับแพ็กเก็ต (builder เท่านั้น) · ไม่ส่ง = ไม่มีอะไรเปลี่ยน
       if (!(opts.restore !== false && load())) changed();
       return this;
     },
@@ -1067,7 +1286,7 @@
     mask: DEFAULT_MASK,
     typeLabel: function (t) { return typeLabel(t); },
     getNode: function (id) { var n = nodeById(id); return n ? { id: n.id, type: n.type, ip: n.ip || '', gw: n.gw || '', http: n.http || 200, wifi: n.wifi || '', fw: !!n.fw, fwAllow: !!n.fwAllow,
-      ipmode: n.ipmode === 'dhcp' ? 'dhcp' : 'static', dns: n.dns || '', host: n.host || '' } : null; },
+      ipmode: n.ipmode === 'dhcp' ? 'dhcp' : 'static', dns: n.dns || '', host: n.host || '', mirror: !!n.mirror } : null; },
     /* ----- DHCP / ARP / Linux terminal API ----- */
     canDhcpClient: canDhcpClient,
     requestDhcp: function (id) { return dhcpRequest(id); },        // ขอ IP อัตโนมัติ (renew) → {ok,ip,gw,dns,server,serverIp} หรือ {ok:false,reason,apipa,ip}
@@ -1103,27 +1322,33 @@
     resolve: function (srcId, name, dnsArg) { return resolveName(srcId, name, dnsArg); },   // → {ok,kind,key,ip,...} หรือ {ok:false,reason}
     setNodeHost: function (id, name) { setNodeHost(id, name); },     // ชื่อเครื่อง Server (เช่น shop.local)
     hostError: function (id, name) { return hostError(id, name); },
+    /* ----- ดักจับแพ็กเก็ต (init {onPacket}) ----- */
+    setNodeMirror: function (id, on) { setNodeMirror(id, on); },      // Port Mirror ของสวิตช์ (กระจกพอร์ต)
+    captureSources: function () {                                     // จุดที่เลือกดักได้: PC/Server ทุกตัว + สวิตช์ที่เปิด mirror
+      return state.nodes.filter(capNode).map(function (n) { return { id: n.id, type: n.type, mirror: !!n.mirror }; });
+    },
     ipError: function (ip) { return ipError(ip); },
     ipConflict: function (id, ip) { return ipConflict(id, ip); },
     // ping: ส่ง onArrive(res, hops) เมื่อแพ็กเก็ตถึงปลายทาง · คืน res ทันทีสำหรับ pre-check
     /* ตรวจอย่างเดียว ไม่ยิงแพ็กเก็ต — หน้าภารกิจใช้เช็คเงื่อนไขผ่านซ้ำ ๆ ได้โดยจอไม่กระพริบ */
     canPing: function (srcId, targetIp) { return pingCheck(srcId, targetIp); },
     canReachNet: function (srcId) { return reachInternet(srcId); },
-    ping: function (srcId, targetIp, onArrive) {
+    ping: function (srcId, targetIp, onArrive, opt) {   // opt = {count} จำนวนครั้งที่ดักจับเห็น (ไม่ส่ง = 3)
       var res = pingCheck(srcId, targetIp);
-      if (res.ok) { arpNote(srcId, res.target, res.path); animateAlong(res.path, function (hops) { if (onArrive) onArrive(res, hops); }); }
+      if (res.ok) { arpNote(srcId, res.target, res.path); capPing(srcId, targetIp, res, opt); animateAlong(res.path, function (hops) { if (onArrive) onArrive(res, hops); }); }
+      else if (pktCb) capPingFail(srcId, targetIp, res, opt);
       return res;
     },
     // http: ส่ง onArrive(status, hops, targetId) เมื่อ packet ถึง server · คืน res ทันที (pre-check)
-    http: function (srcId, targetIp, onArrive) {
+    http: function (srcId, targetIp, onArrive, opt) {   // opt = {host} ชื่อที่พิมพ์ (โชว์ใน Host: ของแพ็กเก็ต)
       var res = httpRequest(srcId, targetIp);
-      if (res.ok) { arpNote(srcId, res.target, res.path); animateAlong(res.path, function (hops) { if (onArrive) onArrive(res.status, hops, res.target); }); }
+      if (res.ok) { arpNote(srcId, res.target, res.path); if (pktCb) capHttp(srcId, targetIp, res.target, res.path, (opt && opt.host) || targetIp, res.status, null); animateAlong(res.path, function (hops) { if (onArrive) onArrive(res.status, hops, res.target); }); }
       return res;
     },
     // ----- อินเทอร์เน็ตภายนอก (ping เว็บ/DNS · tracert) -----
     netTarget: function (host) { return netTarget(host); },       // รู้จัก host ไหม (เว็บ/8.8.8.8)
     hasISP: function () { return !!ispNode(); },
-    pingNet: function (srcId, host, onArrive) { return pingNet(srcId, host, onArrive); },
+    pingNet: function (srcId, host, onArrive, opt) { return pingNet(srcId, host, onArrive, opt); },
     tracePath: function (srcId, host) { return tracePath(srcId, host); }
   };
 })(window);

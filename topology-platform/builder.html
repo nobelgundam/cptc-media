@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>สร้างเครือข่าย — Builder</title>
-<link rel="stylesheet" href="css/style.css?v=20261022b">
+<link rel="stylesheet" href="css/style.css?v=20261022d">
 </head>
 <body>
 <div class="wrap wide">
@@ -66,14 +66,19 @@
   </div>
 
   <!-- Terminal (CLI: ipconfig / ping) -->
-  <div class="terminal">
+  <div class="terminal" id="tbTerm">
     <div class="term-head">
       <span class="tt">💻 Terminal</span>
       <label class="term-pc">เครื่อง:
         <select id="srcSel" title="เลือกเครื่องที่จะพิมพ์คำสั่ง"></select>
       </label>
     </div>
-    <div class="term-out" id="termOut"><div class="th">พิมพ์ <b>ipconfig</b> ดูเลข IP · <b>ping &lt;IP&gt;</b> ทดสอบส่งข้อมูล · <b>http &lt;IP&gt;</b> เปิดเว็บที่ Server · <b>tracert &lt;IP&gt;</b> ดูว่าผ่านอุปกรณ์อะไรบ้าง · <b>nslookup &lt;ชื่อ&gt;</b> ถามว่าชื่อนี้คือเลข IP อะไร (ตั้ง IP ที่เครื่องก่อนนะ)<br>แบบ Ubuntu: <b>ip a</b> · <b>ip route</b> · <b>ip neigh</b> · <b>ping -c 4 &lt;IP&gt;</b> · <b>traceroute &lt;IP&gt;</b> · <b>dhclient</b> (ขอ IP อัตโนมัติ) · <b>dig &lt;ชื่อ&gt;</b> · <b>cat /etc/resolv.conf</b></div></div>
+    <div class="term-tabs">
+      <button type="button" class="on" id="tabTerm">💻 Terminal<small>เทอร์มินัล</small></button>
+      <button type="button" id="tabCap">📡 ดักจับ<small>Capture</small><span class="cap-badge hidden" id="capBadge">0</span></button>
+    </div>
+    <div id="termPane">
+    <div class="term-out" id="termOut"><div class="th">พิมพ์ <b>ipconfig</b> ดูเลข IP · <b>ping &lt;IP&gt;</b> ทดสอบส่งข้อมูล · <b>http &lt;IP&gt;</b> เปิดเว็บที่ Server · <b>tracert &lt;IP&gt;</b> ดูว่าผ่านอุปกรณ์อะไรบ้าง · <b>nslookup &lt;ชื่อ&gt;</b> ถามว่าชื่อนี้คือเลข IP อะไร (ตั้ง IP ที่เครื่องก่อนนะ)<br>แบบ Ubuntu: <b>ip a</b> · <b>ip route</b> · <b>ip neigh</b> · <b>ping -c 4 &lt;IP&gt;</b> · <b>traceroute &lt;IP&gt;</b> · <b>dhclient</b> (ขอ IP อัตโนมัติ) · <b>dig &lt;ชื่อ&gt;</b> · <b>cat /etc/resolv.conf</b><br>📡 อยากเห็นแพ็กเก็ตจริง ๆ → แท็บ <b>ดักจับ</b> (แบบ Wireshark) กดเริ่ม แล้วกลับมาลองสั่ง ping</div></div>
     <div class="term-chips">
       <button data-fill="ipconfig">ipconfig</button>
       <button data-fill="ping ">ping…</button>
@@ -85,6 +90,32 @@
       <span class="prompt" id="termPrompt">&gt;</span>
       <input id="cmd" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="เช่น ping 192.168.1.20 หรือ ping 8.8.8.8">
       <button class="btn go" id="runBtn">รัน</button>
+    </div>
+    </div>
+    <!-- 📡 ดักจับแพ็กเก็ต (Wireshark ย่อ) — ของเสมือนในผัง · ข้อมูลของจริงดักได้เฉพาะเครื่องตัวเอง -->
+    <div id="capPane" class="cap hidden">
+      <div class="cap-bar">
+        <button type="button" class="btn" id="capToggle">▶ เริ่มดักจับ<small>Start</small></button>
+        <button type="button" class="btn" id="capClear">🗑 ลบรายการ<small>Clear</small></button>
+        <span class="cap-rec hidden" id="capRec">● กำลังดักจับ</span>
+      </div>
+      <div class="cap-sel">
+        <label>ดักที่เครื่อง (Capture on)<select id="capPoint"></select></label>
+        <label>กรองโปรโตคอล (Filter)<select id="capFilter">
+          <option value="">ทั้งหมด (All)</option><option value="ARP">ARP</option><option value="ICMP">ICMP (ping)</option>
+          <option value="DNS">DNS</option><option value="HTTP">HTTP</option><option value="DHCP">DHCP</option></select></label>
+      </div>
+      <div class="cap-legend">สีแถว = ชั้นสูงสุดของแพ็กเก็ต:
+        <span><i class="cl-link"></i>เทา ชั้นเชื่อมต่อ (ARP)</span>
+        <span><i class="cl-inet"></i>ฟ้า ชั้นอินเทอร์เน็ต (ICMP)</span>
+        <span><i class="cl-app"></i>เหลือง ชั้นแอปพลิเคชัน (DNS · HTTP · DHCP)</span></div>
+      <div class="cap-wrap" id="capWrap">
+        <table class="cap-tbl"><thead><tr>
+          <th>No.<small>ที่</small></th><th>ต้นทาง<small>Source</small></th><th>ปลายทาง<small>Dest.</small></th><th>โปรโตคอล<small>Protocol</small></th><th>รายละเอียด<small>Info · แตะแถวดูทีละชั้น</small></th>
+        </tr></thead><tbody id="capRows"></tbody></table>
+      </div>
+      <div class="cap-detail hidden" id="capDetail"></div>
+      <p class="cap-note">💡 ของจริง Wireshark ดักได้เฉพาะข้อมูลที่ผ่านเครื่องตัวเอง · ห้ามดักข้อมูลของคนอื่นโดยไม่ได้รับอนุญาต · สื่อนี้เก็บล่าสุดไม่เกิน 200 แถว ไม่เซฟลงเครื่อง</p>
     </div>
   </div>
 
@@ -175,6 +206,11 @@
         <input class="full" id="cfgDhcpDns" type="text" value="" autocomplete="off" autocapitalize="off" spellcheck="false">
       </div>
     </div>
+    <!-- สวิตช์: Port Mirror (กระจกพอร์ต · แบบ MikroTik RB260GSP) — มีเฉพาะ builder -->
+    <div id="cfgMirrorWrap" class="hidden">
+      <p class="dlg-note">สวิตช์ปกติส่งเฟรมไปเฉพาะพอร์ตปลายทาง เครื่องอื่นในวงจึงไม่เห็นข้อมูลของกัน (ยกเว้น broadcast) · <b>Port Mirror (กระจกพอร์ต)</b> = สั่งให้สวิตช์ก๊อปทุกเฟรมที่ผ่านตัวมันให้ตัวดักจับดู (แบบที่ครูสาธิตบน RB260GSP) · เปิดแล้วเลือกสวิตช์นี้เป็นจุดดักในแท็บ 📡 ดักจับ</p>
+      <button type="button" class="btn wide" id="cfgMirrorToggle">🪞 Port Mirror (กระจกพอร์ต): ปิด</button>
+    </div>
     <div id="cfgWifiWrap" class="hidden">
       <p class="dlg-note">🔒 ตั้งรหัสผ่าน Wi-Fi ให้อุปกรณ์นี้ · ต้องเป็น "รหัสแข็งแรง" ครบ 5 ข้อ · เว้นว่าง = เปิด (ใครก็เกาะได้ เน็ตช้า ไม่ปลอดภัย)</p>
       <label>รหัสผ่าน Wi-Fi (Password)</label>
@@ -246,7 +282,7 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="js/engine.js?v=20261022c"></script>
+<script src="js/engine.js?v=20261022d"></script>
 <script>
 (function(){
   var E = window.NetSimEngine;
@@ -322,7 +358,7 @@
   var STATUS_TXT = {
     place:   'เลือกอุปกรณ์ทางซ้าย แล้วแตะบนกระดานเพื่อวาง · ลากเพื่อย้าย',
     connect: 'เลือกสื่อกลางทางซ้าย แล้วแตะอุปกรณ์ A → อุปกรณ์ B',
-    config:  '⚙️ แตะที่ พีซี (PC) หรือ เซิร์ฟเวอร์ (Server) เพื่อตั้งเลข IP',
+    config:  '⚙️ แตะที่ พีซี (PC) หรือ เซิร์ฟเวอร์ (Server) เพื่อตั้งเลข IP · แตะ สวิตช์ เพื่อตั้ง Port Mirror',
     settings:'🛡️ แตะที่ PC หรือ เครื่องพิมพ์-Server เพื่อเปิด/ปิด Firewall (Allow File and Printer Sharing)',
     cutlink: '✂️ โหมดตัดสาย: แตะที่ "เส้นสาย" เพื่อตัด → ลองชี้เส้นทาง/ping ดูว่ายังถึงกันไหม (สอนจุดอ่อนเครือข่าย)',
     delete:  'โหมดลบ: แตะอุปกรณ์ 1 ครั้ง แล้วแตะซ้ำเพื่อยืนยัน',
@@ -492,6 +528,15 @@
     /* router = ตั้งได้ทั้ง IP และรหัส Wi-Fi · AP = รหัส Wi-Fi อย่างเดียว · ที่เหลือ = IP อย่างเดียว
      * (แก้ 29 ส.ค. 69: เดิม router ตกเงื่อนไข Wi-Fi แล้ว return ทำให้ตั้ง IP ให้ router ไม่ได้เลย) */
     var isRouter = (n.type === 'router');
+    var mirWrap = document.getElementById('cfgMirrorWrap');
+    mirWrap.classList.toggle('hidden', n.type !== 'switch');
+    if (n.type === 'switch'){   // สวิตช์ = ตั้งได้อย่างเดียวคือ Port Mirror (builder เท่านั้น)
+      ['cfgIpWrap', 'cfgWifiWrap', 'cfgDhcpSrvWrap'].forEach(function(w){ document.getElementById(w).classList.add('hidden'); });
+      setMirrorOn(!!n.mirror);
+      cfgTitle.textContent = '🪞 ตั้งค่าสวิตช์ ' + id + ' — Port Mirror';
+      overlay.classList.add('show');
+      return;
+    }
     var wifiOnly = E.canHaveWifi(n.type) && !isRouter;
     document.getElementById('cfgIpWrap').classList.toggle('hidden', wifiOnly);
     document.getElementById('cfgWifiWrap').classList.toggle('hidden', !(wifiOnly || isRouter));
@@ -563,9 +608,24 @@
     for (var i = 0; i < ss.length; i++) ss[i].textContent = pfx;
   }
   cfgIp.addEventListener('input', refreshPfx);
+  var mirrorOn = false;
+  function setMirrorOn(v){     // สวิตช์: เปิด/ปิด Port Mirror (กระจกพอร์ต)
+    mirrorOn = v;
+    var t = document.getElementById('cfgMirrorToggle');
+    t.classList.toggle('on', v);
+    t.textContent = '🪞 Port Mirror (กระจกพอร์ต): ' + (v ? 'เปิด ✓' : 'ปิด');
+  }
+  document.getElementById('cfgMirrorToggle').addEventListener('click', function(){ cfgErr.textContent = ''; setMirrorOn(!mirrorOn); });
   document.getElementById('cfgCancel').addEventListener('click', function(){ overlay.classList.remove('show'); });
   overlay.addEventListener('click', function(e){ if (e.target===overlay) overlay.classList.remove('show'); });
   document.getElementById('cfgSave').addEventListener('click', function(){
+    var nsw = E.getNode(cfgId);
+    if (nsw && nsw.type === 'switch'){
+      E.setNodeMirror(cfgId, mirrorOn);
+      overlay.classList.remove('show');
+      showToast(mirrorOn ? '🪞 ' + cfgId + ' เปิด Port Mirror แล้ว — เลือกเป็นจุดดักได้ในแท็บ 📡 ดักจับ' : cfgId + ' ปิด Port Mirror', mirrorOn ? 'ok' : 'bad');
+      return;
+    }
     // ส่วนรหัส Wi-Fi (AP = อย่างเดียว · Router = ทำคู่กับ IP แล้วไปต่อ)
     var wifiShown = !document.getElementById('cfgWifiWrap').classList.contains('hidden');
     var ipShown   = !document.getElementById('cfgIpWrap').classList.contains('hidden');
@@ -1060,7 +1120,7 @@
         }
         termPrint('📋 จดสมุด: ' + srcId + ' ping ' + lab + ' = ได้ — ออกอินเทอร์เน็ตผ่าน Router', 'note');
         showToast('✅ ออกเน็ตได้ (' + net.ms + 'ms)', 'ok');
-      });
+      }, { count: lx || 3 });
     } else {
       res = E.ping(srcId, ip, function(r, hops){
         if (lx){
@@ -1073,7 +1133,7 @@
         }
         termPrint('📋 จดสมุด: ' + srcId + ' ping ' + lab + ' = ได้ — ' + (r.sameNet ? 'วงเดียวกัน (subnet เดียวกัน)' : 'คนละวง ต้องผ่าน Router'), 'note');
         showToast('✅ ' + srcId + ' ส่งถึง ' + lab + ' แล้ว (' + hops + ' hop)', 'ok');
-      });
+      }, { count: lx || 3 });
     }
     var tag = (rv.name ? ' [' + rv.ip + ']' : '');   // พิมพ์เป็นชื่อ → โชว์เลข IP ที่แปลงได้ในวงเล็บ (เหมือน Windows)
     if (res.ok){
@@ -1130,7 +1190,7 @@
       termPrint('HTTP/1.1 200 OK', 'ok');
       termPrint('   → ' + HTTP_INFO[200].th, 'note');
       showToast('✅ 200 OK', 'ok');
-    });
+    }, { http: true, host: lab });
     if (res.ok){ termPrint('กำลังเปิดเว็บ http://' + lab + ' [' + rv.ip + '] ...'); statusEl.textContent = '🌐 เปิดเว็บ ' + lab + ' จาก ' + srcSel.value + ' ...'; return; }
     var nm = TRACE_MSG[res.reason] || 'ส่งไม่ถึง';
     termPrint('✗ เปิดเว็บไม่ได้ — ' + nm, 'bad');
@@ -1146,7 +1206,7 @@
       termPrint('HTTP/1.1 ' + status + ' ' + info.en, good ? 'ok' : 'bad');
       termPrint('   → ' + info.th, 'note');
       showToast((good ? '✅ ' : '⛔ ') + status + ' ' + info.en, good ? 'ok' : 'bad');
-    });
+    }, { host: typed });
     if (res.ok){ termPrint('กำลังเปิดเว็บ http://' + typed + (rv.name ? ' [' + ip + ']' : '') + ' ...'); statusEl.textContent = '🌐 เปิดเว็บ ' + typed + ' จาก ' + srcSel.value + ' ...'; return; }
     if (res.reason === 'noserver'){
       termPrint('✗ เชื่อมต่อไม่ได้ — ' + ip + ' ไม่ใช่เว็บเซิร์ฟเวอร์ (ต้องเป็น Server ถึงจะ http ได้)', 'bad');
@@ -1162,6 +1222,124 @@
     termPrint('✗ เปิดเว็บไม่ได้ — ' + nm, 'bad');
     showToast('⛔ เปิดเว็บไม่ได้: ' + nm, 'bad');
   }
+
+  /* ================= 📡 ดักจับแพ็กเก็ต (Capture · Wireshark ย่อ) =================
+   * engine ปล่อยเหตุการณ์ผ่าน onPacket → เก็บเฉพาะตอนกด "เริ่มดักจับ" · แต่ละแถวมีรายชื่อจุดดักที่เห็น (ev.seen) → เลือกจุดดักแล้วกรองตามนั้น
+   * No. นับแยกตามจุดดัก (ev.no[จุดดัก]) · เพดาน 200 แถว (เก่าสุดหลุดก่อน) · ไม่เซฟ */
+  var CAP_MAX = 200;
+  var cap = { on: false, rows: [], t0: 0, last: 0, seqBy: {}, point: '', filt: '', timer: 0, open: null };
+  var cpPoint = document.getElementById('capPoint'), cpFilter = document.getElementById('capFilter');
+  var cpRows = document.getElementById('capRows'), cpWrap = document.getElementById('capWrap'), cpDetail = document.getElementById('capDetail');
+  var cpBadge = document.getElementById('capBadge'), cpToggle = document.getElementById('capToggle'), cpRec = document.getElementById('capRec');
+
+  function capAccept(ev){
+    if (!cap.on || !ev.seen || !ev.seen.length) return;
+    var t = (Date.now() - cap.t0) / 1000; if (t <= cap.last) t = cap.last + 0.0004; cap.last = t; ev.t = t;
+    ev.no = {};
+    ev.seen.forEach(function(id){ cap.seqBy[id] = (cap.seqBy[id] || 0) + 1; ev.no[id] = cap.seqBy[id]; });
+    cap.rows.push(ev); if (cap.rows.length > CAP_MAX) cap.rows.shift();
+    clearTimeout(cap.timer); cap.timer = setTimeout(capRender, 60);
+  }
+  function capFillPoints(){
+    var list = E.captureSources(), prev = cpPoint.value, i, ok = false;
+    cpPoint.innerHTML = '';
+    if (!list.length){
+      var o0 = document.createElement('option'); o0.value = ''; o0.textContent = '— ยังไม่มีเครื่อง —'; cpPoint.appendChild(o0);
+    }
+    list.forEach(function(s){
+      var o = document.createElement('option'); o.value = s.id;
+      o.textContent = s.id + (s.type === 'switch' ? ' 🪞 สวิตช์ (Port Mirror)' : (s.type === 'server' ? ' · เซิร์ฟเวอร์' : ' · พีซี'));
+      cpPoint.appendChild(o); if (s.id === prev) ok = true;
+    });
+    if (ok) cpPoint.value = prev;
+    else if (list.some(function(s){ return s.id === srcSel.value; })) cpPoint.value = srcSel.value;
+    cap.point = cpPoint.value;
+    capRender();
+  }
+  function capVisible(){
+    return cap.rows.filter(function(e){ return e.no && e.no[cap.point] && (!cap.filt || e.proto === cap.filt); });
+  }
+  function td(text, cls){ var c = document.createElement('td'); c.textContent = text; if (cls) c.className = cls; return c; }
+  function capRender(){
+    var all = cap.rows.filter(function(e){ return e.no && e.no[cap.point]; });
+    var shown = capVisible();
+    cpBadge.textContent = all.length; cpBadge.classList.toggle('hidden', !all.length);
+    cpRows.innerHTML = '';
+    if (!shown.length){
+      var tr0 = document.createElement('tr'), c0 = document.createElement('td');
+      c0.colSpan = 5; c0.className = 'cap-empty';
+      c0.textContent = all.length ? 'ไม่มีแถวที่ตรงกับตัวกรองนี้' : (cap.on ? 'กำลังดักจับ… ยังไม่มีแพ็กเก็ตผ่านเครื่องนี้' : 'กด “เริ่มดักจับ” แล้วไปสั่งคำสั่งในแท็บ Terminal (เช่น ping) — แพ็กเก็ตจะโผล่ที่นี่');
+      tr0.appendChild(c0); cpRows.appendChild(tr0);
+      return;
+    }
+    shown.forEach(function(e){
+      var tr = document.createElement('tr'); tr.className = 'cap-row cap-' + e.top;
+      tr.appendChild(td(String(e.no[cap.point])));
+      tr.appendChild(td(e.srcLbl)); tr.appendChild(td(e.dstLbl)); tr.appendChild(td(e.proto));
+      var ci = document.createElement('td'); ci.appendChild(document.createTextNode(e.info));
+      var th = document.createElement('span'); th.className = 'cap-th'; th.textContent = e.th; ci.appendChild(th);
+      tr.appendChild(ci);
+      tr.addEventListener('click', function(){ capOpen(e); });
+      cpRows.appendChild(tr);
+    });
+    cpWrap.scrollTop = cpWrap.scrollHeight;
+  }
+  function kv(box, k, v){
+    var b = document.createElement('b'); b.textContent = k;
+    var s = document.createElement('span'); s.textContent = v;
+    box.appendChild(b); box.appendChild(s);
+  }
+  var TOP_TH = { link: 'ชั้นเชื่อมต่อเครือข่าย (Link)', inet: 'ชั้นอินเทอร์เน็ต (Internet)', tran: 'ชั้นขนส่ง (Transport)', app: 'ชั้นแอปพลิเคชัน (Application)' };
+  function capOpen(e){
+    cap.open = e; cpDetail.innerHTML = '';
+    var back = document.createElement('button'); back.type = 'button'; back.className = 'btn'; back.textContent = '← กลับไปตาราง';
+    back.addEventListener('click', capClose); cpDetail.appendChild(back);
+    var h = document.createElement('h4'); h.textContent = 'แพ็กเก็ตที่ ' + e.no[cap.point] + ' · ' + e.proto + ' · ' + e.info; cpDetail.appendChild(h);
+    var box = document.createElement('div'); box.className = 'cap-kv';
+    kv(box, 'เวลา (Time)', e.t.toFixed(4) + ' วินาที นับจากกดเริ่ม');
+    kv(box, 'ต้นทาง (Source)', e.srcLbl + (e.srcIp ? ' · ' + e.srcIp : '') + ' · MAC ' + e.srcMac);
+    kv(box, 'ปลายทาง (Dest.)', e.dstLbl + (e.dstIp ? ' · ' + e.dstIp : '') + ' · MAC ' + e.dstMac);
+    kv(box, 'โปรโตคอล', e.proto);
+    kv(box, 'ชั้นสูงสุด (Layer)', TOP_TH[e.top] || e.top);
+    kv(box, 'สรุปภาษาคน', e.th);
+    cpDetail.appendChild(box);
+    var h2 = document.createElement('h4'); h2.textContent = 'แกะทีละชั้น (ล่างขึ้นบน)'; cpDetail.appendChild(h2);
+    e.layers.forEach(function(L, i){
+      var d = document.createElement('div'); d.className = 'cap-ly l-' + (i === 0 ? 'link' : (e.top === 'app' && i === e.layers.length - 1 ? 'app' : 'inet'));
+      var n = document.createElement('b'); n.className = 'cap-n'; n.textContent = (i + 1) + '.';
+      var u = document.createElement('u'); u.textContent = L.k;
+      d.appendChild(n); d.appendChild(u); d.appendChild(document.createTextNode(': ' + L.t));
+      cpDetail.appendChild(d);
+    });
+    document.getElementById('capWrap').classList.add('hidden');
+    cpDetail.classList.remove('hidden');
+  }
+  function capClose(){ cap.open = null; cpDetail.classList.add('hidden'); document.getElementById('capWrap').classList.remove('hidden'); capRender(); }
+  function capSetOn(v){
+    cap.on = v;
+    if (v && !cap.rows.length) { cap.t0 = Date.now(); cap.last = 0; }
+    else if (v && !cap.t0) cap.t0 = Date.now();
+    cpToggle.className = 'btn' + (v ? ' rec' : '');
+    cpToggle.innerHTML = v ? '⏹ หยุด<small>Stop</small>' : '▶ เริ่มดักจับ<small>Start</small>';
+    cpRec.classList.toggle('hidden', !v);
+    capRender();
+  }
+  cpToggle.addEventListener('click', function(){ capSetOn(!cap.on); });
+  document.getElementById('capClear').addEventListener('click', function(){
+    cap.rows = []; cap.seqBy = {}; cap.last = 0; cap.t0 = Date.now(); capClose();
+  });
+  cpPoint.addEventListener('change', function(){ cap.point = cpPoint.value; capClose(); });
+  cpFilter.addEventListener('change', function(){ cap.filt = cpFilter.value; capRender(); });
+  function setTab(which){
+    var isCap = (which === 'cap');
+    document.getElementById('tabTerm').classList.toggle('on', !isCap);
+    document.getElementById('tabCap').classList.toggle('on', isCap);
+    document.getElementById('termPane').classList.toggle('hidden', isCap);
+    document.getElementById('capPane').classList.toggle('hidden', !isCap);
+    if (isCap) capFillPoints();
+  }
+  document.getElementById('tabTerm').addEventListener('click', function(){ setTab('term'); });
+  document.getElementById('tabCap').addEventListener('click', function(){ setTab('cap'); });
 
   document.getElementById('runBtn').addEventListener('click', function(){ runCmd(cmdIn.value); cmdIn.value=''; });
   cmdIn.addEventListener('keydown', function(e){ if (e.key==='Enter'){ runCmd(cmdIn.value); cmdIn.value=''; } });
@@ -1207,7 +1385,8 @@
       storeKey: 'netsim_builder_no' + studentNo,
       dnsStrict: true,   // โหมดเข้ม: ชื่อต้องผ่าน DNS ของเครื่อง (ไฟล์ภารกิจ wk* ไม่ส่ง option นี้ = พฤติกรรมเดิม)
       onStatus: function(m){ statusEl.textContent = m; },
-      onChange: function(n,e){ countsEl.textContent = 'อุปกรณ์ ' + n + ' · สาย ' + e; refreshTerm(); },
+      onChange: function(n,e){ countsEl.textContent = 'อุปกรณ์ ' + n + ' · สาย ' + e; refreshTerm(); capFillPoints(); },
+      onPacket: capAccept,   // ดักจับแพ็กเก็ต (เก็บเฉพาะตอนกดเริ่ม)
       onToast: showToast,
       onConfig: function(id){ openCfg(id); },
       onWifi: function(apId, a, b, m){ openWifiConnect(apId, a, b, m); },

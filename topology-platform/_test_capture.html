@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="th">
+<head><meta charset="UTF-8"><title>capture (ดักจับแพ็กเก็ต) test</title></head>
+<body>
+<script>try { localStorage.clear(); localStorage.setItem('netsim_builder_no', '7'); } catch (e) {}</script>
+<iframe id="fr" src="builder.html" style="width:420px;height:900px;border:1px solid #ccc"></iframe>
+<pre id="out">running…</pre>
+<script>
+/* โหมดดักจับแพ็กเก็ต (แบบ Wireshark ย่อ) — รูปแบบเดียวกับ _test_dns.html: ok(name,cond) → document.title = RESULT pass=N fail=M
+ * ส่วน A = engine ล้วน (iframe srcdoc init พร้อม onPacket เก็บเหตุการณ์) · ส่วน B = แผงดักจับใน builder.html จริง (กดปุ่ม/เลือก/แตะแถว) */
+var log = [], pass = 0, fail = 0;
+function ok(name, cond, extra){ (cond ? pass++ : fail++); log.push((cond ? 'PASS ' : 'FAIL ') + name + (extra ? ' | ' + extra : '')); }
+function done(){
+  try { localStorage.clear(); } catch (e) {}
+  document.getElementById('out').textContent = log.join('\n') + '\nRESULT pass=' + pass + ' fail=' + fail;
+  document.title = 'RESULT pass=' + pass + ' fail=' + fail;
+}
+function U(a, b){ return { id: a + '-' + b, a: a, b: b, media: 'utp' }; }
+function N(id, type, ip, extra){
+  var n = { id: id, type: type, x: 60 + (N.k = (N.k || 0) + 1) * 14, y: 80 + (N.k % 7) * 30 };
+  if (ip) n.ip = ip;
+  if (extra) for (var k in extra) n[k] = extra[k];
+  return n;
+}
+/* ผังมาตรฐาน: R1(DHCP เปิด) — SW1 — PC1/PC2/PC3/PC4(ไม่มี IP)/SRV1(shop.local) · R1 — ISP1 · o.noDhcp · o.mirror (เปิด Port Mirror ที่ SW1) */
+function topo(Ex, o){
+  o = o || {};
+  var nodes = [ N('R1','router','192.168.1.1', o.noDhcp ? {} : { dhcp: { on: true, from: 10, to: 254, dns: '' } }), N('SW1','switch', null, o.mirror ? { mirror: true } : null),
+    N('PC1','pc','192.168.1.10',{ gw: '192.168.1.1' }), N('PC2','pc','192.168.1.20',{ gw: '192.168.1.1' }), N('PC3','pc','192.168.1.30',{ gw: '192.168.1.1' }),
+    N('PC4','pc'), N('SRV1','server','192.168.1.50',{ gw: '192.168.1.1', host: 'shop.local' }), N('ISP1','isp') ];
+  var edges = [ U('R1','SW1'), U('SW1','PC1'), U('SW1','PC2'), U('SW1','PC3'), U('SW1','PC4'), U('SW1','SRV1'), U('R1','ISP1') ];
+  Ex.loadState({ nodes: nodes, edges: edges });
+}
+
+/* ================= A) engine ================= */
+function partA(done2){
+  var fr2 = document.createElement('iframe');
+  fr2.style.cssText = 'width:400px;height:300px';
+  fr2.addEventListener('load', function(){
+    var EV = [];
+    function cnt(f){ return EV.filter(f).length; }
+    function P(p){ return cnt(function(e){ return e.proto === p; }); }
+    function infoHas(s){ return cnt(function(e){ return e.info.indexOf(s) > -1; }); }
+    function seen(e, id){ return e.seen.indexOf(id) > -1; }
+    try {
+      var w2 = fr2.contentWindow, E2 = w2.NetSimEngine, E3;
+      E2.init(fr2.contentDocument.getElementById('c'), { restore: false, storeKey: 'ns_test_cap', dnsStrict: true, onPacket: function(ev){ EV.push(ev); } });
+
+      /* ---- ping: ARP ครั้งแรก / ครั้งต่อไปไม่มี ---- */
+      topo(E2); EV.length = 0;
+      E2.ping('PC1', '192.168.1.20', null, { count: 2 });
+      ok('A1 ping ครั้งแรกในวง: ARP request+reply (2) · ICMP 2 ครั้ง = 4 เฟรม', P('ARP') === 2 && P('ICMP') === 4, 'ARP=' + P('ARP') + ' ICMP=' + P('ICMP'));
+      var a1 = EV[0], a2 = EV[1];
+      ok('A1b ARP request เป็น broadcast (ff:ff…) ถามหา 192.168.1.20 · ARP reply ส่งเฉพาะคนถาม', a1.bcast === true && a1.dstMac === 'ff:ff:ff:ff:ff:ff' && a1.info === 'Who has 192.168.1.20? Tell 192.168.1.10' && a2.bcast === false && a2.dstMac === a1.srcMac && /^192\.168\.1\.20 is at /.test(a2.info), a1.info + ' / ' + a2.info);
+      ok('A1c ลำดับ: ARP request → ARP reply → Echo request → Echo reply (ARP มาก่อน ICMP)', EV.map(function(e){ return e.proto; }).slice(0, 4).join() === 'ARP,ARP,ICMP,ICMP' && /request/.test(EV[2].info) && /reply/.test(EV[3].info));
+      EV.length = 0;
+      E2.ping('PC1', '192.168.1.20', null, { count: 3 });
+      ok('A2 ping ครั้งที่ 2 (มีใน ARP cache แล้ว) → ไม่มี ARP · ICMP 6 เฟรม (3 คู่)', P('ARP') === 0 && P('ICMP') === 6, 'ARP=' + P('ARP') + ' ICMP=' + P('ICMP'));
+      ok('A2b ip neigh (cache) ยังมี 192.168.1.20 ตามเดิม (ดักจับไม่ทำให้ cache เพี้ยน)', E2.neighbors('PC1').length === 1 && E2.neighbors('PC1')[0].ip === '192.168.1.20');
+
+      /* ---- ใครเห็นอะไร ---- */
+      topo(E2); EV.length = 0;
+      E2.ping('PC1', '192.168.1.20', null, { count: 1 });
+      var req = EV[0], rep = EV[1], icq = EV[2], icr = EV[3];
+      ok('A3 PC อื่นในวง (PC3/PC4/SRV1) เห็น ARP request (broadcast) ด้วย', seen(req, 'PC1') && seen(req, 'PC3') && seen(req, 'PC4') && seen(req, 'SRV1') && seen(req, 'PC2'), req.seen.join());
+      ok('A3b แต่ไม่เห็น ARP reply ของคนอื่น (unicast) → เห็นเฉพาะ PC1 กับ PC2', seen(rep, 'PC1') && seen(rep, 'PC2') && !seen(rep, 'PC3') && !seen(rep, 'SRV1'), rep.seen.join());
+      ok('A3c PC3 ไม่เห็น ICMP ของ PC1↔PC2 เลย (สวิตช์ไม่ส่งของคนอื่นมาให้) · PC1/PC2 เห็น', !seen(icq, 'PC3') && !seen(icr, 'PC3') && seen(icq, 'PC1') && seen(icq, 'PC2') && seen(icr, 'PC1') && seen(icr, 'PC2'));
+      ok('A3d สวิตช์ที่ไม่ได้เปิด mirror ไม่เป็นจุดดักเลย (ไม่โผล่ใน seen ทุกเฟรม · ไม่อยู่ใน captureSources)', cnt(function(e){ return seen(e, 'SW1'); }) === 0 && E2.captureSources().map(function(s){ return s.id; }).indexOf('SW1') < 0);
+      E2.setNodeMirror('SW1', true); EV.length = 0;
+      E2.ping('PC2', '192.168.1.50', null, { count: 1 });
+      ok('A4 เปิด Port Mirror ที่ SW1 → SW1 เห็น ICMP ของคนอื่น (PC2↔SRV1) · PC1/PC3 ยังไม่เห็น', infoHas('Echo') === 2 && EV.filter(function(e){ return e.proto === 'ICMP'; }).every(function(e){ return seen(e, 'SW1') && !seen(e, 'PC1') && !seen(e, 'PC3'); }), JSON.stringify(EV.map(function(e){ return e.seen; })));
+      ok('A4b SW1 เห็น ARP ด้วย (broadcast ผ่านสวิตช์) · captureSources มี SW1 (mirror) + PC/Server ทุกตัว', EV.filter(function(e){ return e.proto === 'ARP'; }).every(function(e){ return seen(e, 'SW1'); }) && E2.captureSources().filter(function(s){ return s.id === 'SW1' && s.mirror; }).length === 1 && E2.captureSources().length === 6);
+      E2.setNodeMirror('SW1', false);
+      ok('A4c ปิด mirror แล้ว SW1 ออกจากจุดดัก (ไม่เหลือในรายการ)', E2.captureSources().length === 5 && E2.getNode('SW1').mirror === false);
+
+      /* ---- ข้ามวง: ARP หา gateway · TTL ลด 1 · แยกช่วงสาย ---- */
+      topo(E2, { mirror: true }); EV.length = 0;
+      E2.pingNet('PC1', '8.8.8.8', null, { count: 1 });
+      var arpE = EV.filter(function(e){ return e.proto === 'ARP'; }), ic = EV.filter(function(e){ return e.proto === 'ICMP'; });
+      ok('A5 ping 8.8.8.8 ข้ามวง → ARP หา gateway 192.168.1.1 (ไม่ใช่หา 8.8.8.8)', arpE.length === 2 && arpE[0].info === 'Who has 192.168.1.1? Tell 192.168.1.10', arpE.map(function(e){ return e.info; }).join(' / '));
+      ok('A5b ICMP แยกเป็น 2 ช่วงสาย (PC1→R1 · R1→ISP1) ไป-กลับ = 4 เฟรม · TTL request 64 → 63', ic.length === 4 && ic[0].info.indexOf('ttl=64') > -1 && ic[1].info.indexOf('ttl=63') > -1, ic.map(function(e){ return e.info; }).join(' / '));
+      ok('A5c reply ถึง PC1 ด้วย TTL 117 (ค่าของ 8.8.8.8) · ช่วงไกลสุด 118', ic[3].info.indexOf('ttl=117') > -1 && ic[2].info.indexOf('ttl=118') > -1, ic[2].info + ' / ' + ic[3].info);
+      ok('A5d ช่วง R1→ISP1 ไม่มีจุดดักเห็น (seen ว่าง) · ช่วง PC1→R1 PC1 เห็น + SW1(mirror) เห็น', ic[1].seen.length === 0 && ic[2].seen.length === 0 && seen(ic[0], 'PC1') && seen(ic[0], 'SW1') && !seen(ic[0], 'PC3'));
+      ok('A5e MAC ต่างช่วงสาย: ช่วง 1 ปลายทางคือ R1 · ช่วง 2 ต้นทางคือ R1 (สวิตช์ไม่เปลี่ยน MAC)', ic[0].dstMac === E2.macOf('R1') && ic[1].srcMac === E2.macOf('R1') && ic[0].srcMac === E2.macOf('PC1'));
+
+      /* ---- DHCP 4 ขั้น ---- */
+      topo(E2); EV.length = 0;
+      var q = E2.requestDhcp('PC4');
+      ok('A6 DHCP ครบ 4 ขั้น เรียง Discover → Offer → Request → ACK (ทุกอันเป็น broadcast)', q.ok && EV.length === 4 && /Discover/.test(EV[0].info) && /Offer/.test(EV[1].info) && /Request/.test(EV[2].info) && /ACK/.test(EV[3].info) && EV.every(function(e){ return e.proto === 'DHCP' && e.bcast && e.dstMac === 'ff:ff:ff:ff:ff:ff' && e.dstIp === '255.255.255.255'; }), EV.map(function(e){ return e.info; }).join(' / '));
+      ok('A6b ขั้น 1 และ 3 มาจากลูกข่าย (0.0.0.0) · ขั้น 2 และ 4 มาจาก router 192.168.1.1 · Transaction ID เดียวกันทั้ง 4', EV[0].srcIp === '0.0.0.0' && EV[2].srcIp === '0.0.0.0' && EV[1].srcIp === '192.168.1.1' && EV[3].srcIp === '192.168.1.1' && EV[0].info.split('Transaction ID ')[1] === EV[3].info.split('Transaction ID ')[1]);
+      ok('A6c เครื่องอื่นในวงเห็น DHCP ทั้ง 4 (broadcast) · UDP พอร์ต 68→67 / 67→68', EV.every(function(e){ return seen(e, 'PC1') && seen(e, 'PC3') && seen(e, 'SRV1') && seen(e, 'PC4'); }) && EV[0].sp === 68 && EV[0].dp === 67 && EV[1].sp === 67 && EV[1].dp === 68);
+      ok('A6d Offer บอก IP ที่เสนอ (ในข้อความไทยของแถว) = IP ที่ลูกข่ายได้จริง', EV[1].th.indexOf(q.ip) > -1 && EV[3].th.indexOf(q.ip) > -1, q.ip);
+      topo(E2, { noDhcp: true }); EV.length = 0;
+      var q2 = E2.requestDhcp('PC4');
+      ok('A6e ไม่มี DHCP Server → Discover ซ้ำ 2 ครั้ง ไม่มี Offer/ACK', !q2.ok && EV.length === 2 && EV.every(function(e){ return /Discover/.test(e.info); }));
+
+      /* ---- DNS ---- */
+      topo(E2); E2.setNodeIP('PC2', '192.168.1.20', '192.168.1.1', undefined, '8.8.8.8'); EV.length = 0;
+      var r = E2.resolve('PC2', 'www.google.com');
+      var dq = EV.filter(function(e){ return e.proto === 'DNS' && /^Standard query 0x/.test(e.info) && e.info.indexOf('response') < 0; });
+      var dr = EV.filter(function(e){ return e.proto === 'DNS' && e.info.indexOf('Standard query response') === 0; });
+      ok('A7 resolve ชื่อ → ARP หา gateway ก่อน แล้ว Standard query (UDP 53) ไป 8.8.8.8 · response มี A 142.250.71.14', r.ok && P('ARP') === 2 && dq.length === 2 && dr.length === 2 && dq[0].dp === 53 && dq[0].l4 === 'UDP' && dr[1].info.indexOf('A www.google.com A 142.250.71.14') > -1, EV.map(function(e){ return e.info; }).join(' / '));
+      ok('A7b query/response ใช้ Transaction ID เดียวกัน · TTL response ถึงต้นทาง 117', dq[0].info.split(' ')[2] === dr[0].info.split(' ')[3] && dr[1].info.indexOf('ttl') < 0 && dr[1].ttl === 117, dq[0].info + ' / ' + dr[0].info);
+      EV.length = 0; E2.resolve('PC2', 'nope.example');
+      ok('A7c ชื่อไม่มีจริง → response "No such name"', infoHas('No such name') >= 1 && P('ARP') === 0);
+      E2.setNodeIP('PC2', '192.168.1.20', '192.168.1.1'); EV.length = 0; E2.resolve('PC2', 'www.google.com');
+      ok('A7d ไม่มี DNS ตั้งไว้ → ไม่มีแพ็กเก็ตถามชื่อเลย (ไม่มีอะไรให้ส่ง)', EV.length === 0);
+      topo(E2); E2.setNodeIP('PC2', '192.168.1.20', '192.168.1.1', undefined, '192.168.1.99'); EV.length = 0; r = E2.resolve('PC2', 'www.google.com');
+      ok('A7e DNS ชี้เลขที่ไม่มีเครื่อง → ARP request 3 ครั้งไม่มีใครตอบ · ไม่มี DNS ออกไป', r.reason === 'timeout' && P('ARP') === 3 && P('DNS') === 0 && cnt(function(e){ return /^192\.168\.1\.99 is at/.test(e.info); }) === 0);
+      topo(E2); E2.setNodeIP('PC2', '192.168.1.20', '192.168.1.1', undefined, '192.168.1.50'); EV.length = 0; r = E2.resolve('PC2', 'www.google.com');
+      ok('A7f DNS ชี้เครื่องที่มีอยู่แต่ไม่ใช่ DNS → ARP ได้คำตอบ แล้ว query 2 ครั้งไม่มี response', r.reason === 'timeout' && P('ARP') === 2 && dnsQ() === 2 && dnsR() === 0, EV.map(function(e){ return e.info; }).join(' / '));
+      function dnsQ(){ return cnt(function(e){ return e.proto === 'DNS' && e.info.indexOf('response') < 0; }); }
+      function dnsR(){ return cnt(function(e){ return e.proto === 'DNS' && e.info.indexOf('response') > -1; }); }
+
+      /* ---- traceroute / tracert ---- */
+      topo(E2); E2.pingNet('PC1', '8.8.8.8', null, { count: 1 }); EV.length = 0;
+      var tp = E2.tracePath('PC1', '8.8.8.8');
+      var ex = EV.filter(function(e){ return e.info.indexOf('Time-to-live exceeded') === 0; });
+      ok('A8 tracePath 8.8.8.8: มี Time-to-live exceeded จาก R1 (1 ช่วง) และ ISP1 (2 ช่วงกลับ) · ไม่มี ARP ซ้ำ (cache มี gateway แล้ว)', tp.ok && ex.length === 3 && ex.filter(function(e){ return e.srcLbl === 'R1'; }).length === 1 && ex.filter(function(e){ return e.srcLbl === 'ISP1'; }).length === 2 && P('ARP') === 0, EV.map(function(e){ return e.info; }).join(' / '));
+      ok('A8b Exceeded จาก R1 บอก IP ของ R1 (192.168.1.1) · ส่งถึง PC1 · เป็น ICMP', ex[0].srcIp === '192.168.1.1' && ex[0].dstLbl === 'PC1' && ex[0].proto === 'ICMP' && /TTL หมด/.test(ex[0].th));
+      var reqs = EV.filter(function(e){ return /^Echo \(ping\) request/.test(e.info); }).map(function(e){ return e.info.replace(/.*ttl=/, ''); });
+      ok('A8c TTL ของแพ็กเก็ตสำรวจ: 1 | 2→1 | 3→2 (ลด 1 ทุกครั้งที่ข้ามเราเตอร์) และจบด้วย Echo reply จาก 8.8.8.8', reqs.join() === '1,2,1,3,2' && /^Echo \(ping\) reply/.test(EV[EV.length - 1].info) && EV[EV.length - 1].srcIp === '8.8.8.8', reqs.join() + ' | ' + EV[EV.length - 1].info);
+      topo(E2); EV.length = 0; E2.tracePath('PC1', '192.168.1.20');
+      ok('A8d tracePath ในวงเดียวกัน (ผ่านสวิตช์) → ไม่มี Exceeded (สวิตช์ไม่ลด TTL) · request ttl=1 ถึงเลย', infoHas('Time-to-live') === 0 && P('ICMP') === 2 && EV[P('ARP')].info.indexOf('ttl=1') > -1);
+
+      /* ---- HTTP ---- */
+      topo(E2); EV.length = 0; E2.http('PC1', '192.168.1.50', null, { host: 'shop.local' });
+      var hq = EV.filter(function(e){ return e.proto === 'HTTP'; });
+      ok('A9 http เซิร์ฟเวอร์ในวง: GET / HTTP/1.1 (TCP→พอร์ต 80) + HTTP/1.1 200 OK (พอร์ต 80→) · มี Host', hq.length === 2 && hq[0].info === 'GET / HTTP/1.1' && hq[0].l4 === 'TCP' && hq[0].dp === 80 && hq[1].info === 'HTTP/1.1 200 OK' && hq[1].sp === 80 && /shop\.local/.test(hq[0].th), hq.map(function(e){ return e.info; }).join(' / '));
+      topo(E2); EV.length = 0; E2.pingNet('PC1', 'google.com', null, { http: true, host: 'www.google.com' });
+      ok('A9b http เว็บนอก (pingNet {http}) → ปล่อย HTTP ไม่ใช่ ICMP', P('ICMP') === 0 && P('HTTP') === 4);
+
+      /* ---- ล้มเหลว: แพ็กเก็ตที่ออกไปจริง ---- */
+      topo(E2); E2.setFirewall('PC2', true); EV.length = 0; E2.ping('PC1', '192.168.1.20', null, { count: 2 });
+      ok('A10 ปลายทางมี Firewall บล็อก: ARP ได้คำตอบ · Echo request 2 ครั้งไม่มี reply', P('ARP') === 2 && P('ICMP') === 2 && infoHas('Echo (ping) reply') === 0);
+      topo(E2); EV.length = 0; E2.ping('PC1', '192.168.1.99', null, { count: 2 });
+      ok('A10b ping IP ในวงที่ไม่มีเครื่อง → ARP request 3 ครั้งไม่มีคนตอบ · ไม่มี ICMP', P('ARP') === 3 && P('ICMP') === 0 && infoHas(' is at ') === 0);
+      topo(E2); E2.setNodeIP('PC3', '192.168.1.30', ''); EV.length = 0; E2.ping('PC3', '10.9.9.9', null, { count: 1 });
+      ok('A10c ping นอกวงแต่ไม่มี gateway → ไม่มีแพ็กเก็ตออกสาย (เหมือนจริง: Network is unreachable)', EV.length === 0);
+
+      /* ---- รายละเอียดทีละชั้น ---- */
+      topo(E2); EV.length = 0; E2.ping('PC1', '192.168.1.20', null, { count: 1 }); E2.resolve('PC1', 'x.example'); E2.requestDhcp('PC4'); E2.http('PC1', '192.168.1.50', null, {});
+      var L = function(p){ return EV.filter(function(e){ return e.proto === p; })[0]; };
+      ok('A11 จำนวนชั้น: ARP 2 · ICMP 3 · HTTP 4 · DHCP 4 · ชั้นแรกเป็นชั้นเชื่อมต่อ (MAC) ทุกแพ็กเก็ต', L('ARP').layers.length === 2 && L('ICMP').layers.length === 3 && L('HTTP').layers.length === 4 && L('DHCP').layers.length === 4 && EV.every(function(e){ return /^ชั้นเชื่อมต่อเครือข่าย/.test(e.layers[0].k); }));
+      ok('A11b ชั้นเชื่อมต่อของ ARP request บอก "ถึง ff:ff:ff:ff:ff:ff (ทุกเครื่องในวง)"', L('ARP').layers[0].t.indexOf('ff:ff:ff:ff:ff:ff (ทุกเครื่องในวง)') > -1, L('ARP').layers[0].t);
+      ok('A11c ชั้นสูงสุด (สี): ARP=link · ICMP=inet · HTTP/DHCP=app', L('ARP').top === 'link' && L('ICMP').top === 'inet' && L('HTTP').top === 'app' && L('DHCP').top === 'app');
+      ok('A11d ข้อความชั้นของ HTTP พูดถึง TCP พอร์ต 80', L('HTTP').layers[2].k.indexOf('TCP') > -1 && /พอร์ตปลายทาง 80/.test(L('HTTP').layers[2].t), L('HTTP').layers[2].t);
+      var allTxt = EV.map(function(e){ return e.th + ' ' + e.layers.map(function(l){ return l.t; }).join(' '); }).join(' ');
+      ok('A11e ข้อความในแพ็กเก็ตบอกอาการ/ความหมายเท่านั้น ไม่เฉลยวิธีแก้ (ไม่มีคำ "ต้องตั้ง/ควรแก้/ลองเปิด")', !/ต้องตั้ง|ควรแก้|ลองเปิด|แก้ไข|ให้ไป/.test(allTxt));
+
+      /* ---- Port Mirror ในไฟล์ผัง ---- */
+      topo(E2);
+      ok('A12 ผังที่ไม่ตั้ง mirror ไม่มีฟิลด์ mirror ในไฟล์', !/mirror/.test(E2.exportState()));
+      E2.setNodeMirror('SW1', true); E2.setNodeMirror('PC1', true);
+      var st = JSON.parse(E2.exportState());
+      ok('A12b เปิด mirror: มี mirror:true เฉพาะ SW1 (PC ตั้งไม่ได้)', st.nodes.filter(function(n){ return n.mirror; }).map(function(n){ return n.id; }).join() === 'SW1');
+      E2.setNodeMirror('SW1', false);
+      ok('A12c ปิด mirror แล้วฟิลด์หายจากไฟล์', !/mirror/.test(E2.exportState()));
+
+      /* ---- ไม่ส่ง onPacket = ไม่ error ไม่เปลี่ยนพฤติกรรม ---- */
+      E3 = w2.NetSimEngine; // (instance เดียวกัน) — ทดสอบหน้าเปล่าแยกด้านล่างในขั้นถัดไป
+    } catch (e) { ok('A ไม่ error', false, String(e && e.stack || e).slice(0, 400)); }
+
+    /* หน้าเปล่าใหม่ (เหมือนไฟล์ภารกิจเทอม 1): init โดยไม่ส่ง onPacket */
+    var fr3 = document.createElement('iframe');
+    fr3.style.cssText = 'width:400px;height:300px';
+    fr3.addEventListener('load', function(){
+      try {
+        var w3 = fr3.contentWindow, E4 = w3.NetSimEngine, cfgCalled = 0, ev4 = 0;
+        E4.init(fr3.contentDocument.getElementById('c'), { restore: false, storeKey: 'ns_test_cap_none', onConfig: function(){ cfgCalled++; } });
+        topo(E4);
+        var threw = null;
+        try {
+          E4.requestDhcp('PC4'); E4.ping('PC1', '192.168.1.20', null, { count: 2 }); E4.ping('PC1', '192.168.1.99'); E4.pingNet('PC1', '8.8.8.8', null, { http: true });
+          E4.http('PC1', '192.168.1.50'); E4.tracePath('PC1', '8.8.8.8'); E4.resolve('PC1', 'google.com'); E4.setNodeMirror('SW1', true); E4.setNodeMirror('SW1', false);
+        } catch (e) { threw = e; }
+        ok('A13 ไม่ส่ง onPacket: ทุกคำสั่ง (dhcp/ping/pingNet/http/tracePath/resolve) ไม่ error', threw === null, String(threw && threw.stack || '').slice(0, 200));
+        topo(E4);
+        E4.tracePath('PC2', '8.8.8.8');
+        ok('A13b ไม่ส่ง onPacket: tracePath ไม่เติม ARP cache (ip neigh ยังว่าง = พฤติกรรมเดิมของไฟล์ภารกิจ)', E4.neighbors('PC2').length === 0);
+        E4.resolve('PC2', 'google.com');
+        ok('A13c ไม่ส่ง onPacket: resolve ไม่เติม ARP cache', E4.neighbors('PC2').length === 0);
+        w3.Element.prototype.setPointerCapture = function(){};
+        E4.setMode('config');
+        var hit = fr3.contentDocument.querySelector('#c .node[data-id="SW1"] .node-hit');
+        ['pointerdown', 'pointerup'].forEach(function(t){ hit.dispatchEvent(new w3.PointerEvent(t, { pointerId: 1, bubbles: true, clientX: 1, clientY: 1 })); });
+        ok('A13d ไม่ส่ง onPacket: แตะสวิตช์ในโหมดตั้งค่า = ไม่เปิด dialog (เหมือนเดิม: ตั้งค่าไม่ได้)', cfgCalled === 0);
+        E4.setMode('place');
+        ok('A13e ไม่ส่ง onPacket: ไม่มีฟิลด์ใหม่ในไฟล์ผัง (mirror)', !/mirror/.test(E4.exportState()));
+      } catch (e) { ok('A13 ไม่ error', false, String(e && e.stack || e).slice(0, 400)); }
+      done2();
+    });
+    fr3.srcdoc = '<svg id="c" width="400" height="300"></svg><script src="js/engine.js"><\/script>';
+    document.body.appendChild(fr3);
+  });
+  fr2.srcdoc = '<svg id="c" width="400" height="300"></svg><script src="js/engine.js"><\/script>';
+  document.body.appendChild(fr2);
+}
+
+/* ================= B) แผงดักจับใน builder.html ================= */
+var fr = document.getElementById('fr'), w, d, E, termOut, srcSel, jsErr = 0;
+function cmd(id, text){ srcSel.value = id; d.getElementById('cmd').value = text; d.getElementById('runBtn').click(); }
+function sel(id, v){ var s = d.getElementById(id); s.value = v; s.dispatchEvent(new w.Event('change', { bubbles: true })); }
+function click(id){ d.getElementById(id).click(); }
+function rowsNow(){ return Array.prototype.slice.call(d.querySelectorAll('#capRows tr.cap-row')); }
+function rowTxt(tr){ return tr.textContent; }
+function protoOf(tr){ return tr.children[3].textContent; }
+function tap(id){
+  w.Element.prototype.setPointerCapture = function(){};
+  E.setMode('config');
+  var hit = d.querySelector('#canvas .node[data-id="' + id + '"] .node-hit');
+  ['pointerdown', 'pointerup'].forEach(function(t){ hit.dispatchEvent(new w.PointerEvent(t, { pointerId: 1, bubbles: true, clientX: 1, clientY: 1 })); });
+}
+function vis(id){ return !d.getElementById(id).classList.contains('hidden'); }
+
+function partB(){
+  var steps = [];
+  function step(fn){ steps.push(fn); }
+
+  step(function(){
+    var cssTxt = '';
+    try { var x = new XMLHttpRequest(); x.open('GET', 'css/style.css', false); x.send(); cssTxt = x.responseText; } catch (e) {}
+    ok('B0 style.css: กฎเดิม .term-out{height:130px} ยังอยู่ (wk*.html ใช้ร่วม) และกฎใหม่ผูกกับ #tbTerm เท่านั้น', /\.term-out\{height:130px;/.test(cssTxt) && /#tbTerm \.term-out\{height:232px;\}/.test(cssTxt) && cssTxt.split('height:232px').length === 2, 'css len=' + cssTxt.length);
+    ok('B0b builder.html bump engine.js?v=20261022d', /engine\.js\?v=20261022d/.test(d.documentElement.innerHTML));
+    ok('B1 เปิดมา: แท็บ Terminal แสดง · แผงดักจับซ่อน · Terminal สูง ≥ 225px (เห็น ~10 บรรทัด)', vis('termPane') && !vis('capPane') && d.getElementById('termOut').getBoundingClientRect().height >= 225, 'h=' + d.getElementById('termOut').getBoundingClientRect().height);
+    click('tabCap');
+    ok('B1b กดแท็บ ดักจับ → แผงดักจับแสดง · Terminal ซ่อน', vis('capPane') && !vis('termPane') && d.getElementById('tabCap').classList.contains('on'));
+    click('tabTerm');
+    ok('B1c กดกลับ Terminal → กลับมาแสดง (id เดิม termOut/cmd/runBtn/srcSel ครบ)', vis('termPane') && !vis('capPane') && !!d.getElementById('cmd') && !!d.getElementById('runBtn') && !!d.getElementById('srcSel'));
+    topo(E);
+    d.getElementById('capFilter').value = '';
+    srcSel.value = 'PC1';
+    click('tabCap');
+    var pts = Array.prototype.map.call(d.querySelectorAll('#capPoint option'), function(o){ return o.value; });
+    ok('B2 จุดดักจับ = PC/Server ทุกตัว (ไม่มี SW1 เพราะยังไม่เปิด mirror)', pts.join() === 'PC1,PC2,PC3,PC4,SRV1', pts.join());
+    ok('B2b ค่าเริ่มต้นจุดดัก = เครื่องที่เลือกใน Terminal (PC1) · ยังไม่ดักจับ: ตารางว่าง + คำแนะนำ', d.getElementById('capPoint').value === 'PC1' && rowsNow().length === 0 && /เริ่มดักจับ/.test(d.getElementById('capRows').textContent));
+    cmd('PC1', 'ping 192.168.1.20');
+    return 150;
+  });
+  step(function(){
+    ok('B3 ยังไม่กดเริ่ม → สั่ง ping แล้วไม่มีแถว (ไม่แอบเก็บ)', rowsNow().length === 0);
+    click('capToggle');
+    ok('B3b กดเริ่ม → ปุ่มเปลี่ยนเป็น หยุด + ป้าย "กำลังดักจับ" ขึ้น', d.getElementById('capToggle').classList.contains('rec') && /หยุด/.test(d.getElementById('capToggle').textContent) && vis('capRec'));
+    topo(E); srcSel.value = 'PC1';
+    cmd('PC1', 'ping 192.168.1.20');
+    return 200;
+  });
+  step(function(){
+    var R = rowsNow();
+    ok('B4 ping ครั้งแรก (PC1 ดักที่ PC1): 8 แถว = ARP 2 + ICMP 6 (Windows 3 ครั้ง)', R.length === 8 && R.filter(function(r){ return protoOf(r) === 'ARP'; }).length === 2 && R.filter(function(r){ return protoOf(r) === 'ICMP'; }).length === 6, 'rows=' + R.length);
+    ok('B4b No. เรียง 1..8 · แถวแรกคือ ARP "Who has 192.168.1.20" · ต้นทาง PC1 · ปลายทาง "ทุกเครื่อง"', R.map(function(r){ return r.children[0].textContent; }).join() === '1,2,3,4,5,6,7,8' && /Who has 192\.168\.1\.20/.test(R[0].children[4].textContent) && R[0].children[1].textContent === 'PC1' && R[0].children[2].textContent === 'ทุกเครื่อง');
+    ok('B4c แต่ละแถวมีคำอธิบายไทยสั้น (cap-th) ใต้ Info', R.every(function(r){ return r.querySelector('.cap-th') && r.querySelector('.cap-th').textContent.length > 3; }));
+    var bg = function(tr){ return w.getComputedStyle(tr).backgroundColor; };
+    ok('B4d สีแถวตามชั้น: ARP (link) ≠ ICMP (inet) · class ถูก', R[0].className.indexOf('cap-link') > -1 && R[2].className.indexOf('cap-inet') > -1 && bg(R[0]) !== bg(R[2]), bg(R[0]) + ' / ' + bg(R[2]));
+    ok('B4e หัวคอลัมน์ไทยคู่อังกฤษ (No./ต้นทาง Source/ปลายทาง Dest./โปรโตคอล Protocol/รายละเอียด Info)', /ต้นทาง\s*Source/.test(d.querySelector('.cap-tbl thead').textContent) && /โปรโตคอล\s*Protocol/.test(d.querySelector('.cap-tbl thead').textContent) && /รายละเอียด\s*Info/.test(d.querySelector('.cap-tbl thead').textContent));
+    ok('B4f คำอธิบายสี + บรรทัดจริยธรรมใต้แผง', d.querySelectorAll('.cap-legend i').length === 3 && /ห้ามดักข้อมูลของคนอื่น/.test(d.querySelector('.cap-note').textContent) && /เฉพาะข้อมูลที่ผ่านเครื่องตัวเอง/.test(d.querySelector('.cap-note').textContent));
+    ok('B4g badge บนแท็บ = 8', d.getElementById('capBadge').textContent === '8' && vis('capBadge'));
+    cmd('PC1', 'ping 192.168.1.20');
+    return 200;
+  });
+  step(function(){
+    var R = rowsNow();
+    ok('B5 ping ครั้งที่ 2 → เพิ่มแค่ ICMP 6 แถว (ไม่มี ARP ใหม่) รวม 14 · ARP ยัง 2', R.length === 14 && R.filter(function(r){ return protoOf(r) === 'ARP'; }).length === 2);
+    sel('capFilter', 'ARP');
+    ok('B5b กรอง ARP → 2 แถว', rowsNow().length === 2 && rowsNow().every(function(r){ return protoOf(r) === 'ARP'; }));
+    sel('capFilter', 'ICMP');
+    ok('B5c กรอง ICMP → 12 แถว', rowsNow().length === 12 && rowsNow().every(function(r){ return protoOf(r) === 'ICMP'; }));
+    sel('capFilter', 'DNS');
+    ok('B5d กรอง DNS (ไม่มี) → ไม่มีแถว + ข้อความ "ไม่มีแถวที่ตรงกับตัวกรอง"', rowsNow().length === 0 && /ไม่มีแถวที่ตรงกับตัวกรอง/.test(d.getElementById('capRows').textContent));
+    sel('capFilter', '');
+    ok('B5e กรอง "ทั้งหมด" → 14 แถวกลับมา', rowsNow().length === 14);
+    sel('capPoint', 'PC3');
+    var R3 = rowsNow();
+    ok('B6 ดักที่ PC3 (ไม่เกี่ยวกับ ping ของ PC1↔PC2): เห็นเฉพาะ ARP request (broadcast) 1 แถว · ไม่เห็น ICMP · ไม่เห็น ARP reply', R3.length === 1 && protoOf(R3[0]) === 'ARP' && /Who has 192\.168\.1\.20/.test(rowTxt(R3[0])) && R3[0].children[0].textContent === '1', 'rows=' + R3.length);
+    sel('capPoint', 'PC2');
+    ok('B6b ดักที่ PC2 (ปลายทาง): เห็น ARP 2 + ICMP 12 = 14', rowsNow().length === 14);
+    sel('capPoint', 'PC1');
+    var icmp = rowsNow().filter(function(r){ return protoOf(r) === 'ICMP'; })[0];
+    icmp.click();
+    var ly = d.querySelectorAll('#capDetail .cap-ly');
+    ok('B7 แตะแถว ICMP → หน้ารายละเอียดเปิด (ซ่อนตาราง) มีปุ่มกลับ + 3 ชั้นเป็นข้อ 1. 2. 3.', vis('capDetail') && !vis('capWrap') && ly.length === 3 && /^1\./.test(ly[0].textContent) && /^2\./.test(ly[1].textContent) && /^3\./.test(ly[2].textContent), 'layers=' + ly.length);
+    ok('B7b ข้อ 1 = ชั้นเชื่อมต่อเครือข่าย ส่งจาก MAC … ถึง MAC … · ข้อ 2 = IP+TTL · ข้อ 3 = ICMP', /ชั้นเชื่อมต่อเครือข่าย.*ส่งจาก MAC 52:54:00:.* ถึง 52:54:00:/.test(ly[0].textContent) && /IP 192\.168\.1\.10 ถึง IP 192\.168\.1\.20/.test(ly[1].textContent) && /TTL = 64/.test(ly[1].textContent) && /ICMP Echo Request/.test(ly[2].textContent), ly[0].textContent);
+    ok('B7c หัวรายละเอียด: เวลา / ต้นทาง / ปลายทาง / ชั้นสูงสุด (ภาษาไทยคู่อังกฤษ)', /เวลา \(Time\)/.test(d.getElementById('capDetail').textContent) && /ต้นทาง \(Source\)/.test(d.getElementById('capDetail').textContent) && /ชั้นอินเทอร์เน็ต \(Internet\)/.test(d.getElementById('capDetail').textContent));
+    var arpRowDetail = null;
+    d.querySelector('#capDetail .btn').click();
+    ok('B7d กด ← กลับ → ตารางกลับมา รายละเอียดซ่อน', vis('capWrap') && !vis('capDetail') && rowsNow().length === 14);
+    rowsNow()[0].click();
+    var ly2 = d.querySelectorAll('#capDetail .cap-ly');
+    ok('B7e แถว ARP request: 2 ชั้น · ข้อ 1 "ถึง ff:ff:ff:ff:ff:ff (ทุกเครื่องในวง)"', ly2.length === 2 && /ถึง ff:ff:ff:ff:ff:ff \(ทุกเครื่องในวง\)/.test(ly2[0].textContent), ly2[0] && ly2[0].textContent);
+    d.querySelector('#capDetail .btn').click();
+
+    /* Port Mirror */
+    ok('B8 SW1 ยังไม่ใช่จุดดัก (ยังไม่เปิด mirror)', Array.prototype.every.call(d.querySelectorAll('#capPoint option'), function(o){ return o.value !== 'SW1'; }));
+    tap('SW1');
+    var dlg = d.getElementById('cfgOverlay').classList.contains('show');
+    ok('B8b แตะสวิตช์ในโหมดตั้งค่า → dialog Port Mirror เปิด · ซ่อนช่อง IP/Wi-Fi/DHCP · ปุ่มสลับ "ปิด"', dlg && vis('cfgMirrorWrap') && !vis('cfgIpWrap') && !vis('cfgWifiWrap') && !vis('cfgDhcpSrvWrap') && /Port Mirror.*ปิด/.test(d.getElementById('cfgMirrorToggle').textContent) && /Port Mirror/.test(d.getElementById('cfgTitle').textContent), d.getElementById('cfgTitle').textContent);
+    click('cfgMirrorToggle');
+    ok('B8c กดสลับ → "เปิด ✓"', /เปิด ✓/.test(d.getElementById('cfgMirrorToggle').textContent) && d.getElementById('cfgMirrorToggle').classList.contains('on'));
+    click('cfgSave');
+    ok('B8d บันทึก → dialog ปิด · SW1.mirror = true · SW1 โผล่ในรายการจุดดัก', !d.getElementById('cfgOverlay').classList.contains('show') && E.getNode('SW1').mirror === true && Array.prototype.some.call(d.querySelectorAll('#capPoint option'), function(o){ return o.value === 'SW1'; }));
+    tap('PC1');
+    ok('B8e กลับไปแตะ PC1: dialog IP ปกติ (ช่อง IP แสดง · ไม่มีกล่อง Mirror)', d.getElementById('cfgOverlay').classList.contains('show') && vis('cfgIpWrap') && !vis('cfgMirrorWrap'));
+    click('cfgCancel');
+    E.setMode('place');
+    sel('capPoint', 'SW1');
+    ok('B8f ดักที่ SW1 (mirror เปิด) แต่เปิดหลัง ping เดิม → ยังไม่มีแถวเก่า (ดักจากนี้ไปเท่านั้น)', rowsNow().length === 0);
+    cmd('PC2', 'ping 192.168.1.50');
+    return 200;
+  });
+  step(function(){
+    var R = rowsNow();
+    ok('B9 PC2 ping SRV1 → ดักที่ SW1 (mirror) เห็นทั้งหมด: ARP 2 + ICMP 6 = 8 แถว (ของคนอื่น ผ่านสวิตช์)', R.length === 8 && R.filter(function(r){ return protoOf(r) === 'ICMP'; }).length === 6 && R.filter(function(r){ return protoOf(r) === 'ARP'; }).length === 2, 'rows=' + R.length);
+    ok('B9b ICMP ที่เห็นที่ SW1 เป็นของ PC2↔SRV1 ไม่ใช่ของ SW1 เอง', R.filter(function(r){ return protoOf(r) === 'ICMP'; }).every(function(r){ return (r.children[1].textContent === 'PC2' && r.children[2].textContent === 'SRV1') || (r.children[1].textContent === 'SRV1' && r.children[2].textContent === 'PC2'); }));
+    sel('capPoint', 'PC3');
+    ok('B9c ดักที่ PC3: เห็นแค่ ARP request ของ PC2 (broadcast) ไม่เห็น ICMP ของ PC2↔SRV1', rowsNow().filter(function(r){ return protoOf(r) === 'ICMP'; }).length === 0 && rowsNow().filter(function(r){ return /Who has 192\.168\.1\.50/.test(rowTxt(r)); }).length === 1);
+
+    /* คำสั่งอื่น ๆ */
+    topo(E); srcSel.value = 'PC4';
+    sel('capPoint', 'PC4'); sel('capFilter', 'DHCP');
+    cmd('PC4', 'dhclient');
+    return 200;
+  });
+  step(function(){
+    var R = rowsNow();
+    ok('B10 dhclient (PC4 ดักที่ PC4 กรอง DHCP): 4 แถว Discover/Offer/Request/ACK · ต้นทาง/ปลายทางเป็น "ทุกเครื่อง" ตามจริง', R.length === 4 && /Discover/.test(R[0].children[4].textContent) && /Offer/.test(R[1].children[4].textContent) && /Request/.test(R[2].children[4].textContent) && /ACK/.test(R[3].children[4].textContent) && R.every(function(r){ return r.children[2].textContent === 'ทุกเครื่อง'; }), R.map(function(r){ return r.children[4].textContent.slice(0, 20); }).join(' | '));
+    sel('capFilter', '');
+    E.setNodeIP('PC4', '192.168.1.40', '192.168.1.1', undefined, '8.8.8.8');
+    click('capClear');
+    ok('B11 ลบรายการ → ตารางว่าง · badge หาย', rowsNow().length === 0 && !vis('capBadge'));
+    cmd('PC4', 'nslookup www.google.com');
+    return 200;
+  });
+  step(function(){
+    var R = rowsNow();
+    ok('B12 nslookup ชื่อ (DNS 8.8.8.8): มีแถว DNS query + response · ARP หา gateway ก่อน', R.filter(function(r){ return protoOf(r) === 'DNS'; }).length === 2 && R.filter(function(r){ return protoOf(r) === 'ARP'; }).length === 2 && /Standard query 0x/.test(rowTxt(R.filter(function(r){ return protoOf(r) === 'DNS'; })[0])) && /142\.250\.71\.14/.test(rowTxt(R.filter(function(r){ return protoOf(r) === 'DNS'; })[1])), R.map(function(r){ return protoOf(r); }).join());
+    ok('B12b สีแถว DNS = ชั้นแอปพลิเคชัน (cap-app)', R.filter(function(r){ return protoOf(r) === 'DNS'; })[0].className.indexOf('cap-app') > -1);
+    click('capClear');
+    cmd('PC4', 'traceroute 8.8.8.8');
+    return 200;
+  });
+  step(function(){
+    var R = rowsNow();
+    ok('B13 traceroute 8.8.8.8: มีแถว Time-to-live exceeded ที่ ดักที่ PC4 (เฉพาะช่วง PC4→R1: 1 ครั้งจาก R1 + 1 จาก ISP1 = 2)', R.filter(function(r){ return /Time-to-live exceeded/.test(rowTxt(r)); }).length === 2, R.map(function(r){ return r.children[4].textContent.slice(0, 26); }).join(' | '));
+    click('capClear');
+    cmd('PC4', 'http shop.local');
+    return 200;
+  });
+  step(function(){
+    var R = rowsNow();
+    ok('B14 http shop.local (DNS 8.8.8.8): DNS 2 + HTTP GET / 200 OK (HTTP 2 แถว) ใน Terminal เดียวกัน', R.filter(function(r){ return protoOf(r) === 'DNS'; }).length === 2 && R.filter(function(r){ return protoOf(r) === 'HTTP'; }).length === 2 && /GET \/ HTTP\/1\.1/.test(rowTxt(R.filter(function(r){ return protoOf(r) === 'HTTP'; })[0])), R.map(function(r){ return protoOf(r); }).join());
+    click('capClear');
+    /* หยุดดักจับ */
+    click('capToggle');
+    ok('B15 กด หยุด → ปุ่มกลับเป็น เริ่มดักจับ · ป้ายหาย', !d.getElementById('capToggle').classList.contains('rec') && /เริ่มดักจับ/.test(d.getElementById('capToggle').textContent) && !vis('capRec'));
+    cmd('PC4', 'ping 192.168.1.50');
+    return 200;
+  });
+  step(function(){
+    ok('B15b หยุดแล้ว ping → ไม่มีแถวเพิ่ม', rowsNow().length === 0);
+    /* เพดาน 200 แถว */
+    click('capToggle');
+    topo(E); srcSel.value = 'PC1'; sel('capPoint', 'PC1'); click('capClear');
+    for (var i = 0; i < 12; i++) cmd('PC1', 'ping -c 10 192.168.1.20');
+    return 300;
+  });
+  step(function(){
+    var R = rowsNow();
+    ok('B16 เพดาน 200 แถว: ping -c 10 × 12 (240+ เฟรม) → แสดงไม่เกิน 200 · แถวล่าสุดยังอยู่', R.length === 200 && d.getElementById('capBadge').textContent === '200', 'rows=' + R.length);
+    ok('B16b แถวที่หลุดคือแถวเก่าสุด: No. แรกที่เห็น > 1', Number(R[0].children[0].textContent) > 1 && Number(R[R.length - 1].children[0].textContent) > 200, R[0].children[0].textContent + '…' + R[R.length - 1].children[0].textContent);
+    /* ความปลอดภัยของข้อความ: nslookup ที่ DNS เป็นสตริงแปลก ๆ ต้องไม่กลายเป็นแท็กในตาราง */
+    click('capClear'); srcSel.value = 'PC1';
+    E.setNodeIP('PC1', '192.168.1.10', '192.168.1.1');
+    cmd('PC1', 'nslookup x.example <img src=x>');
+    return 200;
+  });
+  step(function(){
+    ok('B17 ข้อความแปลกจากผู้ใช้ไม่ถูกตีเป็น HTML (ใช้ textContent) — ไม่มี <img> ในตารางดักจับ', d.querySelectorAll('#capRows img').length === 0 && d.querySelectorAll('#capDetail img').length === 0);
+    ok('B18 ไม่มี JS error ในหน้า builder ตลอดการทดสอบ', jsErr === 0, 'errors=' + jsErr);
+    done();
+  });
+
+  function run(i){
+    if (i >= steps.length) return;
+    var wait = 0;
+    try { wait = steps[i]() || 0; } catch (e) { ok('B STEP ' + (i + 1) + ' ไม่ error', false, String(e && e.stack || e).slice(0, 300)); }
+    setTimeout(function(){ run(i + 1); }, wait);
+  }
+  run(0);
+}
+
+fr.addEventListener('load', function(){
+  w = fr.contentWindow; d = fr.contentDocument; E = w.NetSimEngine;
+  w.addEventListener('error', function(){ jsErr++; });
+  termOut = d.getElementById('termOut'); srcSel = d.getElementById('srcSel');
+  /* ฟังก์ชัน topo() ของ builder ใช้ E ของ builder */
+  var oldTopo = topo;
+  topo = function(Ex, o){ oldTopo(Ex && Ex.loadState ? Ex : E, o); };
+  partA(function(){ topo = oldTopo; var t0 = topo; topo = function(Ex, o){ t0(Ex && Ex.loadState ? Ex : E, o); }; partB(); });
+});
+setTimeout(function(){ if (!log.length){ log.push('FAIL iframe ไม่โหลด'); fail++; done(); } }, 6000);
+</script>
+</body>
+</html>
