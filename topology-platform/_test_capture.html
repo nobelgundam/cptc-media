@@ -221,7 +221,7 @@ function partB(){
     var cssTxt = '';
     try { var x = new XMLHttpRequest(); x.open('GET', 'css/style.css', false); x.send(); cssTxt = x.responseText; } catch (e) {}
     ok('B0 style.css: กฎเดิม .term-out{height:130px} ยังอยู่ (wk*.html ใช้ร่วม) และกฎใหม่ผูกกับ #tbTerm เท่านั้น', /\.term-out\{height:130px;/.test(cssTxt) && /#tbTerm \.term-out\{height:232px;\}/.test(cssTxt) && cssTxt.split('height:232px').length === 2, 'css len=' + cssTxt.length);
-    ok('B0b builder.html bump engine.js?v=20261022f', /engine\.js\?v=20261022f/.test(d.documentElement.innerHTML));
+    ok('B0b builder.html bump engine.js?v=20261023a', /engine\.js\?v=20261023a/.test(d.documentElement.innerHTML));
     ok('B1 เปิดมา: แท็บ Terminal แสดง · แผงดักจับซ่อน · Terminal สูง ≥ 225px (เห็น ~10 บรรทัด)', vis('termPane') && !vis('capPane') && d.getElementById('termOut').getBoundingClientRect().height >= 225, 'h=' + d.getElementById('termOut').getBoundingClientRect().height);
     click('tabCap');
     ok('B1b กดแท็บ ดักจับ → แผงดักจับแสดง · Terminal ซ่อน', vis('capPane') && !vis('termPane') && d.getElementById('tabCap').classList.contains('on'));

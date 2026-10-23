@@ -17,6 +17,10 @@
       + '<rect x="-12" y="-10" width="24" height="14" rx="1" fill="#173a63"/>'
       + '<rect x="-5" y="7" width="10" height="4" fill="#7fb2ff"/>'
       + '<rect x="-10" y="11" width="20" height="3" rx="1.5" fill="#9fb3cc"/>' },
+    phone: { label: 'มือถือ', en: 'Phone', prefix: 'Phone', icon:
+      '<rect x="-9" y="-15" width="18" height="30" rx="4" fill="#2d3e57" stroke="#7fb2ff" stroke-width="2"/>'
+      + '<rect x="-6" y="-11" width="12" height="20" rx="1" fill="#173a63"/>'
+      + '<circle cx="0" cy="12" r="1.6" fill="#9fb3cc"/>' },
     switch: { label: 'สวิตช์', en: 'Switch', prefix: 'SW', icon:
       '<rect x="-18" y="-8" width="36" height="16" rx="3" fill="#214a3a" stroke="#3ddc97" stroke-width="2"/>'
       + '<rect x="-13" y="-2" width="5" height="5" rx="1" fill="#9affd6"/>'
@@ -56,6 +60,7 @@
    * เซิร์ฟเวอร์ ด้วยไร้สาย = ต่อไม่ได้ (เซิร์ฟเวอร์ต่อสายเสมอ) */
   var DEVICE_MEDIA = {
     pc:     ['utp', 'wireless'],
+    phone:  ['wireless'],
     switch: ['utp', 'fiber'],
     router: ['utp', 'fiber', 'wireless'],
     ap:     ['utp', 'wireless'],
@@ -92,8 +97,8 @@
   var pktCb = null, pktN = 0; // callback ดักจับแพ็กเก็ต (init opts.onPacket) · null = ไม่ปล่อยเหตุการณ์ใด ๆ ไม่แตะ ARP cache เพิ่ม (ไฟล์ภารกิจเทอม 1)
 
   function fresh() {
-    state = { nodes: [], edges: [] };
-    seq = {}; els = { node: {}, edge: {}, edgeHit: {} };
+    state = { nodes: [], edges: [], tables: [] };   // tables = โต๊ะวาดห้อง (ไม่ใช่ node: ไม่มีสาย/IP/ไม่นับ)
+    seq = {}; els = { node: {}, edge: {}, edgeHit: {}, table: {} };
     sel = { connect: null, simSrc: null, delPending: null };
     arp = {};
   }
@@ -197,6 +202,111 @@
     removeEdge(id);
     toast('✂️ ตัดสายแล้ว — ลองชี้เส้นทาง/ping ดูว่ายังถึงกันไหม', 'bad');
     status('โหมดตัดสาย: แตะที่เส้นสายเพื่อตัด (ดูว่าเครือข่ายล่ม หรือหาทางอ้อมได้)');
+  }
+
+  /* ================= TABLES (โต๊ะ) — สี่เหลี่ยมวาดห้อง · อยู่ใต้สาย/อุปกรณ์ · ไม่ใช่ node ================= */
+  var MAX_TABLES = 30, TB_MIN_W = 40, TB_MIN_H = 30;
+  function tableById(id) {
+    for (var i = 0; i < state.tables.length; i++) if (state.tables[i].id === id) return state.tables[i];
+    return null;
+  }
+  function nextTableId() {
+    var k = 0, id;
+    do { id = 'T' + (++k); } while (tableById(id));
+    return id;
+  }
+  function renderTable(t) {
+    var g = mk('g', { 'class': 'table', 'data-id': t.id, transform: 'translate(' + t.x + ',' + t.y + ')' });
+    var body = mk('rect', { 'class': 'table-body', x: 0, y: 0, width: t.w, height: t.h, rx: 6 });
+    var lb = mk('text', { 'class': 'table-label', x: 8, y: 16 }); lb.textContent = 'โต๊ะ';
+    var hv = mk('circle', { 'class': 'table-handle-vis', cx: t.w, cy: t.h, r: 8 });
+    var hh = mk('circle', { 'class': 'table-handle', cx: t.w, cy: t.h, r: 22 });
+    g.appendChild(body); g.appendChild(lb); g.appendChild(hv); g.appendChild(hh);
+    layers.tables.appendChild(g);
+    els.table[t.id] = g;
+    attachTable(g, body, hh, t);
+  }
+  function placeTableEl(t) {
+    var g = els.table[t.id]; if (!g) return;
+    g.setAttribute('transform', 'translate(' + t.x + ',' + t.y + ')');
+    var b = g.querySelector('.table-body'); b.setAttribute('width', t.w); b.setAttribute('height', t.h);
+    [].forEach.call(g.querySelectorAll('.table-handle,.table-handle-vis'), function (c) { c.setAttribute('cx', t.w); c.setAttribute('cy', t.h); });
+  }
+  function addTable(x, y) {
+    if (state.tables.length >= MAX_TABLES) { toast('โต๊ะเต็มแล้ว (สูงสุด ' + MAX_TABLES + ' ตัว) — ลบตัวที่ไม่ใช้ก่อน', 'bad'); return null; }
+    var W = svg.clientWidth, H = svg.clientHeight;
+    var w = Math.min(120, Math.max(TB_MIN_W, W - 8)), h = Math.min(64, Math.max(TB_MIN_H, H - 8));
+    var t = { id: nextTableId(), x: Math.round(clamp(x - w / 2, 0, W - w)), y: Math.round(clamp(y - h / 2, 0, H - h)), w: Math.round(w), h: Math.round(h) };
+    state.tables.push(t);
+    renderTable(t);
+    changed();
+    return t;
+  }
+  function removeTable(id) {
+    state.tables = state.tables.filter(function (t) { return t.id !== id; });
+    if (els.table[id]) els.table[id].remove();
+    delete els.table[id];
+    changed();
+  }
+  function selEl(id) { return els.node[id] || els.table[id]; }
+  function tapDeleteTable(id) {
+    if (sel.delPending === id) {
+      els.table[id].classList.remove('sel-del'); sel.delPending = null;
+      removeTable(id);
+      toast('ลบโต๊ะ ' + id + ' แล้ว', 'bad');
+      status('โหมดลบ: แตะอุปกรณ์ที่ต้องการลบ');
+    } else {
+      if (sel.delPending) selEl(sel.delPending).classList.remove('sel-del');
+      sel.delPending = id;
+      els.table[id].classList.add('sel-del');
+      status('⚠️ แตะโต๊ะ ' + id + ' อีกครั้งเพื่อยืนยันลบ (แตะตัวอื่นเพื่อยกเลิก)');
+    }
+  }
+  // ลากตัวโต๊ะ = ย้าย · ลากจุดมุมขวาล่าง = ปรับขนาด · แตะเฉยๆ = วางอุปกรณ์ที่เลือกไว้ลงบนโต๊ะ / (โหมดลบ) ลบโต๊ะ
+  function attachTable(g, body, handle, t) {
+    var drag = null, moved = false, sx = 0, sy = 0;
+    [body, handle].forEach(function (el) {
+      el.addEventListener('touchstart', function (e) { e.preventDefault(); }, { passive: false });
+      el.addEventListener('pointerdown', function (e) {
+        el.setPointerCapture(e.pointerId);
+        var p = toSvg(e.clientX, e.clientY);
+        sx = p.x; sy = p.y; moved = false;
+        if (mode === 'place') drag = (el === handle) ? { k: 'size' } : { k: 'move', ox: p.x - t.x, oy: p.y - t.y };
+      });
+      el.addEventListener('pointermove', function (e) {
+        var p = toSvg(e.clientX, e.clientY);
+        if (Math.abs(p.x - sx) > 6 || Math.abs(p.y - sy) > 6) moved = true;
+        if (!drag) return;
+        var W = svg.clientWidth, H = svg.clientHeight;
+        if (drag.k === 'move') { t.x = clamp(p.x - drag.ox, 0, Math.max(0, W - t.w)); t.y = clamp(p.y - drag.oy, 0, Math.max(0, H - t.h)); }
+        else { t.w = clamp(p.x - t.x, TB_MIN_W, Math.max(TB_MIN_W, W - t.x)); t.h = clamp(p.y - t.y, TB_MIN_H, Math.max(TB_MIN_H, H - t.y)); }
+        placeTableEl(t);
+      });
+      function end(e) {
+        if (el.hasPointerCapture && el.hasPointerCapture(e.pointerId)) el.releasePointerCapture(e.pointerId);
+        if (drag) {
+          var was = drag; drag = null;
+          t.x = Math.round(t.x); t.y = Math.round(t.y); t.w = Math.round(t.w); t.h = Math.round(t.h);
+          if (moved) { placeTableEl(t); save(); return; }
+          if (was.k === 'size') return;
+          if (placeType !== 'table') { var p = toSvg(e.clientX, e.clientY); addNode(placeType, p.x, p.y); }   // แตะโต๊ะ = วางคอมบนโต๊ะ
+          return;
+        }
+        if (!moved && mode === 'delete') tapDeleteTable(t.id);
+      }
+      el.addEventListener('pointerup', end);
+      el.addEventListener('pointercancel', end);
+    });
+  }
+  function cleanTables(arr) {   // กรองโต๊ะจากไฟล์/ลิงก์/autosave · ไม่มี tables = ว่าง (ไฟล์เก่าโหลดเหมือนเดิม)
+    var seen = {}, out = [];
+    (Array.isArray(arr) ? arr : []).forEach(function (t) {
+      if (!t || !isFinite(t.x) || !isFinite(t.y) || !isFinite(t.w) || !isFinite(t.h) || out.length >= MAX_TABLES) return;
+      var c = { id: String(t.id || ''), x: Math.round(+t.x), y: Math.round(+t.y), w: Math.round(Math.max(TB_MIN_W, +t.w)), h: Math.round(Math.max(TB_MIN_H, +t.h)) };
+      if (!c.id || seen[c.id]) { var k = 0; do { c.id = 'T' + (++k); } while (seen[c.id]); }
+      seen[c.id] = 1; out.push(c);
+    });
+    return out;
   }
 
   /* ลากย้าย node — Pointer Events + setPointerCapture + touchstart fallback */
@@ -309,6 +419,7 @@
     for (var id in els.node) {
       els.node[id].classList.remove('sel-connect', 'sel-sim', 'sel-del');
     }
+    for (var tid in els.table) els.table[tid].classList.remove('sel-del');
   }
   function tapNode(id) {
     if (mode === 'connect') return tapConnect(id);
@@ -361,7 +472,7 @@
       toast('ลบ ' + id + ' แล้ว', 'bad');
       status('โหมดลบ: แตะอุปกรณ์ที่ต้องการลบ');
     } else {
-      if (sel.delPending) els.node[sel.delPending].classList.remove('sel-del');
+      if (sel.delPending) selEl(sel.delPending).classList.remove('sel-del');
       sel.delPending = id;
       els.node[id].classList.add('sel-del');
       status('⚠️ แตะ ' + id + ' อีกครั้งเพื่อยืนยันลบ (แตะตัวอื่นเพื่อยกเลิก)');
@@ -485,7 +596,7 @@
 
   /* ================= IP / Terminal subsystem (ปวช.1/ปวส.1 เบื้องต้น) ================= */
   var DEFAULT_MASK = '255.255.255.0';
-  function canHaveIP(type) { return type === 'pc' || type === 'server' || type === 'isp' || type === 'router'; }  // ปลายทาง + ISP + Router (ขา Gateway)
+  function canHaveIP(type) { return type === 'pc' || type === 'phone' || type === 'server' || type === 'isp' || type === 'router'; }  // ปลายทาง + ISP + Router (ขา Gateway)
   function parseIp(s) {
     var a = (s || '').trim().split('.');
     if (a.length !== 4) return { bad: 1 };
@@ -544,7 +655,7 @@
    * โมเดลเดิม: router มี IP เดียว (n.ip) และ "ข้ามวง" = มี router อยู่ในเส้นทาง + ต้นทางมี gw → DHCP จึงแจกได้วงเดียว
    * = วง /24 ของ router · router: n.dhcp = {on,from,to,dns} (from/to = เลขท้าย 1–254) · เครื่องลูก: n.ipmode='dhcp'
    * + n.lease={server:<routerId>} + n.dns · node ที่ไม่มีฟิลด์เหล่านี้ = ทำงานเหมือนเดิมเป๊ะ */
-  function canDhcpClient(type) { return type === 'pc' || type === 'server'; }
+  function canDhcpClient(type) { return type === 'pc' || type === 'phone' || type === 'server'; }
   function dhcpCfg(r) {   // ค่า DHCP ที่ใช้ได้จริงของ router (null = ปิด/ไม่มี IP) · ค่าเพี้ยนจากไฟล์ → ใช้ค่าตั้งต้น 10–254
     if (!r || r.type !== 'router' || !r.dhcp || !r.dhcp.on || !r.ip || ipError(r.ip)) return null;
     var f = Math.floor(+r.dhcp.from), t = Math.floor(+r.dhcp.to);
@@ -810,9 +921,9 @@
       if (e.target !== svg) return; // แตะที่ node/ไอคอน = ปล่อยให้ node จัดการ
       if (mode === 'place') {
         var p = toSvg(e.clientX, e.clientY);
-        addNode(placeType, p.x, p.y);
+        if (placeType === 'table') addTable(p.x, p.y); else addNode(placeType, p.x, p.y);
       } else if (mode === 'delete' && sel.delPending) {
-        els.node[sel.delPending].classList.remove('sel-del'); sel.delPending = null;
+        selEl(sel.delPending).classList.remove('sel-del'); sel.delPending = null;
         status('โหมดลบ: แตะอุปกรณ์ที่ต้องการลบ');
       } else if (mode === 'connect' && sel.connect) {
         els.node[sel.connect].classList.remove('sel-connect'); sel.connect = null;
@@ -825,8 +936,15 @@
   }
 
   /* ================= persistence ================= */
+  // state ที่เซฟ/ส่งออก: ไม่มีโต๊ะ = ไม่ใส่คีย์ tables (ผังเก่าออกมาเหมือนเดิมทุกไบต์)
+  function exportObj(extra) {
+    var o = { nodes: state.nodes, edges: state.edges };
+    if (state.tables.length) o.tables = state.tables;
+    if (extra) for (var k in extra) o[k] = extra[k];
+    return o;
+  }
   function save() {
-    try { localStorage.setItem(STORE_KEY, JSON.stringify({ nodes: state.nodes, edges: state.edges, seq: seq })); }
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(exportObj({ seq: seq }))); }
     catch (err) {}
   }
   function load() {
@@ -834,8 +952,8 @@
       var raw = localStorage.getItem(STORE_KEY);
       if (!raw) return false;
       var s = JSON.parse(raw);
-      if (!s || !s.nodes || !s.nodes.length) return false;
-      state.nodes = s.nodes; state.edges = s.edges || []; seq = s.seq || {};
+      if (!s || ((!s.nodes || !s.nodes.length) && !(s.tables && s.tables.length))) return false;
+      state.nodes = s.nodes || []; state.edges = s.edges || []; seq = s.seq || {}; state.tables = cleanTables(s.tables);
       var mx = 0;
       state.edges.forEach(function (e) { var num = parseInt((e.id || '').replace('e', ''), 10); if (num > mx) mx = num; });
       _edgeSeq = mx;
@@ -851,16 +969,24 @@
     var xs = state.nodes.map(function (n) { return n.x; }), ys = state.nodes.map(function (n) { return n.y; });
     var x0 = Math.min.apply(null, xs), x1 = Math.max.apply(null, xs);
     var y0 = Math.min.apply(null, ys), y1 = Math.max.apply(null, ys);
-    if (x0 >= M && y0 >= M && x1 <= r.width - M && y1 <= r.height - M - B) return;
+    // โต๊ะชิดขอบกระดานได้ (ผนังห้อง) → ย่อก็ต่อเมื่อโต๊ะล้นกระดานจริง ๆ ไม่ใช่แค่ใกล้ขอบ
+    var tOut = state.tables.some(function (t) { return t.x < 0 || t.y < 0 || t.x + t.w > r.width || t.y + t.h > r.height; });
+    if (!tOut && x0 >= M && y0 >= M && x1 <= r.width - M && y1 <= r.height - M - B) return;
+    state.tables.forEach(function (t) { x0 = Math.min(x0, t.x); x1 = Math.max(x1, t.x + t.w); y0 = Math.min(y0, t.y); y1 = Math.max(y1, t.y + t.h); });
     var k = Math.min(1, (r.width - 2 * M) / ((x1 - x0) || 1), (r.height - 2 * M - B) / ((y1 - y0) || 1));
     state.nodes.forEach(function (n) {
       n.x = Math.round(M + (n.x - x0) * k);
       n.y = Math.round(M + (n.y - y0) * k);
     });
+    state.tables.forEach(function (t) {
+      t.x = Math.round(M + (t.x - x0) * k); t.y = Math.round(M + (t.y - y0) * k);
+      t.w = Math.max(TB_MIN_W, Math.round(t.w * k)); t.h = Math.max(TB_MIN_H, Math.round(t.h * k));
+    });
   }
   function renderAll() {
-    layers.edges.innerHTML = ''; layers.nodes.innerHTML = ''; layers.packets.innerHTML = '';
-    els = { node: {}, edge: {}, edgeHit: {} };
+    layers.tables.innerHTML = ''; layers.edges.innerHTML = ''; layers.nodes.innerHTML = ''; layers.packets.innerHTML = '';
+    els = { node: {}, edge: {}, edgeHit: {}, table: {} };
+    state.tables.forEach(renderTable);
     state.edges.forEach(renderEdge);
     state.nodes.forEach(renderNode);
   }
@@ -1224,10 +1350,11 @@
     init: function (svgEl, opts) {
       svg = svgEl; fresh(); _edgeSeq = 0;
       svg.innerHTML = '';
+      layers.tables = mk('g', { 'class': 'layer-tables' });
       layers.edges = mk('g', { 'class': 'layer-edges' });
       layers.nodes = mk('g', { 'class': 'layer-nodes' });
       layers.packets = mk('g', { 'class': 'layer-packets' });
-      svg.appendChild(layers.edges); svg.appendChild(layers.nodes); svg.appendChild(layers.packets);
+      svg.appendChild(layers.tables); svg.appendChild(layers.edges); svg.appendChild(layers.nodes); svg.appendChild(layers.packets);
       attachCanvas();
       opts = opts || {};
       if (opts.storeKey) STORE_KEY = opts.storeKey;   // หน้า scenario เก็บ state แยกจาก builder กลาง
@@ -1245,7 +1372,7 @@
     setMode: function (m) {
       mode = m; clearSelClasses();
       sel = { connect: null, simSrc: null, delPending: null };
-      if (svg) svg.classList.toggle('cut-on', m === 'cutlink');
+      if (svg) { svg.classList.toggle('cut-on', m === 'cutlink'); svg.classList.toggle('tb-place', m === 'place'); svg.classList.toggle('tb-del', m === 'delete'); }
     },
     getMode: function () { return mode; },
     setPlaceType: function (t) { placeType = t; },
@@ -1256,7 +1383,8 @@
     },
     removeEdge: function (id) { removeEdge(id); },
     counts: function () { return { nodes: state.nodes.length, edges: state.edges.length }; },
-    exportState: function () { return JSON.stringify(state); },
+    exportState: function () { return JSON.stringify(exportObj()); },
+    tableCount: function () { return state.tables.length; },   // โต๊ะไม่นับใน counts()
     /* โหลดผัง (preset ภารกิจ / ไฟล์ผังที่เด็กเซฟไว้) · กรองของเสียจากไฟล์ทิ้ง กันกระดานพัง
      * opt.fit = ย่อเข้าจอนี้ · คืนจำนวนอุปกรณ์ที่โหลดได้ */
     loadState: function (obj, opt) {
@@ -1276,6 +1404,7 @@
         if (!e.id || eids[e.id]) e.id = nextEdgeId();
         eids[e.id] = 1;
       });
+      state.tables = cleanTables(obj.tables);
       if (opt && opt.fit) fitToCanvas();
       renderAll(); save(); changed();
       return state.nodes.length;

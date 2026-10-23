@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>สร้างเครือข่าย — Builder</title>
-<link rel="stylesheet" href="css/style.css?v=20261022d">
+<link rel="stylesheet" href="css/style.css?v=20261023a">
 </head>
 <body>
 <div class="wrap wide">
@@ -282,7 +282,7 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="js/engine.js?v=20261022f"></script>
+<script src="js/engine.js?v=20261023a"></script>
 <script>
 (function(){
   var E = window.NetSimEngine;
@@ -290,13 +290,17 @@
   // อุปกรณ์ + ศัพท์ไทย/อังกฤษคู่ + สื่อที่ต่อได้ (โชว์ให้เด็กเห็นก่อนต่อ)
   var devices = [
     {type:'pc',     label:'พีซี (PC)',           support:'UTP, Wireless'},
+    {type:'phone',  label:'มือถือ (Phone)',      support:'Wireless'},
     {type:'switch', label:'สวิตช์ (Switch)',      support:'UTP, Fiber'},
     {type:'router', label:'เราเตอร์ (Router)',    support:'UTP, Fiber, Wireless'},
     {type:'ap',     label:'AP (Access Point)',   support:'UTP, Wireless'},
     {type:'server', label:'เซิร์ฟเวอร์ (Server)', support:'UTP, Fiber'},
-    {type:'isp',    label:'ผู้ให้บริการ (ISP)',   support:'Fiber, UTP'}
+    {type:'isp',    label:'ผู้ให้บริการ (ISP)',   support:'Fiber, UTP'},
+    {type:'table',  label:'โต๊ะ (Table)',        note:'วาดห้อง · ไม่ใช่อุปกรณ์'}
   ];
   var ICON = {
+    phone:'<rect x="-9" y="-15" width="18" height="30" rx="4" fill="#2d3e57" stroke="#7fb2ff" stroke-width="2"/><rect x="-6" y="-11" width="12" height="20" rx="1" fill="#173a63"/><circle cx="0" cy="12" r="1.6" fill="#9fb3cc"/>',
+    table:'<rect x="-17" y="-10" width="34" height="20" rx="3" fill="rgba(184,138,85,.28)" stroke="#b88a55" stroke-width="2"/><circle cx="17" cy="10" r="3.5" fill="#b88a55"/>',
     pc:'<rect x="-15" y="-13" width="30" height="20" rx="2" fill="#2d3e57" stroke="#7fb2ff" stroke-width="2"/><rect x="-12" y="-10" width="24" height="14" fill="#173a63"/><rect x="-10" y="11" width="20" height="3" rx="1.5" fill="#9fb3cc"/>',
     switch:'<rect x="-18" y="-8" width="36" height="16" rx="3" fill="#214a3a" stroke="#3ddc97" stroke-width="2"/><rect x="-13" y="-2" width="5" height="5" fill="#9affd6"/><rect x="-5" y="-2" width="5" height="5" fill="#9affd6"/><rect x="3" y="-2" width="5" height="5" fill="#9affd6"/><rect x="11" y="-2" width="5" height="5" fill="#9affd6"/>',
     router:'<rect x="-17" y="-10" width="34" height="20" rx="10" fill="#3a2a52" stroke="#c08bff" stroke-width="2"/><path d="M-9 -2 h14 M5 -2 l-4 -3 M5 -2 l-4 3 M9 4 h-14 M-5 4 l4 -3 M-5 4 l4 3" fill="none" stroke="#e0c4ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
@@ -322,12 +326,14 @@
     var b = document.createElement('div');
     b.className = 'dev'; b.dataset.type = d.type;
     b.innerHTML = '<svg viewBox="-22 -22 44 44">' + ICON[d.type] + '</svg>' +
-      '<span>' + d.label + '</span><small>ต่อได้: ' + d.support + '</small>';
+      '<span>' + d.label + '</span><small>' + (d.note || ('ต่อได้: ' + d.support)) + '</small>';
     b.addEventListener('click', function(){
       pal.querySelectorAll('.dev').forEach(function(x){x.classList.remove('on');});
       b.classList.add('on');
       E.setPlaceType(d.type);
-      statusEl.textContent = 'แตะบนกระดานเพื่อวาง "' + d.label + '" (ลากเพื่อย้ายได้)';
+      statusEl.textContent = d.type === 'table'
+        ? 'แตะบนกระดานเพื่อวาง "โต๊ะ" · ลากโต๊ะเพื่อย้าย · ลากจุดมุมขวาล่างเพื่อปรับขนาด · แตะลงบนโต๊ะ = วางอุปกรณ์บนโต๊ะ'
+        : 'แตะบนกระดานเพื่อวาง "' + d.label + '" (ลากเพื่อย้ายได้)';
     });
     pal.appendChild(b);
   });
@@ -358,7 +364,7 @@
   var STATUS_TXT = {
     place:   'เลือกอุปกรณ์ทางซ้าย แล้วแตะบนกระดานเพื่อวาง · ลากเพื่อย้าย',
     connect: 'เลือกสื่อกลางทางซ้าย แล้วแตะอุปกรณ์ A → อุปกรณ์ B',
-    config:  '⚙️ แตะที่ พีซี (PC) หรือ เซิร์ฟเวอร์ (Server) เพื่อตั้งเลข IP · แตะ สวิตช์ เพื่อตั้ง Port Mirror',
+    config:  '⚙️ แตะที่ พีซี (PC) · มือถือ (Phone) หรือ เซิร์ฟเวอร์ (Server) เพื่อตั้งเลข IP · แตะ สวิตช์ เพื่อตั้ง Port Mirror',
     settings:'🛡️ แตะที่ PC หรือ เครื่องพิมพ์-Server เพื่อเปิด/ปิด Firewall (Allow File and Printer Sharing)',
     cutlink: '✂️ โหมดตัดสาย: แตะที่ "เส้นสาย" เพื่อตัด → ลองชี้เส้นทาง/ping ดูว่ายังถึงกันไหม (สอนจุดอ่อนเครือข่าย)',
     delete:  'โหมดลบ: แตะอุปกรณ์ 1 ครั้ง แล้วแตะซ้ำเพื่อยืนยัน',
@@ -390,7 +396,7 @@
   });
 
   document.getElementById('btn-clear').addEventListener('click', function(){
-    if (E.counts().nodes === 0) return;
+    if (E.counts().nodes === 0 && !E.tableCount()) return;
     if (confirm('ล้างกระดานทั้งหมด? (ลบทุกอุปกรณ์และสาย)')){
       stashPrev(); E.clearAll(); setMode('place');
       showToast('ล้างกระดานแล้ว · กด 💾 → ↩️ เอาคืนได้', 'ok');
@@ -405,11 +411,11 @@
   function lsGet(k){ try { return localStorage.getItem(k); } catch(e){ return null; } }
   function lsSet(k, v){ try { localStorage.setItem(k, v); } catch(e){} }
   // เก็บผังบนกระดานไว้ 1 ชุดก่อนถูกแทน (ล้าง/เปิดไฟล์/เปิดลิงก์) → ↩️ เอาคืนได้
-  function stashPrev(){ if (E.counts().nodes) lsSet(boxKey() + '_prev', E.exportState()); }
+  function stashPrev(){ if (E.counts().nodes || E.tableCount()) lsSet(boxKey() + '_prev', E.exportState()); }
   function pad2(n){ return (n < 10 ? '0' : '') + n; }
   function planFile(){
     var st = JSON.parse(E.exportState());
-    return { app:'netsim-builder', v:1, no:studentNo, at:new Date().toISOString(), nodes:st.nodes, edges:st.edges };
+    return { app:'netsim-builder', v:1, no:studentNo, at:new Date().toISOString(), nodes:st.nodes, edges:st.edges, tables:st.tables };
   }
   // ไฟล์ของเลขที่อื่น = บอกก่อนเปิด (ครูเปิดไฟล์ที่เด็กส่งก็เห็นว่าของใคร เซฟเมื่อไร)
   function applyPlan(obj, from){
@@ -420,7 +426,7 @@
       (E.counts().nodes ? '\nผังที่อยู่บนกระดานตอนนี้จะถูกแทน (เอาคืนได้ที่ 💾 → ↩️)' : '');
     if (!confirm(msg)) return false;
     stashPrev();
-    var n = E.loadState({ nodes: obj.nodes, edges: obj.edges || [] }, { fit: true });
+    var n = E.loadState({ nodes: obj.nodes, edges: obj.edges || [], tables: obj.tables }, { fit: true });
     if (!n) throw new Error('empty');
     setMode('place'); refreshTerm();
     showToast('เปิดผังแล้ว · อุปกรณ์ ' + n + ' ตัว', 'ok');

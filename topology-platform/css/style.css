@@ -141,7 +141,12 @@ svg.cut-on .edge{stroke-dasharray:8 5;opacity:0.85;}
 .wrap.wide{max-width:920px;}
 .th-en{font-size:12px;color:var(--muted);font-weight:400;}
 .stage{display:flex;gap:8px;align-items:flex-start;margin-top:2px;}
-.sidebar{flex:0 0 102px;display:flex;flex-direction:column;gap:10px;}
+.sidebar{flex:0 0 102px;display:grid;align-content:start;}
+/* สาเหตุบั๊ก "กดเชื่อมแล้วกระดานหด": เดิม 2 แผงสลับด้วย display:none → ความสูง sidebar เปลี่ยนตามโหมด
+ * กระดานยืดตาม sidebar (.stage stretch) → โหมดเชื่อม (แผงสื่อเตี้ย) กระดานหด อุปกรณ์ล่างถูกตัด
+ * แก้: ซ้อนทั้ง 2 แผงในช่องเดียว (ซ่อนด้วย visibility) → ความสูง sidebar = แผงสูงสุดเสมอ ไม่เปลี่ยนตามโหมด */
+.sidebar>div{grid-area:1/1;}
+.sidebar>.hidden{display:block!important;visibility:hidden;pointer-events:none;}
 .main{flex:1 1 auto;min-width:0;}
 .main .canvas-box{height:52vh;min-height:320px;max-height:540px;}
 /* builder เท่านั้น (stage มี sidebar) → พื้นที่วางยืดก้นเสมอ sidebar ไม่ให้ ISP ล้นลงล่าง */
@@ -157,6 +162,16 @@ svg.cut-on .edge{stroke-dasharray:8 5;opacity:0.85;}
 .sidebar .mbtn .swatch{flex:0 0 auto;}
 .mbtn .mlb{display:flex;flex-direction:column;line-height:1.15;}
 .mbtn .mlb small{font-size:9px;color:var(--muted);font-weight:600;}
+
+/* โต๊ะวาดห้อง (builder) — อยู่ใต้สาย/อุปกรณ์ · รับแตะเฉพาะโหมดวาง/ลบ */
+.table-body{fill:rgba(184,138,85,.22);stroke:#b88a55;stroke-width:2;pointer-events:none;}
+.table-label{fill:#d9b98a;opacity:.75;font-size:11px;font-weight:700;pointer-events:none;font-family:inherit;}
+.table-handle-vis{fill:#b88a55;stroke:#fff;stroke-width:1.5;pointer-events:none;display:none;}
+.table-handle{fill:transparent;pointer-events:none;display:none;}
+svg.tb-place .table-body,svg.tb-del .table-body{pointer-events:all;}
+svg.tb-place .table-handle{display:block;pointer-events:all;}
+svg.tb-place .table-handle-vis{display:block;}
+.table.sel-del .table-body{stroke:#ff5566;fill:rgba(255,85,102,.2);}
 
 /* เลข IP ใต้ชื่ออุปกรณ์ */
 .node-ip{pointer-events:none;fill:#9affd6;font-size:10px;font-weight:700;

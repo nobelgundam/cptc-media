@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="th">
+<head><meta charset="UTF-8"><title>phone + table test</title></head>
+<body>
+<script>try { localStorage.clear(); localStorage.setItem('netsim_builder_no', '7'); } catch (e) {}</script>
+<iframe id="fr" src="builder.html" style="width:420px;height:900px;border:1px solid #ccc"></iframe>
+<pre id="out">running…</pre>
+<script>
+/* อุปกรณ์ "มือถือ (Phone)" + วัตถุ "โต๊ะ (Table)" ใน builder — รูปแบบเดียวกับ _test_dns.html: ok(name,cond) → document.title = RESULT pass=N fail=M
+ * ใช้ iframe builder.html (โหมดเข้ม) · แตะ/ลากด้วย PointerEvent สังเคราะห์ (stub setPointerCapture) */
+var log = [], pass = 0, fail = 0;
+function ok(name, cond, extra){ (cond ? pass++ : fail++); log.push((cond ? 'PASS ' : 'FAIL ') + name + (extra ? ' | ' + extra : '')); }
+function done(){
+  try { localStorage.clear(); } catch (e) {}
+  document.getElementById('out').textContent = log.join('\n') + '\nRESULT pass=' + pass + ' fail=' + fail;
+  document.title = 'RESULT pass=' + pass + ' fail=' + fail;
+}
+var fr = document.getElementById('fr'), w, d, E, termOut, srcSel;
+function U(a, b, m){ return { id: a + '-' + b, a: a, b: b, media: m || 'utp' }; }
+function N(id, type, x, y, ip, extra){
+  var n = { id: id, type: type, x: x, y: y };
+  if (ip) n.ip = ip;
+  if (extra) for (var k in extra) n[k] = extra[k];
+  return n;
+}
+function lines(base){ var a = []; for (var i = base; i < termOut.children.length; i++) a.push(termOut.children[i].textContent); return a; }
+function has(L, s){ return L.some(function(l){ return l.indexOf(s) > -1; }); }
+function cmd(id, text){
+  var base = termOut.children.length;
+  srcSel.value = id;
+  d.getElementById('cmd').value = text;
+  d.getElementById('runBtn').click();
+  return function(){ return lines(base); };
+}
+function ev(el, type, x, y){ el.dispatchEvent(new w.PointerEvent(type, { pointerId: 1, bubbles: true, cancelable: true, clientX: x, clientY: y })); }
+function svgPt(x, y){ var r = d.getElementById('canvas').getBoundingClientRect(); return { x: r.left + x, y: r.top + y }; }
+function tapSvg(x, y){ var p = svgPt(x, y); ev(d.getElementById('canvas'), 'pointerdown', p.x, p.y); }
+function tapNode(id){
+  var hit = d.querySelector('#canvas .node[data-id="' + id + '"] .node-hit'), r = hit.getBoundingClientRect();
+  ev(hit, 'pointerdown', r.left + r.width / 2, r.top + r.height / 2); ev(hit, 'pointerup', r.left + r.width / 2, r.top + r.height / 2);
+}
+function tableEl(id){ return d.querySelector('#canvas .table[data-id="' + id + '"]'); }
+function tblState(){ return JSON.parse(E.exportState()).tables || []; }
+function dragEl(el, x0, y0, x1, y1){
+  var a = svgPt(x0, y0), b = svgPt(x1, y1);
+  ev(el, 'pointerdown', a.x, a.y); ev(el, 'pointermove', (a.x + b.x) / 2, (a.y + b.y) / 2); ev(el, 'pointermove', b.x, b.y); ev(el, 'pointerup', b.x, b.y);
+}
+function palClick(type){ d.querySelector('#palette .dev[data-type="' + type + '"]').click(); }
+var toastEl;
+
+fr.addEventListener('load', function(){
+  w = fr.contentWindow; d = fr.contentDocument; E = w.NetSimEngine;
+  w.Element.prototype.setPointerCapture = function(){};
+  termOut = d.getElementById('termOut'); srcSel = d.getElementById('srcSel'); toastEl = d.getElementById('toast');
+  setTimeout(run, 350);
+});
+
+function run(){
+  var T;
+  /* ================= A) มือถือ ================= */
+  var dp = d.querySelector('#palette .dev[data-type="phone"]'), dc = d.querySelector('#palette .dev[data-type="pc"]');
+  ok('A1 พาเลตมี "มือถือ (Phone)" ต่อได้ Wireless อย่างเดียว', !!dp && /มือถือ/.test(dp.textContent) && /Phone/.test(dp.textContent) && /ต่อได้: Wireless$/.test(dp.textContent.trim()), dp && dp.textContent);
+  ok('A2 ไอคอนมือถือไม่ใช่ไอคอนพีซี', dp.querySelector('svg').innerHTML !== dc.querySelector('svg').innerHTML);
+  E.loadState({ nodes: [], edges: [] });
+  E.setMode('place'); palClick('phone');
+  tapSvg(60, 80); tapSvg(60, 160);
+  var ids = JSON.parse(E.exportState()).nodes.map(function(n){ return n.id; });
+  ok('A3 วางมือถือ → id Phone1, Phone2', ids.join(',') === 'Phone1,Phone2', ids.join(','));
+  ok('A4 getNode.type=phone · typeLabel', E.getNode('Phone1').type === 'phone' && E.typeLabel('phone') === 'มือถือ (Phone)');
+
+  E.loadState({ nodes: [ N('R1','router',200,60,'192.168.1.1',{ dhcp:{ on:true, from:10, to:254, dns:'' } }), N('SW1','switch',200,160),
+      N('PC1','pc',60,60,'192.168.1.10',{ gw:'192.168.1.1' }), N('Phone1','phone',60,160) ], edges: [ U('R1','SW1'), U('SW1','PC1') ] });
+  E.setMode('connect');
+  var nEdges = E.counts().edges;
+  E.setMedia('utp'); tapNode('Phone1'); tapNode('R1');
+  ok('A5 UTP ต่อมือถือไม่ได้ + ข้อความไทย "รองรับ: Wireless"', E.counts().edges === nEdges && /ต่อ.*ไม่ได้/.test(toastEl.textContent) && /รองรับ: Wireless/.test(toastEl.textContent), toastEl.textContent);
+  E.setMedia('fiber'); tapNode('Phone1'); tapNode('R1');
+  ok('A6 Fiber ต่อมือถือไม่ได้ + ข้อความไทย', E.counts().edges === nEdges && /ต่อ.*ไม่ได้/.test(toastEl.textContent) && /รองรับ: Wireless/.test(toastEl.textContent), toastEl.textContent);
+  E.setMedia('wireless'); tapNode('Phone1'); tapNode('R1');
+  ok('A7 Wireless → R1 ต่อได้ (Wi-Fi เปิด)', E.counts().edges === nEdges + 1);
+
+  var rv = cmd('Phone1', 'ipconfig');
+  ok('A8 มือถืออยู่ในรายการ Terminal + ipconfig ตอบ', Array.prototype.some.call(srcSel.options, function(o){ return o.value === 'Phone1'; }) && rv().length > 1, rv().join(' / '));
+  var dh = E.requestDhcp('Phone1');
+  ok('A9 มือถือขอ IP จาก DHCP ของ R1 ได้ (DHCP client)', dh.ok === true && /^192\.168\.1\./.test(dh.ip) && E.getNode('Phone1').ipmode === 'dhcp', JSON.stringify(dh));
+  ok('A10 ping PC1 → มือถือ (canPing)', E.canPing('PC1', E.getNode('Phone1').ip).ok === true);
+  var pr = cmd('Phone1', 'ping 192.168.1.10');
+  setTimeout(function(){
+    ok('A11 ping จากมือถือ → PC1 ได้ Reply (Terminal)', has(pr(), 'ตอบกลับจาก 192.168.1.10'), pr().join(' / '));
+    w.NetSimEngine.setMode('config');
+    tapNode('Phone1');
+    ok('A12 แตะมือถือโหมดตั้ง IP = เปิดหน้าตั้งค่า', d.getElementById('cfgOverlay').classList.contains('show'));
+    d.getElementById('cfgCancel') && d.getElementById('cfgCancel').click();
+    d.getElementById('cfgOverlay').classList.remove('show');
+    next();
+  }, 4500);
+
+  function next(){
+    /* ---- Wi-Fi มีรหัส: มือถือต้องใส่รหัสเหมือนพีซี ---- */
+    E.loadState({ nodes: [ N('R1','router',200,60,'192.168.1.1',{ wifi:'Abcdef!2345' }), N('Phone1','phone',60,60), N('PC1','pc',60,160) ], edges: [] });
+    E.setMode('connect'); E.setMedia('wireless'); tapNode('Phone1'); tapNode('R1');
+    ok('B1 R1 มีรหัส → มือถือเชื่อมไร้สายแล้วขึ้นช่องใส่รหัส (ยังไม่ต่อ)', d.getElementById('wifiOverlay').classList.contains('show') && E.counts().edges === 0);
+    ok('B2 รหัสผิด = ต่อไม่ได้ · รหัสถูก = ต่อได้', E.connectAuth('Phone1', 'R1', 'wireless', 'wrong').ok === false && E.connectAuth('Phone1', 'R1', 'wireless', 'Abcdef!2345').ok === true);
+    d.getElementById('wifiOverlay').classList.remove('show');
+
+    /* ---- ความเร็ว: R1 + PC1-6 + Phone1 ไร้สายทั้งหมด = 7 เครื่องเท่าเดิม ---- */
+    var nodes = [ N('R1','router',200,60,'192.168.1.1'), N('Phone1','phone',60,60) ], edges = [ U('R1','Phone1','wireless') ];
+    for (var i = 1; i <= 6; i++){ nodes.push(N('PC' + i,'pc',60 + i * 30,100)); edges.push(U('R1','PC' + i,'wireless')); }
+    E.loadState({ nodes: nodes, edges: edges });
+    var s1 = E.wifiSpeed('R1');
+    ok('B3 Wi-Fi เปิด: 7 เครื่อง (มือถือนับ 1) → 10 Mbps', s1.devices === 7 && s1.perDevice === 10, JSON.stringify(s1));
+    E.setNodeWifi('R1', 'Abcdef!2345');
+    var s2 = E.wifiSpeed('R1');
+    ok('B4 ตั้งรหัสแล้ว → 14 Mbps', s2.devices === 7 && s2.perDevice === 14, JSON.stringify(s2));
+    var seven = nodes.slice(); seven[1] = N('PC7','pc',60,60); var e7 = edges.slice(); e7[0] = U('R1','PC7','wireless');
+    E.loadState({ nodes: seven, edges: e7 }); E.setNodeWifi('R1', 'Abcdef!2345');
+    ok('B5 เทียบ 7 พีซีเดิม = ตัวเลขเดียวกัน', E.wifiSpeed('R1').perDevice === 14 && E.wifiSpeed('R1').devices === 7);
+    tables();
+  }
+
+  /* ================= C) โต๊ะ ================= */
+  function tables(){
+    var dt = d.querySelector('#palette .dev[data-type="table"]');
+    ok('C1 พาเลตมี "โต๊ะ (Table)" (ไม่ใช่อุปกรณ์เครือข่าย ไม่มีคำว่า "ต่อได้")', !!dt && /โต๊ะ \(Table\)/.test(dt.textContent) && !/ต่อได้/.test(dt.textContent), dt && dt.textContent);
+    E.loadState({ nodes: [], edges: [] });
+    E.setMode('place'); palClick('table');
+    tapSvg(150, 120);
+    var t0 = tblState();
+    ok('C2 แตะกระดาน = วางโต๊ะ 1 ตัว (T1) · ไม่ใช่ node', t0.length === 1 && t0[0].id === 'T1' && E.counts().nodes === 0 && E.tableCount() === 1 && !!tableEl('T1'), JSON.stringify(t0));
+    ok('C3 โต๊ะอยู่ใต้ชั้นสาย/อุปกรณ์ (layer แรกใน svg)', d.getElementById('canvas').firstChild.getAttribute('class') === 'layer-tables' && d.getElementById('canvas').firstChild.contains(tableEl('T1')));
+    ok('C4 ไม่มีไอคอนโต๊ะใน layer-nodes · ไม่ขึ้นใน Terminal/ดักจับ', d.querySelectorAll('#canvas .layer-nodes .node').length === 0 && E.nodesWithIP().length === 0 && E.captureSources().length === 0 && E.apNodes().length === 0);
+    /* ย้าย */
+    var body = tableEl('T1').querySelector('.table-body'), a = t0[0];
+    dragEl(body, a.x + 20, a.y + 20, a.x + 70, a.y + 50);
+    var t1 = tblState()[0];
+    ok('C5 ลากตัวโต๊ะ = ย้าย (ขนาดเท่าเดิม)', t1.x === a.x + 50 && t1.y === a.y + 30 && t1.w === a.w && t1.h === a.h, JSON.stringify(t1));
+    /* ปรับขนาด */
+    var hh = tableEl('T1').querySelector('.table-handle');
+    dragEl(hh, t1.x + t1.w, t1.y + t1.h, t1.x + t1.w + 40, t1.y + t1.h + 20);
+    var t2 = tblState()[0];
+    ok('C6 ลากจุดมุมขวาล่าง = ปรับขนาด (ตำแหน่งเดิม)', t2.w === t1.w + 40 && t2.h === t1.h + 20 && t2.x === t1.x && t2.y === t1.y, JSON.stringify(t2));
+    dragEl(hh, t2.x + t2.w, t2.y + t2.h, t2.x + 2, t2.y + 2);
+    var t3 = tblState()[0];
+    ok('C7 หดได้ไม่เล็กกว่า 40×30', t3.w === 40 && t3.h === 30, JSON.stringify(t3));
+    dragEl(body, t3.x + 5, t3.y + 5, 5000, 5000);
+    var t4 = tblState()[0], cv = d.getElementById('canvas');
+    ok('C8 ลากออกนอกกระดานไม่ได้ (ยังอยู่ในกรอบ)', t4.x + t4.w <= cv.clientWidth && t4.y + t4.h <= cv.clientHeight && t4.x >= 0, JSON.stringify(t4));
+    /* วางคอมบนโต๊ะ */
+    dragEl(body, t4.x + 5, t4.y + 5, 40, 40);
+    var t5 = tblState()[0];
+    dragEl(hh, t5.x + t5.w, t5.y + t5.h, 200, 150);
+    t5 = tblState()[0];
+    palClick('pc');
+    var p = svgPt(t5.x + 15, t5.y + 15); ev(body, 'pointerdown', p.x, p.y); ev(body, 'pointerup', p.x, p.y);
+    ok('C9 แตะบนโต๊ะ (เลือก PC ไว้) = วาง PC ลงบนโต๊ะ · โต๊ะไม่ขยับ', E.counts().nodes === 1 && JSON.stringify(tblState()[0]) === JSON.stringify(t5));
+    var pcNode = JSON.parse(E.exportState()).nodes[0];
+    ok('C10 PC อยู่เหนือโต๊ะ (node ใน layer-nodes ที่วาดทีหลัง layer-tables)', pcNode.id === 'PC1' && d.querySelectorAll('#canvas .layer-nodes .node').length === 1);
+    /* ต่อสายไม่ได้ */
+    E.loadState({ nodes: [ N('R1','router',250,60,'192.168.1.1'), N('PC1','pc',60,160,'192.168.1.10') ], edges: [], tables: [ { id:'T1', x:20, y:120, w:120, h:70 } ] });
+    E.setMode('connect'); E.setMedia('utp');
+    var tb = tableEl('T1').querySelector('.table-body'), q = svgPt(100, 150);
+    tapNode('PC1'); ev(tb, 'pointerdown', q.x, q.y); ev(tb, 'pointerup', q.x, q.y);
+    ok('C11 แตะโต๊ะในโหมดเชื่อม = ไม่เกิดสาย', E.counts().edges === 0);
+    ok('C12 ping/ความเร็ว/จำนวนอุปกรณ์ไม่เห็นโต๊ะ', E.counts().nodes === 2 && E.nodesWithIP().length === 2 && E.tableCount() === 1 && !E.getNode('T1'));
+    /* ลบ 2 จังหวะ */
+    E.setMode('delete');
+    ev(tb, 'pointerdown', q.x, q.y); ev(tb, 'pointerup', q.x, q.y);
+    ok('C13 โหมดลบ: แตะครั้งแรกยังไม่ลบ (ขอยืนยัน)', E.tableCount() === 1 && tableEl('T1').classList.contains('sel-del'));
+    ev(tb, 'pointerdown', q.x, q.y); ev(tb, 'pointerup', q.x, q.y);
+    ok('C14 แตะซ้ำ = ลบโต๊ะ · อุปกรณ์ยังอยู่', E.tableCount() === 0 && E.counts().nodes === 2 && !tableEl('T1'));
+    persist();
+  }
+
+  /* ================= D) เซฟ/เปิด/ลิงก์/autosave ================= */
+  function persist(){
+    var plan = { nodes: [ N('R1','router',250,60,'192.168.1.1'), N('PC1','pc',60,160,'192.168.1.10') ], edges: [ U('R1','PC1') ], tables: [ { id:'T1', x:20, y:120, w:120, h:70 }, { id:'T2', x:150, y:30, w:80, h:50 } ] };
+    E.loadState(plan);
+    var ex = JSON.parse(E.exportState());
+    ok('D1 exportState มี tables ครบ 2 ตัว · counts ไม่นับโต๊ะ', ex.tables.length === 2 && ex.tables[1].w === 80 && E.counts().nodes === 2 && E.counts().edges === 1);
+    var saved = E.exportState();
+    E.loadState({ nodes: [], edges: [] });
+    ok('D2 ล้างแล้วโต๊ะหาย', E.tableCount() === 0 && d.querySelectorAll('#canvas .table').length === 0);
+    E.loadState(saved);
+    ok('D3 เซฟ→เปิด (loadState) โต๊ะกลับมาครบ', JSON.stringify(tblState()) === JSON.stringify(plan.tables) && d.querySelectorAll('#canvas .table').length === 2);
+    ok('D4 autosave ลง localStorage ของเลขที่ 7 มี tables', /"tables"/.test(w.localStorage.getItem('netsim_builder_no7') || ''));
+    /* ไฟล์/ลิงก์เก่าไม่มี tables */
+    var old = { nodes: plan.nodes, edges: plan.edges };
+    E.loadState(old);
+    ok('D5 ไฟล์เก่า (ไม่มีคีย์ tables) โหลดได้เหมือนเดิม · exportState ไม่มีคีย์ tables', E.counts().nodes === 2 && E.tableCount() === 0 && E.exportState().indexOf('tables') < 0);
+    E.loadState({ nodes: plan.nodes, edges: plan.edges, tables: [ { id:'T1', x:'x', y:1, w:50, h:50 }, null, { x:10, y:10, w:5, h:5 }, { id:'T9', x:10, y:10, w:60, h:60 } ] });
+    ok('D6 โต๊ะเสียในไฟล์ถูกกรอง · ขนาดต่ำสุดบังคับ 40×30 · ไม่มี id = ออกให้', tblState().length === 2 && tblState()[0].w === 40 && tblState()[0].h === 30 && /^T\d+$/.test(tblState()[0].id), JSON.stringify(tblState()));
+    /* ลิงก์ #plan= : ปุ่มคัดลอกลิงก์ต้องใส่ tables */
+    E.loadState(plan);
+    w.prompt = function(_m, url){ T = url; };
+    try { Object.defineProperty(w.navigator, 'clipboard', { value: null, configurable: true }); } catch (e) {}
+    d.getElementById('svLink').click();
+    var url = T || '', m = /#plan=(.+)$/.exec(url), dec = null;
+    try { var s = m[1].replace(/-/g,'+').replace(/_/g,'/'); while (s.length % 4) s += '='; dec = JSON.parse(decodeURIComponent(escape(w.atob(s)))); } catch (e) {}
+    ok('D7 ลิงก์ #plan= ถอดแล้วมี tables 2 ตัว', !!dec && dec.tables && dec.tables.length === 2 && dec.nodes.length === 2, url.slice(0, 80));
+    /* ย่อเข้าจอตอนเปิดไฟล์: โต๊ะชิดขอบ (ผนังห้อง) ต้องไม่ถูกขยับ · โต๊ะล้นกระดานต้องถูกย่อเข้า */
+    E.loadState({ nodes: plan.nodes, edges: plan.edges, tables: [ { id:'T1', x:0, y:0, w:100, h:60 } ] }, { fit: true });
+    ok('D9 โต๊ะชิดขอบกระดาน → เปิดไฟล์แล้วไม่ถูกขยับ/ย่อ', JSON.stringify(tblState()) === JSON.stringify([ { id:'T1', x:0, y:0, w:100, h:60 } ]), JSON.stringify(tblState()));
+    var cvw = d.getElementById('canvas').clientWidth;
+    E.loadState({ nodes: plan.nodes, edges: plan.edges, tables: [ { id:'T1', x:20, y:20, w:cvw + 300, h:60 } ] }, { fit: true });
+    ok('D10 โต๊ะล้นกระดาน → เปิดไฟล์แล้วถูกย่อเข้ามาในกรอบ', tblState()[0].x + tblState()[0].w <= cvw, JSON.stringify(tblState()) + ' cvw=' + cvw);
+    /* ปุ่ม ล้างทั้งหมด ใช้ได้แม้มีแต่โต๊ะ */
+    E.loadState({ nodes: [], edges: [], tables: [ { id:'T1', x:20, y:20, w:60, h:40 } ] });
+    w.confirm = function(){ return true; };
+    d.getElementById('btn-clear').click();
+    ok('D8 มีแต่โต๊ะ กด 🧹 ล้างทั้งหมด = โต๊ะหาย', E.tableCount() === 0);
+    done();
+  }
+}
+setTimeout(function(){ if (!log.length){ log.push('FAIL iframe ไม่โหลด'); fail++; done(); } }, 30000);
+</script>
+</body>
+</html>
