@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="th">
+<head><meta charset="UTF-8"><title>naming test</title></head>
+<body>
+<script>try { localStorage.clear(); localStorage.setItem('netsim_builder_no', '7'); } catch (e) {}</script>
+<iframe id="fr" src="builder.html" style="width:420px;height:900px;border:1px solid #ccc"></iframe>
+<pre id="out">running…</pre>
+<script>
+/* ชื่ออุปกรณ์ (name) + ชื่อไวไฟ AP (ssid) + ISP gloss ใน builder — รูปแบบเดียวกับ _test_phone_table.html: ok(name,cond) → document.title = RESULT pass=N fail=M
+ * ใช้ iframe builder.html · แตะด้วย PointerEvent สังเคราะห์ · มี 3 เฟส: (1) ใช้งานปกติ (2) reload จาก autosave (3) reload จาก autosave ที่ถูกแก้ผิดกฎ */
+var log = [], pass = 0, fail = 0, phase = 1;
+function ok(name, cond, extra){ (cond ? pass++ : fail++); log.push((cond ? 'PASS ' : 'FAIL ') + name + (extra ? ' | ' + extra : '')); }
+function done(){
+  try { localStorage.clear(); } catch (e) {}
+  document.getElementById('out').textContent = log.join('\n') + '\nRESULT pass=' + pass + ' fail=' + fail;
+  document.title = 'RESULT pass=' + pass + ' fail=' + fail;
+}
+var fr = document.getElementById('fr'), w, d, E, termOut, srcSel, toastEl;
+function U(a, b, m){ return { id: a + '-' + b, a: a, b: b, media: m || 'utp' }; }
+function N(id, type, x, y, ip, extra){
+  var n = { id: id, type: type, x: x, y: y };
+  if (ip) n.ip = ip;
+  if (extra) for (var k in extra) n[k] = extra[k];
+  return n;
+}
+function lines(base){ var a = []; for (var i = base; i < termOut.children.length; i++) a.push(termOut.children[i].textContent); return a; }
+function has(L, s){ return L.some(function(l){ return l.indexOf(s) > -1; }); }
+function cmd(id, text){
+  var base = termOut.children.length;
+  srcSel.value = id;
+  d.getElementById('cmd').value = text;
+  d.getElementById('runBtn').click();
+  return function(){ return lines(base); };
+}
+function ev(el, type, x, y){ el.dispatchEvent(new w.PointerEvent(type, { pointerId: 1, bubbles: true, cancelable: true, clientX: x, clientY: y })); }
+function svgPt(x, y){ var r = d.getElementById('canvas').getBoundingClientRect(); return { x: r.left + x, y: r.top + y }; }
+function tapSvg(x, y){ var p = svgPt(x, y); ev(d.getElementById('canvas'), 'pointerdown', p.x, p.y); }
+function tapNode(id){
+  var hit = d.querySelector('#canvas .node[data-id="' + id + '"] .node-hit'), r = hit.getBoundingClientRect();
+  ev(hit, 'pointerdown', r.left + r.width / 2, r.top + r.height / 2); ev(hit, 'pointerup', r.left + r.width / 2, r.top + r.height / 2);
+}
+function palClick(type){ d.querySelector('#palette .dev[data-type="' + type + '"]').click(); }
+function $(id){ return d.getElementById(id); }
+function setv(id, v){ var e = $(id); e.value = v; e.dispatchEvent(new w.Event('input', { bubbles: true })); }
+function shown(id){ return !$(id).classList.contains('hidden'); }
+function dlgOpen(){ return $('cfgOverlay').classList.contains('show'); }
+function openCfg(id){ E.setMode('config'); tapNode(id); }
+function labelOf(id){ var l = d.querySelector('#canvas .node[data-id="' + id + '"] .node-label'); return l ? l.textContent : null; }
+function ssidOf(id){ var l = d.querySelector('#canvas .node[data-id="' + id + '"] .node-ssid'); return l ? l.textContent : null; }
+function nodesOut(){ return JSON.parse(E.exportState()).nodes; }
+function nodeOut(id){ return nodesOut().filter(function(n){ return n.id === id; })[0]; }
+function rep(c, n){ var s = ''; for (var i = 0; i < n; i++) s += c; return s; }
+function later(ms, f){ setTimeout(f, ms); }
+
+fr.addEventListener('load', function(){
+  w = fr.contentWindow; d = fr.contentDocument; E = w.NetSimEngine;
+  w.Element.prototype.setPointerCapture = function(){};
+  termOut = $('termOut'); srcSel = $('srcSel'); toastEl = $('toast');
+  setTimeout(phase === 1 ? run : phase === 2 ? afterReload : afterBadReload, 350);
+});
+
+var BASE = function(){ return { nodes: [
+  N('PC1','pc',60,60), N('PC2','pc',140,60), N('Phone1','phone',220,60), N('R1','router',60,160), N('SW1','switch',140,160),
+  N('SRV1','server',220,160), N('AP1','ap',60,260), N('AP2','ap',140,260), N('ISP1','isp',220,260), N('ISP2','isp',300,260) ], edges: [] }; };
+
+function run(){
+  /* ================= A) กฎชื่ออุปกรณ์ 6 ข้อ ================= */
+  E.loadState(BASE());
+  var ne = function(id, v){ return E.nameError(id, v); };
+  ok('A1 กฎ 1: ว่าง / เว้นวรรคล้วน → "ห้ามเว้นว่าง"', ne('PC1', '') === 'ห้ามเว้นว่าง' && ne('PC1', '   ') === 'ห้ามเว้นว่าง');
+  ok('A2 กฎ 2: มีช่องว่าง (กลาง/หน้า) → "ห้ามเว้นวรรค"', ne('PC1', 'a b') === 'ห้ามเว้นวรรค' && ne('PC1', ' pc1') === 'ห้ามเว้นวรรค');
+  ok('A3 กฎ 3: อักขระนอก a-z A-Z 0-9 - → "ใช้ได้แค่ a-z 0-9 และ -"', ['pc_1', 'pc.1', 'pc@', 'a/b'].every(function(v){ return ne('PC1', v) === 'ใช้ได้แค่ a-z 0-9 และ -'; }));
+  ok('A3b ชื่อเครื่องภาษาไทยไม่ผ่าน (ฮาร์ดแวร์ = Windows rules)', ne('PC1', 'คอมครู') === 'ใช้ได้แค่ a-z 0-9 และ -' && ne('PC1', 'ก') === 'ใช้ได้แค่ a-z 0-9 และ -');
+  ok('A4 กฎ 4: ไม่ขึ้นต้นด้วยตัวอักษร → "ต้องขึ้นต้นด้วยตัวอักษร"', ['1pc', '-pc', '9'].every(function(v){ return ne('PC1', v) === 'ต้องขึ้นต้นด้วยตัวอักษร'; }));
+  ok('A5 กฎ 5: เกิน 15 → "ยาวไม่เกิน 15 ตัว" · 15 พอดีผ่าน', ne('PC1', rep('a', 16)) === 'ยาวไม่เกิน 15 ตัว' && ne('PC1', rep('a', 15)) === null);
+  ok('A6 กฎ 6: ซ้ำเครื่องอื่น (ไม่สนตัวพิมพ์/ซ้ำ id ของเครื่องที่ยังไม่ตั้งชื่อ) → "ชื่อนี้มีในผังแล้ว"', ne('PC1', 'PC2') === 'ชื่อนี้มีในผังแล้ว' && ne('PC1', 'pc2') === 'ชื่อนี้มีในผังแล้ว' && ne('PC1', 'r1') === 'ชื่อนี้มีในผังแล้ว');
+  ok('A6b ซ้ำตัวเอง (เปลี่ยนแค่ตัวพิมพ์ของ id) ผ่าน', ne('PC1', 'pc1') === null && ne('PC1', 'PC1') === null);
+  ok('A7 ลำดับตรวจ: แสดงข้อแรกที่ผิด', ne('PC1', 'ก b') === 'ห้ามเว้นวรรค' && ne('PC1', '1ก') === 'ใช้ได้แค่ a-z 0-9 และ -' &&
+     ne('PC1', '1' + rep('a', 20)) === 'ต้องขึ้นต้นด้วยตัวอักษร' && ne('PC1', rep('a', 20) + 'ก') === 'ใช้ได้แค่ a-z 0-9 และ -' && ne('PC1', 'a' + rep('a', 20)) === 'ยาวไม่เกิน 15 ตัว');
+  ok('A8 ชื่อดีผ่าน (alice · Lab-PC-01 · a · A1)', ['alice', 'Lab-PC-01', 'a', 'A1'].every(function(v){ return ne('PC1', v) === null; }));
+  ok('A9 ทุกชนิดใช้กฎเดียวกัน (phone/router/switch/server/ap)', ['Phone1', 'R1', 'SW1', 'SRV1', 'AP1'].every(function(id){ return ne(id, 'x y') === 'ห้ามเว้นวรรค' && ne(id, 'ok-1') === null && ne(id, '1ab') === 'ต้องขึ้นต้นด้วยตัวอักษร'; }));
+  /* ISP: ข้ามกฎ 4 เท่านั้น */
+  ok('A10 ISP: "3BB" ผ่าน · AIS/True/NT ผ่าน · พีซีใช้ "3BB" ไม่ผ่าน (กฎ 4)', ne('ISP1', '3BB') === null && ne('ISP1', 'AIS') === null && ne('ISP1', 'True') === null && ne('ISP1', 'NT') === null && ne('PC1', '3BB') === 'ต้องขึ้นต้นด้วยตัวอักษร');
+  ok('A11 ISP: กฎอื่นยังใช้ (เว้นวรรค · อักขระ · ยาว · ซ้ำ)', ne('ISP1', 'a b') === 'ห้ามเว้นวรรค' && ne('ISP1', 'ทรู') === 'ใช้ได้แค่ a-z 0-9 และ -' && ne('ISP1', rep('1', 16)) === 'ยาวไม่เกิน 15 ตัว' && ne('ISP1', '') === 'ห้ามเว้นว่าง' && ne('ISP1', 'pc1') === 'ชื่อนี้มีในผังแล้ว');
+  ok('A12 ISP 2 ตัวตั้งชื่อซ้ำกันไม่ได้', E.setNodeName('ISP1', '3BB') === null && ne('ISP2', '3bb') === 'ชื่อนี้มีในผังแล้ว');
+  ok('A13 setNodeName ที่ผิดกฎ = คืนข้อความ · ชื่อไม่เปลี่ยน', E.setNodeName('PC1', 'a b') === 'ห้ามเว้นวรรค' && E.displayName('PC1') === 'PC1' && !('name' in nodeOut('PC1')));
+
+  /* ================= B) กฎชื่อไวไฟ 3 ข้อ ================= */
+  E.loadState(BASE());
+  var se = function(id, v){ return E.ssidError(id, v); };
+  ok('B1 SSID ว่าง / เว้นวรรคล้วน → "ห้ามเว้นว่าง"', se('AP1', '') === 'ห้ามเว้นว่าง' && se('AP1', '   ') === 'ห้ามเว้นว่าง');
+  ok('B2 SSID ไทย/อังกฤษ/เว้นวรรค ผ่าน · ตัดหัวท้าย', se('AP1', 'ร้านกาแฟ ไวไฟ') === null && se('AP1', 'Free WiFi 5G') === null && se('AP1', '  ลูกค้า  ') === null);
+  ok('B3 SSID ยาว: 32 ผ่าน · 33 → "ยาวไม่เกิน 32 ตัวอักษร" (อังกฤษและไทย)', se('AP1', rep('a', 32)) === null && se('AP1', rep('a', 33)) === 'ยาวไม่เกิน 32 ตัวอักษร' && se('AP1', rep('ก', 32)) === null && se('AP1', rep('ก', 33)) === 'ยาวไม่เกิน 32 ตัวอักษร');
+  ok('B3b ตัดหัวท้ายก่อนนับ (32 ตัว + เว้นวรรคหัวท้าย = ผ่าน)', se('AP1', '  ' + rep('b', 32) + '  ') === null);
+  ok('B4 setNodeSsid บันทึก (ตัดหัวท้าย) · AP อื่นใช้ชื่อเดียวกัน → "ชื่อไวไฟนี้มีในผังแล้ว"', E.setNodeSsid('AP1', '  CoffeeShop ') === null && E.getNode('AP1').ssid === 'CoffeeShop' &&
+     se('AP2', 'CoffeeShop') === 'ชื่อไวไฟนี้มีในผังแล้ว' && se('AP2', ' CoffeeShop ') === 'ชื่อไวไฟนี้มีในผังแล้ว' && se('AP1', 'CoffeeShop') === null);
+  ok('B5 SSID ตั้งได้เฉพาะ AP (พีซี/เราเตอร์ไม่ได้) · ไม่ใช่กฎชื่ออุปกรณ์ (ไทยผ่าน)', se('PC1', 'abc') !== null && se('R1', 'abc') !== null && se('AP2', 'ทรูไวไฟ') === null);
+  ok('B6 SSID ผิดกฎ = setNodeSsid ไม่บันทึก', E.setNodeSsid('AP2', rep('x', 40)) === 'ยาวไม่เกิน 32 ตัวอักษร' && E.getNode('AP2').ssid === '');
+
+  /* ================= C) id คงเดิม · ป้ายบนกระดาน ================= */
+  E.loadState({ nodes: [ N('PC1','pc',60,60,'192.168.1.10'), N('PC2','pc',200,60,'192.168.1.11'), N('SW1','switch',130,120), N('AP1','ap',60,240) ], edges: [ U('PC1','SW1'), U('PC2','SW1') ] });
+  ok('C0 ไม่ตั้งชื่อ = ป้ายเป็น id เดิม · ไม่มีคีย์ name/ssid ในไฟล์', labelOf('PC1') === 'PC1' && labelOf('AP1') === 'AP1' && ssidOf('AP1') === null && nodesOut().every(function(n){ return !('name' in n) && !('ssid' in n); }));
+  E.setNodeName('PC1', 'alice'); E.setNodeName('PC2', 'Lab-PC-02'); E.setNodeName('SW1', 'core-sw'); E.setNodeName('AP1', 'cafe-ap'); E.setNodeSsid('AP1', 'ร้านกาแฟ WiFi');
+  ok('C1 ป้ายบนกระดานเป็นชื่อใหม่ · data-id ยังเป็น id เดิม', labelOf('PC1') === 'alice' && labelOf('SW1') === 'core-sw' && !!d.querySelector('#canvas .node[data-id="PC1"]') && E.getNode('PC1').id === 'PC1' && E.getNode('PC1').name === 'alice');
+  ok('C2 AP: ใต้ไอคอนมี 📶 + ชื่อไวไฟ ', ssidOf('AP1') === '📶 ร้านกาแฟ WiFi', ssidOf('AP1'));
+  E.setNodeSsid('AP1', rep('ก', 32));
+  ok('C2b SSID 32 ตัว: ป้ายบนกระดานย่อด้วย … (ไม่ล้นข้างเคียง) แต่ค่าจริงครบ 32', /…$/.test(ssidOf('AP1')) && Array.from(ssidOf('AP1')).length <= 19 && E.getNode('AP1').ssid.length === 32, ssidOf('AP1'));
+  E.setNodeSsid('AP1', 'ร้านกาแฟ WiFi');
+  var n1 = nodeOut('PC1');
+  ok('C3 exportState: node มี id เดิม + name · edges ไม่เปลี่ยน (ใช้ id)', n1.id === 'PC1' && n1.name === 'alice' && JSON.parse(E.exportState()).edges.map(function(e){ return e.a + e.b; }).join() === 'PC1SW1,PC2SW1');
+  ok('C4 ping ยังทำงานด้วย id/IP หลังเปลี่ยนชื่อ', E.canPing('PC1', '192.168.1.11').ok === true);
+  E.setNodeName('PC1', 'PC1');
+  ok('C5 ตั้งชื่อเท่ากับ id = เอาชื่อออก (ไม่มีคีย์ name)', !('name' in nodeOut('PC1')) && labelOf('PC1') === 'PC1');
+  E.setNodeName('PC1', 'alice');
+  E.clearNodeSsid('AP1');
+  ok('C6 clearNodeSsid เอาป้าย 📶 ออก', ssidOf('AP1') === null && !('ssid' in nodeOut('AP1')));
+  E.setNodeSsid('AP1', 'ร้านกาแฟ WiFi');
+  /* วางอุปกรณ์ใหม่ id ต้องไม่ชนชื่อที่เด็กตั้ง */
+  E.loadState(BASE()); E.setNodeName('Phone1', 'PC3');
+  E.setMode('place'); palClick('pc'); tapSvg(300, 120);
+  var ids = nodesOut().map(function(n){ return n.id; });
+  ok('C7 ชื่อที่ตั้ง "PC3" กันไม่ให้อุปกรณ์ใหม่ได้ id PC3 (ข้ามไป PC4)', ids.indexOf('PC3') < 0 && ids.indexOf('PC4') > -1, ids.join(','));
+
+  /* ================= D) Terminal ================= */
+  E.loadState({ nodes: [ N('PC1','pc',60,60,'192.168.1.10'), N('PC2','pc',200,60,'192.168.1.11'), N('SW1','switch',130,120) ], edges: [ U('PC1','SW1'), U('PC2','SW1') ] });
+  E.setNodeName('PC1', 'alice'); E.setNodeName('SW1', 'core-sw');
+  var opt = Array.prototype.map.call(srcSel.options, function(o){ return o.textContent; }).join('|');
+  srcSel.value = 'PC1'; srcSel.dispatchEvent(new w.Event('change'));
+  ok('D1 รายการเครื่องใน Terminal โชว์ชื่อ · prompt = "alice>"', /alice · 192\.168\.1\.10/.test(opt) && /PC2 · 192\.168\.1\.11/.test(opt) && $('termPrompt').textContent === 'alice>', opt + ' / ' + $('termPrompt').textContent);
+  var r1 = cmd('PC1', 'hostname'); var o1 = r1().slice(-1)[0]; var r2 = cmd('PC2', 'hostname'); var o2 = r2().slice(-1)[0]; var r3 = cmd('PC1', 'ipconfig /all');
+  ok('D2 hostname พิมพ์ชื่อ (ไม่ตั้ง = id)', o1 === 'alice' && o2 === 'PC2', o1 + ' ;; ' + o2);
+  ok('D3 ipconfig /all มี Host Name = ชื่อ', has(r3(), 'Host Name . . . . . . : alice'), r3().join('/'));
+  var r4 = cmd('PC1', 'foo');
+  ok('D4 รายการคำสั่งที่รองรับมี hostname', has(r4(), 'hostname'), r4().join('/'));
+  var tr = cmd('PC1', 'tracert 192.168.1.11');
+  ok('D5 tracert โชว์ชื่อของทอด (core-sw) แทน id', has(tr(), 'core-sw') && !has(tr(), 'SW1'), tr().join(' / '));
+  /* ดักจับ + ping */
+  $('tabCap').click(); $('capToggle').click();
+  $('tabTerm').click();
+  var pr = cmd('PC1', 'ping 192.168.1.11');
+  later(4500, function(){
+    ok('D6 ping: บรรทัด "จดสมุด" ใช้ชื่อ', has(pr(), 'alice ping 192.168.1.11'), pr().join(' / '));
+    ok('D6b prompt/คำสั่งที่เด็กพิมพ์ echo ด้วยชื่อ', has(pr(), 'alice> ping 192.168.1.11'), pr().join(' / '));
+    $('tabCap').click();
+    var capTxt = $('capRows').textContent;
+    ok('D7 ตารางดักจับ: ต้นทางโชว์ "alice" (ชื่อ) · จุดดักในรายการเป็นชื่อ', /alice/.test(capTxt) && /alice/.test($('capPoint').textContent), capTxt.slice(0, 100));
+    $('capToggle').click(); $('tabTerm').click();
+    stepUI();
+  });
+}
+
+function stepUI(){
+  /* ================= E) หน้าตั้งค่า (dialog) ================= */
+  E.loadState(BASE());
+  openCfg('PC1');
+  ok('E1 แตะพีซีโหมดตั้งค่า: มีช่องชื่อ (ค่าตั้งต้น=PC1) · ไม่มีช่อง SSID', dlgOpen() && shown('cfgNameWrap') && $('cfgName').value === 'PC1' && !shown('cfgSsidWrap'));
+  setv('cfgName', 'a b'); $('cfgSave').click();
+  ok('E2 ชื่อผิด → error ใต้ช่อง "ห้ามเว้นวรรค" · dialog ยังเปิด · ไม่บันทึก', dlgOpen() && /ห้ามเว้นวรรค/.test($('cfgNameErr').textContent) && E.displayName('PC1') === 'PC1', $('cfgNameErr').textContent);
+  setv('cfgName', 'PC2'); $('cfgSave').click();
+  ok('E3 ชื่อซ้ำเครื่องอื่น → "ชื่อนี้มีในผังแล้ว"', dlgOpen() && /ชื่อนี้มีในผังแล้ว/.test($('cfgNameErr').textContent));
+  setv('cfgName', 'lab-pc'); $('cfgSave').click();
+  ok('E4 เปลี่ยนแค่ชื่อ (ยังไม่แตะ IP) → บันทึกได้ ปิด dialog · ไม่บังคับกรอก IP', !dlgOpen() && E.displayName('PC1') === 'lab-pc' && E.getNode('PC1').ip === '' && labelOf('PC1') === 'lab-pc', $('cfgErr').textContent);
+  openCfg('PC1');
+  ok('E4b เปิดซ้ำ: ช่องชื่อมีชื่อที่ตั้งไว้', $('cfgName').value === 'lab-pc');
+  setv('cfgName', 'zed'); setv('cfgIp', '999.1.1.1'); $('cfgSave').click();
+  ok('E5 ชื่อใหม่ + IP ผิด → error IP · ชื่อไม่ถูกบันทึก (คืนค่าเดิม)', dlgOpen() && $('cfgErr').textContent.length > 0 && E.displayName('PC1') === 'lab-pc' && labelOf('PC1') === 'lab-pc', $('cfgErr').textContent);
+  setv('cfgName', 'zed'); setv('cfgIp', '192.168.1.10'); $('cfgSave').click();
+  ok('E6 ชื่อใหม่ + IP ถูก → บันทึกทั้งคู่', !dlgOpen() && E.displayName('PC1') === 'zed' && E.getNode('PC1').ip === '192.168.1.10');
+  /* เซิร์ฟเวอร์: ช่องชื่ออุปกรณ์ ≠ ช่อง Hostname (DNS) */
+  openCfg('SRV1');
+  ok('E7 เซิร์ฟเวอร์: มีทั้ง "ชื่ออุปกรณ์" และ "Hostname (DNS)" เป็นคนละช่อง', shown('cfgNameWrap') && shown('cfgHostWrap') && $('cfgName').value === 'SRV1' && $('cfgHost').id !== $('cfgName').id && /ไม่ใช่ชื่ออุปกรณ์/.test($('cfgHostWrap').textContent));
+  setv('cfgName', 'web-1'); setv('cfgIp', '192.168.1.50'); setv('cfgHost', 'shop.local'); $('cfgSave').click();
+  ok('E7b ตั้งชื่ออุปกรณ์ + IP + hostname DNS พร้อมกัน ไม่ปนกัน', E.displayName('SRV1') === 'web-1' && E.getNode('SRV1').host === 'shop.local' && E.getNode('SRV1').ip === '192.168.1.50');
+  /* AP */
+  openCfg('AP1');
+  ok('E8 AP: มีช่องชื่อ + ช่อง SSID (ว่าง) + ช่องรหัสผ่าน', dlgOpen() && shown('cfgNameWrap') && shown('cfgSsidWrap') && $('cfgSsid').value === '' && shown('cfgWifiWrap') && !shown('cfgIpWrap'));
+  setv('cfgSsid', ''); setv('cfgWifi', 'Game@2569xy'); $('cfgSave').click();
+  ok('E9 AP ยังไม่เคยตั้ง SSID + เว้นว่าง → ตั้งแค่รหัสผ่านได้ ไม่ติด error SSID', !dlgOpen() && E.getNode('AP1').wifi === 'Game@2569xy' && E.getNode('AP1').ssid === '');
+  openCfg('AP1');
+  setv('cfgSsid', rep('ก', 33)); $('cfgSave').click();
+  ok('E10 SSID ยาวเกิน → "ยาวไม่เกิน 32 ตัวอักษร" ใต้ช่อง · dialog เปิด', dlgOpen() && /ยาวไม่เกิน 32 ตัวอักษร/.test($('cfgSsidErr').textContent));
+  setv('cfgSsid', 'ร้านกาแฟ ไวไฟ'); $('cfgSave').click();
+  ok('E11 SSID ไทย+เว้นวรรค บันทึกได้ · ป้าย 📶 ใต้ AP', !dlgOpen() && E.getNode('AP1').ssid === 'ร้านกาแฟ ไวไฟ' && ssidOf('AP1') === '📶 ร้านกาแฟ ไวไฟ');
+  openCfg('AP2');
+  setv('cfgSsid', 'ร้านกาแฟ ไวไฟ'); $('cfgSave').click();
+  ok('E12 AP อื่นใช้ SSID ซ้ำ → "ชื่อไวไฟนี้มีในผังแล้ว"', dlgOpen() && /ชื่อไวไฟนี้มีในผังแล้ว/.test($('cfgSsidErr').textContent));
+  $('cfgCancel').click();
+  openCfg('AP1');
+  setv('cfgSsid', '  '); $('cfgSave').click();
+  ok('E13 เคยตั้ง SSID แล้วลบจนว่าง → "ห้ามเว้นว่าง"', dlgOpen() && /ห้ามเว้นว่าง/.test($('cfgSsidErr').textContent) && E.getNode('AP1').ssid === 'ร้านกาแฟ ไวไฟ');
+  $('cfgCancel').click();
+  /* ISP */
+  var dispal = d.querySelector('#palette .dev[data-type="isp"]').textContent;
+  ok('E14 พาเลต ISP: คำอธิบายไทย + ตัวอย่าง AIS · True · 3BB · NT', /ผู้ให้บริการ/.test(dispal) && /AIS/.test(dispal) && /True/.test(dispal) && /3BB/.test(dispal) && /NT/.test(dispal) && /ต่อได้: Fiber, UTP/.test(dispal), dispal);
+  openCfg('ISP1');
+  ok('E15 หน้าตั้งค่า ISP: หัว/ป้ายช่องชื่อบอกว่า ISP คืออะไร + ตัวอย่าง · ช่องชื่อไม่ถูกตั้งยี่ห้อล่วงหน้า', /ผู้ให้บริการอินเทอร์เน็ต/.test($('cfgTitle').textContent) && /AIS/.test($('cfgNameLb').textContent) && $('cfgName').value === 'ISP1' && labelOf('ISP1') === 'ISP1');
+  setv('cfgName', '3BB'); setv('cfgIp', '10.0.0.1'); $('cfgSave').click();
+  ok('E16 ISP ตั้งชื่อ "3BB" ได้ (ขึ้นต้นด้วยเลข)', !dlgOpen() && E.displayName('ISP1') === '3BB' && labelOf('ISP1') === '3BB', $('cfgNameErr').textContent + $('cfgErr').textContent);
+  openCfg('PC2'); setv('cfgName', '3BB'); $('cfgSave').click();
+  ok('E17 พีซีตั้งชื่อ "3BB" ไม่ได้ (กฎ 4) และชนชื่อ ISP ไม่ได้', dlgOpen() && /ต้องขึ้นต้นด้วยตัวอักษร/.test($('cfgNameErr').textContent));
+  $('cfgCancel').click();
+  /* สวิตช์ */
+  openCfg('SW1');
+  ok('E18 สวิตช์: มีช่องชื่อ (+ Port Mirror)', dlgOpen() && shown('cfgNameWrap') && shown('cfgMirrorWrap'));
+  setv('cfgName', 'core-sw'); $('cfgSave').click();
+  ok('E19 สวิตช์ตั้งชื่อได้', !dlgOpen() && E.displayName('SW1') === 'core-sw' && labelOf('SW1') === 'core-sw');
+  /* ชื่อไม่ถูกเก็บถ้าปิด dialog ด้วยยกเลิก */
+  openCfg('Phone1'); setv('cfgName', 'my-phone'); $('cfgCancel').click();
+  ok('E20 ยกเลิก = ไม่บันทึกชื่อ', E.displayName('Phone1') === 'Phone1');
+  openCfg('Phone1'); setv('cfgName', 'my-phone'); $('cfgSave').click();
+  ok('E21 มือถือตั้งชื่อได้', E.displayName('Phone1') === 'my-phone');
+  openCfg('R1'); setv('cfgName', 'gw-main'); $('cfgSave').click();
+  ok('E22 เราเตอร์: เปลี่ยนแค่ชื่อ (ยังไม่แตะ IP/รหัส/DHCP) ได้', !dlgOpen() && E.displayName('R1') === 'gw-main');
+  stepPersist();
+}
+
+function readBlob(b, cb){ var fr2 = new FileReader(); fr2.onload = function(){ cb(fr2.result); }; fr2.readAsText(b); }
+function b64json(s){ s = s.replace(/-/g,'+').replace(/_/g,'/'); while (s.length % 4) s += '='; return JSON.parse(decodeURIComponent(escape(w.atob(s)))); }
+function pickFile(text){
+  var dt = new w.DataTransfer(); dt.items.add(new w.File([text], 'plan.json', { type: 'application/json' }));
+  var inp = $('svFile'); inp.files = dt.files; inp.dispatchEvent(new w.Event('change', { bubbles: true }));
+}
+var SAVED = null;
+
+function stepPersist(){
+  /* ================= F) เซฟ/เปิดผัง ================= */
+  w.confirm = function(){ return true; };
+  var expectNames = function(tag){
+    var g = function(id){ return E.getNode(id); };
+    return g('PC1').name === 'zed' && g('SRV1').name === 'web-1' && g('AP1').ssid === 'ร้านกาแฟ ไวไฟ' && g('ISP1').name === '3BB' && g('SW1').name === 'core-sw' && g('Phone1').name === 'my-phone' && g('R1').name === 'gw-main';
+  };
+  ok('F0 ผังก่อนเซฟมีชื่อครบ', expectNames());
+  var ls = JSON.parse(localStorage.getItem('netsim_builder_no7'));
+  ok('F1 autosave (localStorage) เก็บ name/ssid', ls.nodes.filter(function(n){ return n.id === 'PC1'; })[0].name === 'zed' && ls.nodes.filter(function(n){ return n.id === 'AP1'; })[0].ssid === 'ร้านกาแฟ ไวไฟ');
+  /* ไฟล์ .json */
+  var blobs = []; w.URL.createObjectURL = function(b){ blobs.push(b); return 'blob:test'; };
+  $('btn-save').click(); $('svDown').click();
+  later(300, function(){
+    ok('F2 ปุ่มเซฟไฟล์สร้าง blob 1 ก้อน', blobs.length === 1);
+    readBlob(blobs[0], function(txt){
+      SAVED = txt; var f = JSON.parse(txt);
+      ok('F3 ไฟล์ .json: มี name/ssid · id เดิม', f.nodes.filter(function(n){ return n.id === 'PC1'; })[0].name === 'zed' && f.nodes.filter(function(n){ return n.id === 'AP1'; })[0].ssid === 'ร้านกาแฟ ไวไฟ' && f.nodes.filter(function(n){ return n.id === 'ISP1'; })[0].name === '3BB');
+      /* ลิงก์ #plan= */
+      w.prompt = function(_m, url){ SAVED_URL = url; };
+      try { Object.defineProperty(w.navigator, 'clipboard', { value: null, configurable: true }); } catch (e) {}
+      $('svLink').click();
+      var m = /#plan=(.+)$/.exec(SAVED_URL || ''), dec = null; try { dec = b64json(m[1]); } catch (e) {}
+      ok('F4 ลิงก์ #plan= ถอดแล้วมี name/ssid', !!dec && dec.nodes.filter(function(n){ return n.id === 'PC1'; })[0].name === 'zed' && dec.nodes.filter(function(n){ return n.id === 'AP1'; })[0].ssid === 'ร้านกาแฟ ไวไฟ', (SAVED_URL || '').slice(0, 60));
+      /* ล้างแล้วเปิดไฟล์ → ชื่อกลับมา */
+      E.loadState({ nodes: [ N('PC1','pc',60,60) ], edges: [] });
+      ok('F5 (ก่อนเปิดไฟล์) ผังเปลี่ยนเป็นผังเปล่าไม่มีชื่อ', E.displayName('PC1') === 'PC1' && E.counts().nodes === 1);
+      pickFile(txt);
+      later(400, function(){
+        ok('F6 เปิดไฟล์ .json → ชื่อ/SSID กลับมาครบ + ป้ายบนกระดาน', expectNames() && labelOf('PC1') === 'zed' && ssidOf('AP1') === '📶 ร้านกาแฟ ไวไฟ' && E.counts().nodes === 10, E.counts().nodes + ' nodes');
+        /* ลิงก์: โหลด payload ผ่านทางเปิดไฟล์เดียวกัน (hash-boot ทดสอบแยกใน QA script) */
+        E.loadState({ nodes: [ N('PC1','pc',60,60) ], edges: [] });
+        pickFile(JSON.stringify(dec));
+        later(400, function(){
+          ok('F7 payload จากลิงก์ → เปิดแล้วชื่อ/SSID ครบ', expectNames());
+          /* ↩️ ผังก่อนหน้า */
+          pickFile(JSON.stringify({ nodes: [ N('PC1','pc',60,60), N('PC2','pc',140,60) ], edges: [] }));
+          later(400, function(){
+            ok('F8 (ก่อนกดย้อน) เปิดผังไม่มีชื่ออื่นทับแล้ว', E.counts().nodes === 2 && E.displayName('PC1') === 'PC1');
+            $('btn-save').click();
+            ok('F9 ปุ่ม ↩️ โผล่', !$('svUndo').classList.contains('hidden'));
+            $('svUndo').click();
+            ok('F10 ↩️ เอาผังก่อนหน้าคืน → ชื่อ/SSID กลับมา', expectNames() && E.counts().nodes === 10);
+            stepCompat();
+          });
+        });
+      });
+    });
+  });
+}
+var SAVED_URL = null;
+
+function stepCompat(){
+  /* ================= G) ผังเก่าไม่มีชื่อ · ไฟล์แก้มือผิดกฎ ================= */
+  var old = [ N('PC1','pc',60,60,'192.168.1.10',{ gw:'192.168.1.1' }), N('R1','router',200,60,'192.168.1.1'), N('AP1','ap',60,160,null,{ wifi:'Abcdef!2345' }) ];
+  var oldJson = JSON.stringify(old);
+  E.loadState({ nodes: JSON.parse(oldJson), edges: [ U('PC1','R1') ] });
+  ok('G1 ผังเก่า (ไม่มี name/ssid) โหลดเหมือนเดิม: ป้าย=id · export node เท่าเดิมทุกไบต์', labelOf('PC1') === 'PC1' && labelOf('AP1') === 'AP1' && ssidOf('AP1') === null && JSON.stringify(nodesOut()) === oldJson, JSON.stringify(nodesOut()).slice(0, 120));
+  var bad = [
+    N('PC1','pc',10,10,null,{ name: 'a b' }), N('PC2','pc',20,20,null,{ name: 'คอมครู' }), N('PC3','pc',30,30,null,{ name: 1234 }), N('PC4','pc',40,40,null,{ name: '1pc' }),
+    N('PC5','pc',50,50,null,{ name: rep('z', 16) }), N('PC6','pc',60,60,null,{ name: '' }), N('PC7','pc',70,70,null,{ name: 'ok-pc' }), N('PC8','pc',80,80,null,{ name: 'OK-PC' }),
+    N('PC9','pc',90,90,null,{ name: 'pc7' }), N('PC10','pc',100,100,null,{ name: 'R9' }), N('R9','router',110,110), N('PC11','pc',120,120,null,{ name: { x: 1 } }),
+    N('PC12','pc',130,130,null,{ name: '3BB' }), N('ISP1','isp',140,140,null,{ name: '3BB' }),
+    N('AP1','ap',10,200,null,{ ssid: '' }), N('AP2','ap',20,200,null,{ ssid: rep('s', 40) }), N('AP3','ap',30,200,null,{ ssid: '  ไวไฟบ้าน ' }), N('AP4','ap',40,200,null,{ ssid: 'ไวไฟบ้าน' }),
+    N('AP5','ap',50,200,null,{ ssid: 777 }), N('PC13','pc',60,200,null,{ ssid: 'not-an-ap' }), N('R2','router',70,200,null,{ ssid: 'router-ssid' })
+  ];
+  E.loadState({ nodes: bad, edges: [] });
+  var nm = function(id){ return E.getNode(id).name; }, ss = function(id){ return E.getNode(id).ssid; };
+  ok('G2 name ผิดกฎถูกทิ้ง → กลับไปโชว์ id (เว้นวรรค · ไทย · ไม่ใช่ string · ขึ้นต้นเลข · ยาว · ว่าง · object)', ['PC1','PC2','PC3','PC4','PC5','PC6','PC11'].every(function(id){ return nm(id) === id; }), ['PC1','PC2','PC3','PC4','PC5','PC6','PC11'].map(nm).join(','));
+  ok('G3 name ที่ผิดกฎถูกเอาออกจาก export ด้วย (ไม่เก็บค่าเสียต่อ)', ['PC1','PC2','PC3','PC4','PC5','PC6','PC11'].every(function(id){ return !('name' in nodeOut(id)); }));
+  ok('G4 name ถูกกฎ: คงไว้ · ซ้ำกัน (ไม่สนตัวพิมพ์) ตัวแรกชนะ ตัวหลังถูกทิ้ง', nm('PC7') === 'ok-pc' && nm('PC8') === 'PC8', nm('PC7') + ',' + nm('PC8'));
+  ok('G5 name ชนกับ id ของเครื่องอื่น (PC9→"pc7"?? ไม่ซ้ำ id · PC10→"R9" ชน R9) → PC10 ถูกทิ้ง', nm('PC9') === 'pc7' && nm('PC10') === 'PC10', nm('PC9') + ',' + nm('PC10'));
+  ok('G6 ISP ชื่อ "3BB" คงไว้ · พีซีชื่อ "3BB" ถูกทิ้ง', nm('ISP1') === '3BB' && nm('PC12') === 'PC12');
+  ok('G7 ssid ผิดกฎถูกทิ้ง (ว่าง · ยาว 40 · ไม่ใช่ string) · ถูกกฎตัดหัวท้ายแล้วคงไว้', ss('AP1') === '' && ss('AP2') === '' && ss('AP5') === '' && ss('AP3') === 'ไวไฟบ้าน', [ss('AP1'), ss('AP2'), ss('AP3'), ss('AP5')].join('|'));
+  ok('G8 ssid ซ้ำ AP อื่น → ตัวหลังถูกทิ้ง · ssid บนพีซี/เราเตอร์ถูกทิ้ง', ss('AP4') === '' && !('ssid' in nodeOut('PC13')) && !('ssid' in nodeOut('R2')));
+  ok('G9 ป้ายบนกระดานตรงกับค่าที่กรองแล้ว', labelOf('PC1') === 'PC1' && labelOf('PC7') === 'ok-pc' && ssidOf('AP3') === '📶 ไวไฟบ้าน' && ssidOf('AP4') === null);
+  /* เตรียม reload เฟส 2: autosave ของผังมีชื่อ */
+  E.loadState(BASE());
+  E.setNodeName('PC1', 'alice'); E.setNodeName('ISP1', '3BB'); E.setNodeSsid('AP1', 'ร้านกาแฟ ไวไฟ');
+  phase = 2; w.location.reload();
+}
+
+function afterReload(){
+  /* เฟส 2: reload → โหลดจาก autosave */
+  E = fr.contentWindow.NetSimEngine; w = fr.contentWindow; d = fr.contentDocument;
+  ok('H1 reload: ชื่อ/ SSID กลับมาจาก autosave', E.getNode('PC1').name === 'alice' && E.getNode('ISP1').name === '3BB' && E.getNode('AP1').ssid === 'ร้านกาแฟ ไวไฟ' && labelOf('PC1') === 'alice' && ssidOf('AP1') === '📶 ร้านกาแฟ ไวไฟ');
+  /* เฟส 3: แก้ autosave ให้ผิดกฎ (เหมือนเด็กแก้ localStorage / เวอร์ชันอื่น) แล้ว reload */
+  var s = JSON.parse(localStorage.getItem('netsim_builder_no7'));
+  s.nodes.forEach(function(n){ if (n.id === 'PC1') n.name = 'bad name'; if (n.id === 'PC2') n.name = 'ok-pc2'; if (n.id === 'AP1') n.ssid = rep('x', 50); if (n.id === 'AP2') n.ssid = 'wifi2'; });
+  localStorage.setItem('netsim_builder_no7', JSON.stringify(s));
+  phase = 3; w.location.reload();
+}
+
+function afterBadReload(){
+  E = fr.contentWindow.NetSimEngine; w = fr.contentWindow; d = fr.contentDocument;
+  ok('H2 reload จาก autosave ที่ผิดกฎ: ทิ้งค่าผิด (PC1 กลับเป็น id · AP1 ไม่มี SSID) ค่าถูกคงไว้', E.getNode('PC1').name === 'PC1' && labelOf('PC1') === 'PC1' && E.getNode('AP1').ssid === '' && ssidOf('AP1') === null && E.getNode('PC2').name === 'ok-pc2' && E.getNode('AP2').ssid === 'wifi2');
+  ok('H3 ไม่มี error toast/ไม่ค้าง: นับอุปกรณ์ครบ 10', E.counts().nodes === 10);
+  /* ISP: ไม่มียี่ห้อล่วงหน้าในโค้ด/ค่าตั้งต้น */
+  var html = d.documentElement.innerHTML;
+  var def = d.querySelector('#palette .dev[data-type="isp"]').textContent;
+  E.loadState({ nodes: [], edges: [] }); E.setMode('place'); palClick('isp'); tapSvg(100, 100);
+  ok('H4 วาง ISP ใหม่: ชื่อเริ่มต้น = id (ISP1) ไม่ใช่ยี่ห้อ', E.getNode('ISP1').name === 'ISP1' && labelOf('ISP1') === 'ISP1');
+  done();
+}
+setTimeout(function(){ if (!log.length){ log.push('FAIL iframe ไม่โหลด'); fail++; done(); } }, 60000);
+</script>
+</body>
+</html>

@@ -367,9 +367,9 @@ fr.addEventListener('load', function(){
     tap('SRV1');
     ok('F7 แตะ Server → มีช่อง DNS + ช่องชื่อเครื่อง (ค่าเดิม shop.local)', dlgOpen() && shown('cfgDnsWrap') && shown('cfgHostWrap') && d.getElementById('cfgHost').value === 'shop.local');
     setv('cfgHost', 'a b'); click('cfgSave');
-    ok('F7b ชื่อเครื่องผิดรูปแบบ → error "ชื่อเครื่อง: …" · ค่าเดิมไม่เปลี่ยน', dlgOpen() && /ชื่อเครื่อง/.test(errTxt()) && E.getNode('SRV1').host === 'shop.local', errTxt());
+    ok('F7b ชื่อเครื่องผิดรูปแบบ → error "ชื่อเครื่อง: …" · ค่าเดิมไม่เปลี่ยน', dlgOpen() && /ชื่อเว็บ/.test(errTxt()) && E.getNode('SRV1').host === 'shop.local', errTxt());
     setv('cfgHost', 'Google.com'); click('cfgSave');
-    ok('F7c ชื่อเครื่องชนชื่อเว็บจริง → error', dlgOpen() && /ชื่อเครื่อง/.test(errTxt()) && E.getNode('SRV1').host === 'shop.local');
+    ok('F7c ชื่อเครื่องชนชื่อเว็บจริง → error', dlgOpen() && /ชื่อเว็บ/.test(errTxt()) && E.getNode('SRV1').host === 'shop.local');
     setv('cfgHost', 'Shop2.Local'); setv('cfgDns', '1.1.1.1'); click('cfgSave');
     ok('F7d ชื่อเครื่องถูก → บันทึกเป็นตัวพิมพ์เล็ก + DNS ของ Server เก็บด้วย', !dlgOpen() && E.getNode('SRV1').host === 'shop2.local' && E.getNode('SRV1').dns === '1.1.1.1' && E.getNode('SRV1').ip === '192.168.1.50');
     tap('SRV1'); setv('cfgHost', ''); click('cfgSave');
@@ -386,7 +386,7 @@ fr.addEventListener('load', function(){
     ok('F9 Server โหมด DHCP + ตั้งชื่อเครื่อง → ได้ lease และ host=srv.local · PC2 ping ชื่อนี้แปลงได้', !dlgOpen() && E.getNode('SRV1').ipmode === 'dhcp' && E.getNode('SRV1').host === 'srv.local' && E.resolve('PC2', 'srv.local').ok && E.resolve('PC2', 'srv.local').ip === E.getNode('SRV1').ip, E.getNode('SRV1').ip);
     shop();
     tap('SRV1'); setv('cfgHost', 'x y'); click('cfgModeDhcp'); click('cfgSave');
-    ok('F9b Server โหมด DHCP แต่ชื่อเครื่องผิด → error · ไม่ขอ IP · dialog ยังเปิด', dlgOpen() && /ชื่อเครื่อง/.test(errTxt()) && E.getNode('SRV1').ipmode === 'static', errTxt());
+    ok('F9b Server โหมด DHCP แต่ชื่อเครื่องผิด → error · ไม่ขอ IP · dialog ยังเปิด', dlgOpen() && /ชื่อเว็บ/.test(errTxt()) && E.getNode('SRV1').ipmode === 'static', errTxt());
     click('cfgCancel');
   });
 

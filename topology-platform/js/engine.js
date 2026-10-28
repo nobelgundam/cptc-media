@@ -122,7 +122,7 @@
   // ข้าม id ที่มีอยู่แล้ว — ผังที่โหลดเข้ามา (preset/ไฟล์ผัง) มี PC1.. อยู่ก่อน ตัวนับเริ่ม 0 จะชน
   function nextId(type) {
     var id;
-    do { seq[type] = (seq[type] || 0) + 1; id = TYPES[type].prefix + seq[type]; } while (nodeById(id));
+    do { seq[type] = (seq[type] || 0) + 1; id = TYPES[type].prefix + seq[type]; } while (nodeById(id) || nameInUse(id, null));
     return id;
   }
   function nodeById(id) {
@@ -130,12 +130,109 @@
     return null;
   }
 
+  /* ---------- ชื่ออุปกรณ์ (n.name) + ชื่อไวไฟ AP (n.ssid) ----------
+   * id (PC1, R1 …) คงเดิม — สาย/ping/Firewall/ภารกิจอ้าง id เท่านั้น · n.name เป็นแค่ชื่อที่โชว์ (ไม่มี = โชว์ id) */
+  var NAME_MAX = 15, SSID_MAX = 32;
+  function nodeName(n) { return n ? (n.name || n.id) : ''; }
+  function dn(id) { var n = nodeById(id); return n ? nodeName(n) : id; }
+  // กฎชื่อ (แบบ Windows) ตามลำดับ — คืนข้อความผิดข้อแรก หรือ null · ISP ข้ามข้อ 4 (ขึ้นต้นด้วยเลขได้ เช่น 3BB)
+  function nameSyntaxError(type, raw) {
+    var s = typeof raw === 'string' ? raw : '';
+    if (!s.replace(/\s/g, '')) return 'ห้ามเว้นว่าง';
+    if (/\s/.test(s)) return 'ห้ามเว้นวรรค';
+    if (!/^[A-Za-z0-9-]+$/.test(s)) return 'ใช้ได้แค่ a-z 0-9 และ -';
+    if (type !== 'isp' && !/^[A-Za-z]/.test(s)) return 'ต้องขึ้นต้นด้วยตัวอักษร';
+    if (s.length > NAME_MAX) return 'ยาวไม่เกิน ' + NAME_MAX + ' ตัว';
+    return null;
+  }
+  function nameInUse(name, exceptId) {   // มีเครื่องอื่นโชว์ชื่อนี้อยู่ไหม (ไม่สนตัวพิมพ์)
+    var k = String(name).toLowerCase();
+    for (var i = 0; i < state.nodes.length; i++) {
+      var o = state.nodes[i];
+      if (o.id !== exceptId && nodeName(o).toLowerCase() === k) return true;
+    }
+    return false;
+  }
+  function nameError(id, raw) {
+    var n = nodeById(id); if (!n) return 'ไม่พบอุปกรณ์';
+    return nameSyntaxError(n.type, raw) || (nameInUse(raw, id) ? 'ชื่อนี้มีในผังแล้ว' : null);
+  }
+  function ssidSyntaxError(raw) {   // ชื่อไวไฟ: ไทย/อังกฤษ/เว้นวรรคได้ · ตัดช่องว่างหัวท้ายก่อน
+    var s = typeof raw === 'string' ? raw.trim() : '';
+    if (!s) return 'ห้ามเว้นว่าง';
+    if (Array.from(s).length > SSID_MAX) return 'ยาวไม่เกิน ' + SSID_MAX + ' ตัวอักษร';
+    return null;
+  }
+  function ssidError(id, raw) {
+    var n = nodeById(id); if (!n || n.type !== 'ap') return 'ไม่พบ AP';
+    var e = ssidSyntaxError(raw); if (e) return e;
+    var s = raw.trim();
+    for (var i = 0; i < state.nodes.length; i++) {
+      var o = state.nodes[i];
+      if (o.id !== id && o.type === 'ap' && o.ssid === s) return 'ชื่อไวไฟนี้มีในผังแล้ว';
+    }
+    return null;
+  }
+  // ผังจากไฟล์/ลิงก์/autosave ที่ name-ssid ผิดกฎ (แก้ไฟล์มือ ลิงก์เก่า) → ทิ้งค่านั้น กลับไปโชว์ id · ไม่มีฟิลด์ = ไม่แตะ
+  function cleanNodeNames(nodes) {
+    var seenSsid = {}, claimed = {}, cand = [];
+    nodes.forEach(function (n) {
+      if (!('name' in n) && !('ssid' in n)) return;
+      if ('ssid' in n) {
+        var s = typeof n.ssid === 'string' ? n.ssid.trim() : '';
+        if (n.type !== 'ap' || ssidSyntaxError(s) || seenSsid[s]) delete n.ssid;
+        else { n.ssid = s; seenSsid[s] = 1; }
+      }
+      if ('name' in n) {
+        if (nameSyntaxError(n.type, n.name)) delete n.name; else cand.push(n);
+      }
+    });
+    nodes.forEach(function (n) { if (cand.indexOf(n) < 0) claimed[String(n.id).toLowerCase()] = 1; });   // ไม่มีชื่อ = โชว์ id
+    cand.forEach(function (n) {
+      var k = n.name.toLowerCase();
+      if (claimed[k]) { delete n.name; claimed[String(n.id).toLowerCase()] = 1; }
+      else claimed[k] = 1;
+    });
+  }
+  function textW(s, latin, wide) { var w = 0; Array.from(s).forEach(function (c) { w += c.charCodeAt(0) > 0x0E00 ? wide : latin; }); return w; }   // ความกว้างป้ายโดยประมาณ (px)
+  function labelCls(n) { return nodeName(n).length > 10 ? 'node-label node-label-long' : 'node-label'; }   // ชื่อยาว (11-15 ตัว) ใช้ตัวเล็กลง ไม่ชนเครื่องข้างเคียงบนจอมือถือ
+  function ssidShort(s) { var a = Array.from(s); return '📶 ' + (a.length > 14 ? a.slice(0, 13).join('') + '…' : s); }
+  function refreshNodeLabel(id) {
+    var n = nodeById(id), g = els.node[id]; if (!n || !g) return;
+    var lb = g.querySelector('.node-label'); lb.textContent = nodeName(n); lb.setAttribute('class', labelCls(n));
+    var t = g.querySelector('.node-ssid');
+    if (n.type === 'ap' && n.ssid) {
+      if (!t) { t = mk('text', { 'class': 'node-ssid', x: 0, y: 43, 'text-anchor': 'middle' }); g.insertBefore(t, g.querySelector('.node-hit')); }
+      t.textContent = ssidShort(n.ssid);
+    } else if (t) t.remove();
+  }
+  function setNodeName(id, raw) {   // คืนข้อความผิด หรือ null เมื่อบันทึกแล้ว · ว่าง/ผิดกฎ = ไม่บันทึก
+    var s = typeof raw === 'string' ? raw.trim() : '', err = nameError(id, s);
+    if (err) return err;
+    var n = nodeById(id);
+    if (s === n.id) delete n.name; else n.name = s;
+    refreshNodeLabel(id); save(); changed();
+    return null;
+  }
+  function setNodeSsid(id, raw) {
+    var err = ssidError(id, raw);
+    if (err) return err;
+    nodeById(id).ssid = raw.trim();
+    refreshNodeLabel(id); save(); changed();
+    return null;
+  }
+
   function renderNode(n) {
     var g = mk('g', { 'class': 'node', 'data-id': n.id, transform: 'translate(' + n.x + ',' + n.y + ')' });
     g.innerHTML = '<circle class="ring" cx="0" cy="0" r="26"/>' + TYPES[n.type].icon;
-    var label = mk('text', { 'class': 'node-label', x: 0, y: 32, 'text-anchor': 'middle' });
-    label.textContent = n.id;
+    var label = mk('text', { 'class': labelCls(n), x: 0, y: 32, 'text-anchor': 'middle' });
+    label.textContent = nodeName(n);
     g.appendChild(label);
+    if (n.type === 'ap' && n.ssid) {   // ชื่อไวไฟใต้ AP (📶)
+      var ss = mk('text', { 'class': 'node-ssid', x: 0, y: 43, 'text-anchor': 'middle' });
+      ss.textContent = ssidShort(n.ssid);
+      g.appendChild(ss);
+    }
     if (canHaveIP(n.type)) {   // เลขไอพีใต้ชื่อ (เฉพาะ PC/Server)
       var iptext = mk('text', { 'class': 'node-ip', x: 0, y: 43, 'text-anchor': 'middle' });
       iptext.textContent = n.ip || '';
@@ -434,7 +531,7 @@
     if (sel.connect === null) {
       sel.connect = id;
       els.node[id].classList.add('sel-connect');
-      status('🔗 แตะอุปกรณ์ปลายทางที่จะเชื่อมกับ ' + id + ' (สื่อ: ' + MEDIA_LABEL[media] + ')');
+      status('🔗 แตะอุปกรณ์ปลายทางที่จะเชื่อมกับ ' + dn(id) + ' (สื่อ: ' + MEDIA_LABEL[media] + ')');
     } else if (sel.connect === id) {
       els.node[id].classList.remove('sel-connect'); sel.connect = null;
       status('เลือกอุปกรณ์ตัวแรกเพื่อเริ่มเชื่อมสาย');
@@ -444,12 +541,12 @@
       var first = sel.connect; sel.connect = null;
       if (res.ok) {
         var op = openAp(first, id, media);
-        toast('เชื่อม ' + first + ' ↔ ' + id + (op ? ' ⚠️ Wi-Fi ไม่มีรหัส ใครก็เกาะได้!' : ' (' + MEDIA_LABEL[media] + ')'), op ? 'bad' : 'ok');
+        toast('เชื่อม ' + dn(first) + ' ↔ ' + dn(id) + (op ? ' ⚠️ Wi-Fi ไม่มีรหัส ใครก็เกาะได้!' : ' (' + MEDIA_LABEL[media] + ')'), op ? 'bad' : 'ok');
         status(op ? '📶 Wi-Fi วงนี้ยังเปิดโล่ง ใครก็เกาะได้' : 'เชื่อมสำเร็จ — แตะอุปกรณ์ตัวแรกเพื่อเชื่อมเส้นต่อไป');
       } else if (res.reason === 'wifi') {
         if (wifiCb) { wifiCb(res.node.id, first, id, media); }
         else { toast('🔒 Wi-Fi มีรหัส — ใส่รหัสก่อนถึงเชื่อมได้', 'bad'); }
-        status('🔒 ' + res.node.id + ' มีรหัส Wi-Fi — ใส่รหัสให้ถูกเพื่อเชื่อม');
+        status('🔒 ' + dn(res.node.id) + ' มีรหัส Wi-Fi — ใส่รหัสให้ถูกเพื่อเชื่อม');
       } else if (res.reason === 'media') {
         var nd = res.node;
         toast('🚫 ' + typeLabel(nd.type) + ' ต่อ "' + MEDIA_LABEL[media] + '" ไม่ได้ — รองรับ: ' + supportedText(nd.type), 'bad');
@@ -469,13 +566,13 @@
     if (sel.delPending === id) {                     // แตะซ้ำ = ยืนยันลบ
       els.node[id].classList.remove('sel-del'); sel.delPending = null;
       removeNode(id);
-      toast('ลบ ' + id + ' แล้ว', 'bad');
+      toast('ลบ ' + dn(id) + ' แล้ว', 'bad');
       status('โหมดลบ: แตะอุปกรณ์ที่ต้องการลบ');
     } else {
       if (sel.delPending) selEl(sel.delPending).classList.remove('sel-del');
       sel.delPending = id;
       els.node[id].classList.add('sel-del');
-      status('⚠️ แตะ ' + id + ' อีกครั้งเพื่อยืนยันลบ (แตะตัวอื่นเพื่อยกเลิก)');
+      status('⚠️ แตะ ' + dn(id) + ' อีกครั้งเพื่อยืนยันลบ (แตะตัวอื่นเพื่อยกเลิก)');
     }
   }
 
@@ -483,7 +580,7 @@
     if (sel.simSrc === null) {
       sel.simSrc = id;
       els.node[id].classList.add('sel-sim');
-      status('🎯 แตะอุปกรณ์ปลายทาง (ต้นทาง = ' + id + ')');
+      status('🎯 แตะอุปกรณ์ปลายทาง (ต้นทาง = ' + dn(id) + ')');
     } else if (sel.simSrc === id) {
       els.node[id].classList.remove('sel-sim'); sel.simSrc = null;
       status('🧭 ชี้เส้นทาง: แตะเครื่องต้นทาง');
@@ -953,7 +1050,7 @@
       if (!raw) return false;
       var s = JSON.parse(raw);
       if (!s || ((!s.nodes || !s.nodes.length) && !(s.tables && s.tables.length))) return false;
-      state.nodes = s.nodes || []; state.edges = s.edges || []; seq = s.seq || {}; state.tables = cleanTables(s.tables);
+      state.nodes = s.nodes || []; cleanNodeNames(state.nodes); state.edges = s.edges || []; seq = s.seq || {}; state.tables = cleanTables(s.tables);
       var mx = 0;
       state.edges.forEach(function (e) { var num = parseInt((e.id || '').replace('e', ''), 10); if (num > mx) mx = num; });
       _edgeSeq = mx;
@@ -966,20 +1063,28 @@
     if (!svg || !state.nodes.length) return;
     var r = svg.getBoundingClientRect(), M = 34, B = 12;   // M = รัศมีไอคอน+ขอบ · B = ป้ายชื่อ/IP ใต้ไอคอน
     if (r.width < 2 * M + 10 || r.height < 2 * M + B + 10) return;   // กระดานยังไม่แสดง
+    // ป้ายชื่อ 15 ตัว / SSID ยาวกว้างกว่าไอคอน → ขอบซ้าย-ขวาเผื่อครึ่งความกว้างป้ายที่ยาวที่สุด (ชื่อ id เดิม = 34 เท่าเดิม ผังเก่าไม่ขยับ)
+    var MX = M;
+    state.nodes.forEach(function (n) {
+      var hw = Math.ceil(textW(nodeName(n), nodeName(n).length > 10 ? 6 : 6.9, 8) / 2) + 4;
+      if (n.type === 'ap' && n.ssid) hw = Math.max(hw, Math.ceil(textW(ssidShort(n.ssid), 6, 7.4) / 2) + 4);
+      MX = Math.max(MX, hw);
+    });
+    MX = Math.min(MX, Math.max(M, Math.floor(r.width / 2) - 12));
     var xs = state.nodes.map(function (n) { return n.x; }), ys = state.nodes.map(function (n) { return n.y; });
     var x0 = Math.min.apply(null, xs), x1 = Math.max.apply(null, xs);
     var y0 = Math.min.apply(null, ys), y1 = Math.max.apply(null, ys);
     // โต๊ะชิดขอบกระดานได้ (ผนังห้อง) → ย่อก็ต่อเมื่อโต๊ะล้นกระดานจริง ๆ ไม่ใช่แค่ใกล้ขอบ
     var tOut = state.tables.some(function (t) { return t.x < 0 || t.y < 0 || t.x + t.w > r.width || t.y + t.h > r.height; });
-    if (!tOut && x0 >= M && y0 >= M && x1 <= r.width - M && y1 <= r.height - M - B) return;
+    if (!tOut && x0 >= MX && y0 >= M && x1 <= r.width - MX && y1 <= r.height - M - B) return;
     state.tables.forEach(function (t) { x0 = Math.min(x0, t.x); x1 = Math.max(x1, t.x + t.w); y0 = Math.min(y0, t.y); y1 = Math.max(y1, t.y + t.h); });
-    var k = Math.min(1, (r.width - 2 * M) / ((x1 - x0) || 1), (r.height - 2 * M - B) / ((y1 - y0) || 1));
+    var k = Math.min(1, (r.width - 2 * MX) / ((x1 - x0) || 1), (r.height - 2 * M - B) / ((y1 - y0) || 1));
     state.nodes.forEach(function (n) {
-      n.x = Math.round(M + (n.x - x0) * k);
+      n.x = Math.round(MX + (n.x - x0) * k);
       n.y = Math.round(M + (n.y - y0) * k);
     });
     state.tables.forEach(function (t) {
-      t.x = Math.round(M + (t.x - x0) * k); t.y = Math.round(M + (t.y - y0) * k);
+      t.x = Math.round(MX + (t.x - x0) * k); t.y = Math.round(M + (t.y - y0) * k);
       t.w = Math.max(TB_MIN_W, Math.round(t.w * k)); t.h = Math.max(TB_MIN_H, Math.round(t.h * k));
     });
   }
@@ -1167,6 +1272,8 @@
   function emit(e) {
     if (!pktCb) return;
     e.n = ++pktN; e.layers = layersOf(e);
+    if (nodeById(e.srcLbl)) e.srcLbl = dn(e.srcLbl);   // ตารางดักจับโชว์ชื่อที่เด็กตั้ง (id ยังเป็นตัวอ้างจุดดักใน e.seen)
+    if (nodeById(e.dstLbl)) e.dstLbl = dn(e.dstLbl);
     try { pktCb(e); } catch (err) {}
   }
   // ใครเห็น broadcast ที่ออกจาก srcId: เครื่องปลายทางในวงเดียวกัน (เดินผ่านสวิตช์/AP ได้ · หยุดที่ router) + สวิตช์ที่เปิด mirror
@@ -1396,6 +1503,7 @@
         if (!n || !TYPES[n.type] || !n.id || ids[n.id] || !isFinite(n.x) || !isFinite(n.y)) return false;
         ids[n.id] = 1; return true;
       });   // ไม่ใช้เพดาน MAX_NODES ที่นี่ — เพดานกันเด็กแตะรัว ไม่ใช่กันผังครู/preset
+      cleanNodeNames(state.nodes);   // name/ssid ผิดกฎ (ไฟล์แก้มือ/ลิงก์เก่า) → ทิ้ง กลับไปโชว์ id
       state.edges = (obj.edges || []).filter(function (e) {
         return e && ids[e.a] && ids[e.b] && e.a !== e.b && MEDIA_SHORT[e.media];
       });
@@ -1414,7 +1522,13 @@
     canHaveWifi: function (t) { return canHaveWifi(t); },
     mask: DEFAULT_MASK,
     typeLabel: function (t) { return typeLabel(t); },
-    getNode: function (id) { var n = nodeById(id); return n ? { id: n.id, type: n.type, ip: n.ip || '', gw: n.gw || '', http: n.http || 200, wifi: n.wifi || '', fw: !!n.fw, fwAllow: !!n.fwAllow,
+    displayName: function (id) { return dn(id); },                     // ชื่อที่โชว์ (ไม่ได้ตั้ง = id)
+    nameError: function (id, raw) { return nameError(id, raw); },       // null = ใช้ได้ · อื่น = ข้อความไทย
+    ssidError: function (id, raw) { return ssidError(id, raw); },
+    setNodeName: function (id, raw) { return setNodeName(id, raw); },   // คืนข้อความผิด หรือ null เมื่อบันทึกแล้ว
+    setNodeSsid: function (id, raw) { return setNodeSsid(id, raw); },
+    clearNodeSsid: function (id) { var n = nodeById(id); if (n) { delete n.ssid; refreshNodeLabel(id); save(); changed(); } },   // เอาชื่อไวไฟออก (builder ใช้คืนค่าเมื่อบันทึกไม่ผ่าน)
+    getNode: function (id) { var n = nodeById(id); return n ? { id: n.id, type: n.type, name: nodeName(n), ssid: n.ssid || '', ip: n.ip || '', gw: n.gw || '', http: n.http || 200, wifi: n.wifi || '', fw: !!n.fw, fwAllow: !!n.fwAllow,
       ipmode: n.ipmode === 'dhcp' ? 'dhcp' : 'static', dns: n.dns || '', host: n.host || '', mirror: !!n.mirror } : null; },
     /* ----- DHCP / ARP / Linux terminal API ----- */
     canDhcpClient: canDhcpClient,
@@ -1442,7 +1556,7 @@
       return state.nodes.filter(function (n) {
         if (n.type === 'router' || n.type === 'isp') return !!n.ip;
         return canHaveIP(n.type);
-      }).map(function (n) { return { id: n.id, type: n.type, ip: n.ip || '', gw: n.gw || '' }; });
+      }).map(function (n) { return { id: n.id, name: nodeName(n), type: n.type, ip: n.ip || '', gw: n.gw || '' }; });
     },
     setNodeIP: function (id, ip, gw, http, dns) { setNodeIP(id, ip, gw, http, dns); },   // dns = DNS Server (Static · ไม่บังคับ)
     /* ----- DNS API (โหมดเข้มเฉพาะ builder: init {dnsStrict:true}) ----- */
@@ -1454,7 +1568,7 @@
     /* ----- ดักจับแพ็กเก็ต (init {onPacket}) ----- */
     setNodeMirror: function (id, on) { setNodeMirror(id, on); },      // Port Mirror ของสวิตช์ (กระจกพอร์ต)
     captureSources: function () {                                     // จุดที่เลือกดักได้: PC/Server ทุกตัว + สวิตช์ที่เปิด mirror
-      return state.nodes.filter(capNode).map(function (n) { return { id: n.id, type: n.type, mirror: !!n.mirror }; });
+      return state.nodes.filter(capNode).map(function (n) { return { id: n.id, name: nodeName(n), type: n.type, mirror: !!n.mirror }; });
     },
     ipError: function (ip) { return ipError(ip); },
     ipConflict: function (id, ip) { return ipConflict(id, ip); },

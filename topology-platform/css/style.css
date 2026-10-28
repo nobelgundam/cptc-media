@@ -83,6 +83,7 @@ body{
 .node-hit{pointer-events:all;cursor:pointer;fill:transparent;}
 .node-label{pointer-events:none;fill:var(--ink);font-size:12px;font-weight:700;
   font-family:inherit;paint-order:stroke;stroke:#0d1a30;stroke-width:3px;}
+.node-label-long{font-size:10.5px;}
 .node.dragging{filter:drop-shadow(0 4px 8px rgba(0,0,0,.5));}
 .node.sel-connect .ring{stroke:#3aa0ff;animation:pulse 1s ease-in-out infinite;}
 .node.sel-sim .ring{stroke:#27d3a2;animation:pulse 1s ease-in-out infinite;}
@@ -176,6 +177,9 @@ svg.tb-place .table-handle-vis{display:block;}
 /* เลข IP ใต้ชื่ออุปกรณ์ */
 .node-ip{pointer-events:none;fill:#9affd6;font-size:10px;font-weight:700;
   font-family:'Consolas','Menlo',monospace;paint-order:stroke;stroke:#0d1a30;stroke-width:3px;}
+/* ชื่อไวไฟ (SSID) ใต้ AP */
+.node-ssid{pointer-events:none;fill:#7fe0ff;font-size:10px;font-weight:700;
+  font-family:inherit;paint-order:stroke;stroke:#0d1a30;stroke-width:3px;}
 .node-lock{pointer-events:none;font-size:14px;}
 .node-fw{pointer-events:none;font-size:15px;}
 .node-dhcp{pointer-events:none;font-size:8px;font-weight:700;fill:#7fe0ff;font-family:inherit;paint-order:stroke;stroke:#0d1a30;stroke-width:2.5px;}

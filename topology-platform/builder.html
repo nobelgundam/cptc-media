@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>สร้างเครือข่าย — Builder</title>
-<link rel="stylesheet" href="css/style.css?v=20261023a">
+<link rel="stylesheet" href="css/style.css?v=20261028a">
 </head>
 <body>
 <div class="wrap wide">
@@ -78,7 +78,7 @@
       <button type="button" id="tabCap">📡 ดักจับ<small>Capture</small><span class="cap-badge hidden" id="capBadge">0</span></button>
     </div>
     <div id="termPane">
-    <div class="term-out" id="termOut"><div class="th">พิมพ์ <b>ipconfig</b> ดูเลข IP · <b>ping &lt;IP&gt;</b> ทดสอบส่งข้อมูล · <b>http &lt;IP&gt;</b> เปิดเว็บที่ Server · <b>tracert &lt;IP&gt;</b> ดูว่าผ่านอุปกรณ์อะไรบ้าง · <b>nslookup &lt;ชื่อ&gt;</b> ถามว่าชื่อนี้คือเลข IP อะไร<br>แบบ Ubuntu: <b>ip a</b> (ดู IP) · <b>ip route</b> (ดูเส้นทาง) · <b>ip neigh</b> (ดูตาราง MAC) · <b>ping -c 4 &lt;IP&gt;</b> · <b>traceroute &lt;IP&gt;</b> · <b>dhclient</b> (ขอ IP อัตโนมัติ) · <b>dig &lt;ชื่อ&gt;</b> (ถามชื่อ) · <b>cat /etc/resolv.conf</b> (ดู DNS ที่ตั้งไว้)<br>📡 อยากเห็นแพ็กเก็ตจริง ๆ → แท็บ <b>ดักจับ</b> (แบบ Wireshark) กดเริ่ม แล้วกลับมาลองสั่ง ping</div></div>
+    <div class="term-out" id="termOut"><div class="th">พิมพ์ <b>ipconfig</b> ดูเลข IP · <b>ping &lt;IP&gt;</b> ทดสอบส่งข้อมูล · <b>http &lt;IP&gt;</b> เปิดเว็บที่ Server · <b>tracert &lt;IP&gt;</b> ดูว่าผ่านอุปกรณ์อะไรบ้าง · <b>nslookup &lt;ชื่อ&gt;</b> ถามว่าชื่อนี้คือเลข IP อะไร · <b>hostname</b> ดูชื่อเครื่องตัวเอง<br>แบบ Ubuntu: <b>ip a</b> (ดู IP) · <b>ip route</b> (ดูเส้นทาง) · <b>ip neigh</b> (ดูตาราง MAC) · <b>ping -c 4 &lt;IP&gt;</b> · <b>traceroute &lt;IP&gt;</b> · <b>dhclient</b> (ขอ IP อัตโนมัติ) · <b>dig &lt;ชื่อ&gt;</b> (ถามชื่อ) · <b>cat /etc/resolv.conf</b> (ดู DNS ที่ตั้งไว้)<br>📡 อยากเห็นแพ็กเก็ตจริง ๆ → แท็บ <b>ดักจับ</b> (แบบ Wireshark) กดเริ่ม แล้วกลับมาลองสั่ง ping</div></div>
     <div class="term-chips">
       <button data-fill="ipconfig">ipconfig</button>
       <button data-fill="ping ">ping…</button>
@@ -158,6 +158,13 @@
 <div class="overlay" id="cfgOverlay">
   <div class="dialog">
     <h3 id="cfgTitle">⚙️ ตั้งค่า IP</h3>
+    <!-- ชื่ออุปกรณ์ (ทุกชนิด) — id เดิม (PC1/R1…) ยังใช้ต่อสาย/ping · ชื่อนี้แค่โชว์ -->
+    <div id="cfgNameWrap">
+      <label id="cfgNameLb" for="cfgName">ชื่ออุปกรณ์ (Device name)</label>
+      <input class="full" id="cfgName" type="text" maxlength="40" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+      <div class="dlg-note" id="cfgNameHint" style="margin:5px 0 0">a-z 0-9 และ - · ขึ้นต้นด้วยตัวอักษร · ไม่เกิน 15 ตัว · ห้ามเว้นวรรค</div>
+      <div class="dlg-err" id="cfgNameErr"></div>
+    </div>
     <div id="cfgIpWrap">
       <!-- PC/Server เลือกได้: ตั้งเอง หรือ ขอ IP อัตโนมัติจาก DHCP Server (Router ไม่มีตัวเลือกนี้) -->
       <div class="seg hidden" id="cfgModeWrap">
@@ -190,9 +197,9 @@
         </select>
       </div>
       <div id="cfgHostWrap" class="hidden">
-        <label>ชื่อเครื่อง (Hostname · ไม่บังคับ)</label>
+        <label>ชื่อเว็บ (DNS · ไม่บังคับ)</label>
         <input class="full" id="cfgHost" type="text" placeholder="ว่างไว้ = ไม่ตั้งชื่อ" autocomplete="off" autocapitalize="off" spellcheck="false">
-        <p class="dlg-note" style="margin:6px 0 0">ตั้งชื่อ เช่น shop.local — เครื่องอื่นพิมพ์ชื่อนี้แทนเลข IP ได้</p>
+        <p class="dlg-note" style="margin:6px 0 0">นี่คือชื่อเว็บใน DNS (ไม่ใช่ชื่ออุปกรณ์ด้านบน) เช่น shop.local — เครื่องอื่นพิมพ์ชื่อนี้แทนเลข IP ได้</p>
       </div>
     </div>
     <!-- Router เท่านั้น: DHCP Server แจก IP อัตโนมัติ (ค่าตั้งต้นแบบ MikroTik: .10–.254) -->
@@ -210,6 +217,12 @@
     <div id="cfgMirrorWrap" class="hidden">
       <p class="dlg-note">สวิตช์ปกติส่งเฟรมไปเฉพาะพอร์ตปลายทาง เครื่องอื่นในวงจึงไม่เห็นข้อมูลของกัน (ยกเว้น broadcast = ประกาศหาทุกเครื่อง) · <b>Port Mirror (กระจกพอร์ต)</b> = สั่งให้สวิตช์ก๊อปทุกเฟรมที่ผ่านตัวมันให้ตัวดักจับดู (แบบที่ครูสาธิตบน RB260GSP) · เปิดแล้วเลือกสวิตช์นี้เป็นจุดดักในแท็บ 📡 ดักจับ</p>
       <button type="button" class="btn wide" id="cfgMirrorToggle">🪞 Port Mirror (กระจกพอร์ต): ปิด</button>
+    </div>
+    <div id="cfgSsidWrap" class="hidden">
+      <label for="cfgSsid">ชื่อไวไฟ (SSID)</label>
+      <input class="full" id="cfgSsid" type="text" maxlength="60" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" style="font-family:inherit">
+      <div class="dlg-note" style="margin:5px 0 0">ชื่อที่เพื่อนเห็นตอนค้นหา Wi-Fi · ไทย/อังกฤษ/เว้นวรรคได้ · ไม่เกิน 32 ตัวอักษร</div>
+      <div class="dlg-err" id="cfgSsidErr"></div>
     </div>
     <div id="cfgWifiWrap" class="hidden">
       <p class="dlg-note">🔒 ตั้งรหัสผ่าน Wi-Fi ให้อุปกรณ์นี้ · ต้องเป็น "รหัสแข็งแรง" ครบ 5 ข้อ · เว้นว่าง = เปิด (ใครก็เกาะได้ เน็ตช้า ไม่ปลอดภัย)</p>
@@ -282,7 +295,7 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="js/engine.js?v=20261023a"></script>
+<script src="js/engine.js?v=20261028a"></script>
 <script>
 (function(){
   var E = window.NetSimEngine;
@@ -295,7 +308,7 @@
     {type:'router', label:'เราเตอร์ (Router)',    support:'UTP, Fiber, Wireless'},
     {type:'ap',     label:'AP (Access Point)',   support:'UTP, Wireless'},
     {type:'server', label:'เซิร์ฟเวอร์ (Server)', support:'UTP, Fiber'},
-    {type:'isp',    label:'ผู้ให้บริการ (ISP)',   support:'Fiber, UTP'},
+    {type:'isp',    label:'ISP ผู้ให้บริการเน็ต', support:'Fiber, UTP', gloss:'เช่น AIS · True · 3BB · NT'},
     {type:'table',  label:'โต๊ะ (Table)',        note:'วาดห้อง · ไม่ใช่อุปกรณ์'}
   ];
   var ICON = {
@@ -313,6 +326,7 @@
   var countsEl = document.getElementById('counts');
   var toastEl  = document.getElementById('toast');
   var toastT;
+  function dn(id){ return E.displayName(id); }   // ชื่อที่โชว์ (เด็กตั้ง) · ไม่ได้ตั้ง = id เดิม
   function showToast(msg, kind){
     toastEl.textContent = msg;
     toastEl.className = 'toast show ' + (kind||'');
@@ -326,14 +340,14 @@
     var b = document.createElement('div');
     b.className = 'dev'; b.dataset.type = d.type;
     b.innerHTML = '<svg viewBox="-22 -22 44 44">' + ICON[d.type] + '</svg>' +
-      '<span>' + d.label + '</span><small>' + (d.note || ('ต่อได้: ' + d.support)) + '</small>';
+      '<span>' + d.label + '</span><small>' + (d.gloss ? d.gloss + '<br>' : '') + (d.note || ('ต่อได้: ' + d.support)) + '</small>';
     b.addEventListener('click', function(){
       pal.querySelectorAll('.dev').forEach(function(x){x.classList.remove('on');});
       b.classList.add('on');
       E.setPlaceType(d.type);
       statusEl.textContent = d.type === 'table'
         ? 'แตะบนกระดานเพื่อวาง "โต๊ะ" · ลากโต๊ะเพื่อย้าย · ลากจุดมุมขวาล่างเพื่อปรับขนาด · แตะลงบนโต๊ะ = วางอุปกรณ์บนโต๊ะ'
-        : 'แตะบนกระดานเพื่อวาง "' + d.label + '" (ลากเพื่อย้ายได้)';
+        : 'แตะบนกระดานเพื่อวาง "' + d.label + '" (ลากเพื่อย้ายได้)' + (d.gloss ? ' · ISP = บริษัทที่ให้เราใช้อินเทอร์เน็ต ' + d.gloss : '');
     });
     pal.appendChild(b);
   });
@@ -364,7 +378,7 @@
   var STATUS_TXT = {
     place:   'เลือกอุปกรณ์ทางซ้าย แล้วแตะบนกระดานเพื่อวาง · ลากเพื่อย้าย',
     connect: 'เลือกสื่อกลางทางซ้าย แล้วแตะอุปกรณ์ A → อุปกรณ์ B',
-    config:  '⚙️ แตะที่ พีซี (PC) · มือถือ (Phone) หรือ เซิร์ฟเวอร์ (Server) เพื่อตั้งเลข IP · แตะ สวิตช์ เพื่อตั้ง Port Mirror',
+    config:  '⚙️ แตะอุปกรณ์เพื่อ ตั้งชื่อ · ตั้งเลข IP (PC · มือถือ · Server) · ตั้งชื่อไวไฟ (AP) · ตั้ง Port Mirror (สวิตช์)',
     settings:'🛡️ แตะที่ PC หรือ เครื่องพิมพ์-Server เพื่อเปิด/ปิด Firewall (Allow File and Printer Sharing)',
     cutlink: '✂️ โหมดตัดสาย: แตะที่ "เส้นสาย" เพื่อตัด → ลองชี้เส้นทาง/ping ดูว่ายังถึงกันไหม (สอนจุดอ่อนเครือข่าย)',
     delete:  'โหมดลบ: แตะอุปกรณ์ 1 ครั้ง แล้วแตะซ้ำเพื่อยืนยัน',
@@ -495,8 +509,9 @@
     if (!aps.length){ showToast('ยังไม่มี Router/AP — วางก่อนถึงทดสอบความเร็วได้', 'bad'); return; }
     termPrint('📶 ทดสอบความเร็วเน็ต (เน็ตรวม 100 Mbps แบ่งกันตามจำนวนเครื่องที่เกาะ Wi-Fi):', 'th');
     var slow = false;
-    aps.forEach(function(id){
-      var s = E.wifiSpeed(id); if (!s) return;
+    aps.forEach(function(apid){
+      var s = E.wifiSpeed(apid); if (!s) return;
+      var id = dn(apid) + (E.getNode(apid).ssid ? ' 📶 ' + E.getNode(apid).ssid : '');   // ชื่อ AP + ชื่อไวไฟ (ถ้าตั้ง)
       var who = s.devices + ' เครื่องของเรา' + (s.ghosts ? (' + ' + s.ghosts + ' เครื่องแปลกหน้าแอบเกาะ 😱') : '');
       if (!s.secured){ slow = true;
         termPrint('  ⚠️ ' + id + ' (Wi-Fi เปิด ไม่มีรหัส): เกาะ ' + s.users + ' เครื่อง (' + who + ') → ' + s.perDevice + ' Mbps/เครื่อง — ช้า!', 'bad');
@@ -531,6 +546,15 @@
     cfgId = id;
     var n = E.getNode(id);
     cfgErr.textContent = '';
+    // ชื่ออุปกรณ์: ทุกชนิดตั้งได้ · ช่องมีค่าตั้งต้น = ชื่อที่โชว์อยู่ตอนนี้ (ไม่ได้ตั้ง = id)
+    var isIsp = (n.type === 'isp');
+    document.getElementById('cfgName').value = n.name;
+    document.getElementById('cfgNameLb').textContent = isIsp ? 'ชื่อผู้ให้บริการ (ISP · พิมพ์ยี่ห้อเอง เช่น AIS · True · 3BB · NT)' : 'ชื่ออุปกรณ์ (Device name)';
+    document.getElementById('cfgNameHint').textContent = isIsp ? 'a-z 0-9 และ - · ขึ้นต้นด้วยเลขได้ (เช่น 3BB) · ไม่เกิน 15 ตัว · ห้ามเว้นวรรค' : 'a-z 0-9 และ - · ขึ้นต้นด้วยตัวอักษร · ไม่เกิน 15 ตัว · ห้ามเว้นวรรค';
+    document.getElementById('cfgNameErr').textContent = '';
+    document.getElementById('cfgSsidErr').textContent = '';
+    document.getElementById('cfgSsidWrap').classList.toggle('hidden', n.type !== 'ap');
+    document.getElementById('cfgSsid').value = n.ssid;
     /* router = ตั้งได้ทั้ง IP และรหัส Wi-Fi · AP = รหัส Wi-Fi อย่างเดียว · ที่เหลือ = IP อย่างเดียว
      * (แก้ 29 ส.ค. 69: เดิม router ตกเงื่อนไข Wi-Fi แล้ว return ทำให้ตั้ง IP ให้ router ไม่ได้เลย) */
     var isRouter = (n.type === 'router');
@@ -539,7 +563,7 @@
     if (n.type === 'switch'){   // สวิตช์ = ตั้งได้อย่างเดียวคือ Port Mirror (builder เท่านั้น)
       ['cfgIpWrap', 'cfgWifiWrap', 'cfgDhcpSrvWrap'].forEach(function(w){ document.getElementById(w).classList.add('hidden'); });
       setMirrorOn(!!n.mirror);
-      cfgTitle.textContent = '🪞 ตั้งค่าสวิตช์ ' + id + ' — Port Mirror';
+      cfgTitle.textContent = '🪞 ตั้งค่าสวิตช์ ' + n.name + ' — ชื่อ + Port Mirror';
       overlay.classList.add('show');
       return;
     }
@@ -552,20 +576,21 @@
       refreshPw(n.wifi || '');
     }
     if (wifiOnly){
-      cfgTitle.textContent = '🔒 ตั้งรหัส Wi-Fi ' + id + ' — ' + E.typeLabel(n.type);
+      cfgTitle.textContent = '📶 ตั้งชื่อ + รหัส Wi-Fi ' + n.name + ' — ' + E.typeLabel(n.type);
       overlay.classList.add('show');
       setTimeout(function(){ var w=document.getElementById('cfgWifi'); w.focus(); }, 50);
       return;
     }
     cfgTitle.textContent = isRouter
-      ? '⚙️ ตั้งค่า ' + id + ' — IP + รหัส Wi-Fi'
-      : '⚙️ ตั้งค่า IP ' + id + ' — ' + E.typeLabel(n.type);
+      ? '⚙️ ตั้งค่า ' + n.name + ' — ชื่อ + IP + รหัส Wi-Fi'
+      : isIsp ? '⚙️ ตั้งค่า ISP ' + n.name + ' — ผู้ให้บริการอินเทอร์เน็ต (เช่น AIS · True · 3BB · NT)'
+      : '⚙️ ตั้งค่า ' + n.name + ' — ชื่อ + IP (' + E.typeLabel(n.type) + ')';
     cfgIp.value = n.ip || '192.168.1.';
     cfgGw.value = n.gw || '';
     var httpWrap = document.getElementById('cfgHttpWrap');
     if (n.type === 'server'){ httpWrap.classList.remove('hidden'); document.getElementById('cfgHttp').value = String(n.http || 200); }
     else httpWrap.classList.add('hidden');
-    /* DNS: PC/Server ใส่ DNS Server ได้ (router ไม่มีช่องนี้ — DNS ที่ router แจกตั้งในส่วน DHCP) · ชื่อเครื่อง: Server เท่านั้น */
+    /* DNS: PC/Server ใส่ DNS Server ได้ (router ไม่มีช่องนี้ — DNS ที่ router แจกตั้งในส่วน DHCP) · ชื่อเว็บ (DNS): Server เท่านั้น */
     document.getElementById('cfgDnsWrap').classList.toggle('hidden', isRouter);
     document.getElementById('cfgDns').value = isRouter ? '' : (n.dns || '');
     document.getElementById('cfgHostWrap').classList.toggle('hidden', n.type !== 'server');
@@ -624,12 +649,12 @@
   document.getElementById('cfgMirrorToggle').addEventListener('click', function(){ cfgErr.textContent = ''; setMirrorOn(!mirrorOn); });
   document.getElementById('cfgCancel').addEventListener('click', function(){ overlay.classList.remove('show'); });
   overlay.addEventListener('click', function(e){ if (e.target===overlay) overlay.classList.remove('show'); });
-  document.getElementById('cfgSave').addEventListener('click', function(){
+  function saveCfgRest(){          // ส่วนเดิมของปุ่มบันทึก (IP/Wi-Fi/DHCP/Port Mirror) · สำเร็จ = ปิด dialog
     var nsw = E.getNode(cfgId);
     if (nsw && nsw.type === 'switch'){
       E.setNodeMirror(cfgId, mirrorOn);
       overlay.classList.remove('show');
-      showToast(mirrorOn ? '🪞 ' + cfgId + ' เปิด Port Mirror แล้ว — เลือกเป็นจุดดักได้ในแท็บ 📡 ดักจับ' : cfgId + ' ปิด Port Mirror', mirrorOn ? 'ok' : 'bad');
+      showToast(mirrorOn ? '🪞 ' + dn(cfgId) + ' เปิด Port Mirror แล้ว — เลือกเป็นจุดดักได้ในแท็บ 📡 ดักจับ' : dn(cfgId) + ' ปิด Port Mirror', mirrorOn ? 'ok' : 'bad');
       return;
     }
     // ส่วนรหัส Wi-Fi (AP = อย่างเดียว · Router = ทำคู่กับ IP แล้วไปต่อ)
@@ -642,7 +667,7 @@
       if (!ipShown){                       // AP = มีแต่ Wi-Fi บันทึกได้เลย
         E.setNodeWifi(cfgId, pass);
         overlay.classList.remove('show');
-        showToast(pass ? '🔒 ตั้งรหัส Wi-Fi ' + cfgId + ' แล้ว (แข็งแรง)' : '⚠️ ' + cfgId + ' เปิด Wi-Fi ไม่มีรหัส (เน็ตช้า ไม่ปลอดภัย)', pass ? 'ok' : 'bad');
+        showToast(pass ? '🔒 ตั้งรหัส Wi-Fi ' + dn(cfgId) + ' แล้ว (แข็งแรง)' : '⚠️ ' + dn(cfgId) + ' เปิด Wi-Fi ไม่มีรหัส (เน็ตช้า ไม่ปลอดภัย)', pass ? 'ok' : 'bad');
         return;
       }
     }
@@ -650,7 +675,7 @@
     // PC/Server เลือก "รับอัตโนมัติ (DHCP)" → ขอ IP ทันที (ไม่ต้องกรอก/ตรวจ IP)
     var hostV = isServer ? document.getElementById('cfgHost').value.trim() : '';
     var herr = isServer ? E.hostError(cfgId, hostV) : null;
-    if (herr){ cfgErr.textContent = '❌ ชื่อเครื่อง: ' + herr; return; }
+    if (herr){ cfgErr.textContent = '❌ ชื่อเว็บ (DNS): ' + herr; return; }
     if (cfgMode === 'dhcp' && !document.getElementById('cfgModeWrap').classList.contains('hidden')){
       if (isServer){ E.setNodeHttp(cfgId, document.getElementById('cfgHttp').value); E.setNodeHost(cfgId, hostV); }
       var rq = E.requestDhcp(cfgId);
@@ -691,17 +716,67 @@
     if (isServer) E.setNodeHost(cfgId, hostV);
     if (dhcpCfg) E.setNodeDhcp(cfgId, dhcpCfg);
     overlay.classList.remove('show');
-    showToast('ตั้ง IP ' + cfgId + ' = ' + ip + (isServer ? ' · HTTP ' + http : '') + (dnsV ? ' · DNS ' + dnsV : '') +
+    showToast('ตั้ง IP ' + dn(cfgId) + ' = ' + ip + (isServer ? ' · HTTP ' + http : '') + (dnsV ? ' · DNS ' + dnsV : '') +
       (dhcpCfg && dhcpCfg.on ? ' · DHCP แจก ' + dhcpCfg.from + '–' + dhcpCfg.to : ''), 'ok');
     refreshTerm();
+  }
+  function fieldErr(inputId, errId, msg){
+    document.getElementById(errId).textContent = '❌ ' + msg;
+    var el = document.getElementById(inputId); el.focus();
+    try { el.scrollIntoView({ block: 'center' }); } catch(e){}
+  }
+  ['cfgName', 'cfgSsid'].forEach(function(i){
+    document.getElementById(i).addEventListener('input', function(){ document.getElementById(i + 'Err').textContent = ''; });
+  });
+  // เปลี่ยนแค่ชื่อ (ช่อง IP ยังเป็นค่าตั้งต้น ไม่ได้แตะ) → ไม่บังคับกรอก IP · ส่วนอื่นเปลี่ยนไปด้วย = ใช้ขั้นตอนเดิมครบ
+  function onlyRename(n){
+    var shown = function(w){ return !document.getElementById(w).classList.contains('hidden'); };
+    if (!shown('cfgIpWrap') || n.ip || cfgMode !== 'static') return false;
+    if (cfgIp.value.trim() !== '192.168.1.' || cfgGw.value.trim() || (shown('cfgDnsWrap') && document.getElementById('cfgDns').value.trim())) return false;
+    if (shown('cfgHttpWrap') && (document.getElementById('cfgHttp').value !== String(n.http || 200) || document.getElementById('cfgHost').value.trim() !== (E.getNode(cfgId).host || ''))) return false;
+    if (shown('cfgWifiWrap') && document.getElementById('cfgWifi').value.trim() !== (n.wifi || '')) return false;
+    if (shown('cfgDhcpSrvWrap')){ var dc = E.getDhcp(cfgId); if (dhcpOn !== !!(dc && dc.on)) return false; }
+    return true;
+  }
+  document.getElementById('cfgSave').addEventListener('click', function(){
+    var n = E.getNode(cfgId); if (!n) return;
+    document.getElementById('cfgNameErr').textContent = ''; document.getElementById('cfgSsidErr').textContent = '';
+    // 1) ชื่ออุปกรณ์ + ชื่อไวไฟ: ตรวจก่อนทุกอย่าง (ผิดข้อแรกที่เจอ แสดงใต้ช่อง) — ไม่บันทึกอะไรเลยถ้าผิด
+    var nameV = document.getElementById('cfgName').value.trim();
+    var ne = E.nameError(cfgId, nameV);
+    if (ne){ fieldErr('cfgName', 'cfgNameErr', ne); return; }
+    var ssidV = null;
+    if (n.type === 'ap'){
+      var sv = document.getElementById('cfgSsid').value;
+      if (sv.trim() !== '' || n.ssid){          // ไม่เคยตั้ง + เว้นว่าง = ยังไม่ตั้งชื่อไวไฟ (ตั้งแค่รหัสผ่านได้) · เคยตั้งแล้วลบทิ้ง = ผิด
+        var se = E.ssidError(cfgId, sv);
+        if (se){ fieldErr('cfgSsid', 'cfgSsidErr', se); return; }
+        ssidV = sv.trim();
+      }
+    }
+    // 2) บันทึกชื่อก่อน (ให้ toast/ชื่อบนจอเป็นชื่อใหม่) → ส่วนเดิมไม่ผ่าน = คืนชื่อเดิม
+    var oldName = n.name, oldSsid = n.ssid, nameChanged = (nameV !== oldName), ssidChanged = (ssidV !== null && ssidV !== oldSsid);
+    if (nameChanged) E.setNodeName(cfgId, nameV);
+    if (ssidChanged) E.setNodeSsid(cfgId, ssidV);
+    if ((nameChanged || ssidChanged) && onlyRename(n)){
+      overlay.classList.remove('show');
+      showToast('✅ ตั้งชื่อแล้ว: ' + nameV + (ssidV ? ' · 📶 ' + ssidV : ''), 'ok');
+      refreshTerm();
+      return;
+    }
+    saveCfgRest();
+    if (overlay.classList.contains('show')){   // ส่วนเดิมไม่ผ่าน (เช่น IP ผิด) = ไม่บันทึกอะไรสักอย่าง
+      if (nameChanged) E.setNodeName(cfgId, oldName);
+      if (ssidChanged){ if (oldSsid) E.setNodeSsid(cfgId, oldSsid); else E.clearNodeSsid(cfgId); }
+    }
   });
 
   /* ===== Wi-Fi เชื่อมไร้สายใส่รหัส ===== */
   var wifiPending = null;
   function openWifiConnect(apId, a, b, m){
     wifiPending = { ap: apId, a: a, b: b, m: m };
-    document.getElementById('wifiTitle').textContent = '🔒 ใส่รหัส Wi-Fi ของ ' + apId;
-    document.getElementById('wifiNote').textContent = apId + ' ตั้งรหัส Wi-Fi ไว้ — ใส่รหัสให้ถูกเพื่อเชื่อม ' + a + ' แบบไร้สาย';
+    document.getElementById('wifiTitle').textContent = '🔒 ใส่รหัส Wi-Fi ของ ' + dn(apId);
+    document.getElementById('wifiNote').textContent = dn(apId) + ' ตั้งรหัส Wi-Fi ไว้ — ใส่รหัสให้ถูกเพื่อเชื่อม ' + dn(a) + ' แบบไร้สาย';
     document.getElementById('wifiPass').value = '';
     document.getElementById('wifiErr').textContent = '';
     document.getElementById('wifiOverlay').classList.add('show');
@@ -712,7 +787,7 @@
     var res = E.connectAuth(wifiPending.a, wifiPending.b, wifiPending.m, document.getElementById('wifiPass').value);
     if (res.ok){
       document.getElementById('wifiOverlay').classList.remove('show');
-      showToast('✅ เชื่อม ' + wifiPending.a + ' ↔ ' + wifiPending.b + ' (รหัสถูก)', 'ok');
+      showToast('✅ เชื่อม ' + dn(wifiPending.a) + ' ↔ ' + dn(wifiPending.b) + ' (รหัสถูก)', 'ok');
       wifiPending = null;
     } else if (res.reason === 'wifibad'){
       document.getElementById('wifiErr').textContent = '❌ รหัส Wi-Fi ผิด — เครื่องนี้เกาะ Wi-Fi ไม่ได้';
@@ -735,7 +810,7 @@
   function openFw(id){
     fwId = id;
     var n = E.getNode(id);
-    document.getElementById('fwTitle').textContent = '🛡️ Firewall ' + id + ' — ' + E.typeLabel(n.type);
+    document.getElementById('fwTitle').textContent = '🛡️ Firewall ' + dn(id) + ' — ' + E.typeLabel(n.type);
     if (!E.getFirewall(id).has) E.setFirewall(id, true);   // เครื่องที่ยังไม่เคยตั้ง = มี Firewall บล็อกอยู่ (ค่าจริงของ Windows)
     renderFwToggle();
     fwOverlay.classList.add('show');
@@ -745,7 +820,7 @@
       var block = b.dataset.block === 'true';
       E.setFirewall(fwId, block);
       renderFwToggle();
-      showToast(block ? ('🛡️ ' + fwId + ' บล็อก — ping/แชร์ไม่ได้') : ('🔓 ' + fwId + ' เปิด Allow Sharing แล้ว — ลอง ping ใหม่'), block ? 'bad' : 'ok');
+      showToast(block ? ('🛡️ ' + dn(fwId) + ' บล็อก — ping/แชร์ไม่ได้') : ('🔓 ' + dn(fwId) + ' เปิด Allow Sharing แล้ว — ลอง ping ใหม่'), block ? 'bad' : 'ok');
     });
   });
   document.getElementById('fwCancel').addEventListener('click', function(){ fwOverlay.classList.remove('show'); });
@@ -770,13 +845,13 @@
     list.forEach(function(n){
       var o = document.createElement('option');
       o.value = n.id;
-      o.textContent = n.id + (n.ip ? ' · ' + n.ip : ' · (ยังไม่ตั้ง IP)');
+      o.textContent = n.name + (n.ip ? ' · ' + n.ip : ' · (ยังไม่ตั้ง IP)');
       srcSel.appendChild(o);
     });
     if (prev && list.some(function(n){return n.id===prev;})) srcSel.value = prev;
     updatePrompt();
   }
-  function updatePrompt(){ document.getElementById('termPrompt').textContent = (srcSel.value||'') + '>'; }
+  function updatePrompt(){ document.getElementById('termPrompt').textContent = (srcSel.value ? dn(srcSel.value) : '') + '>'; }
   srcSel.addEventListener('change', updatePrompt);
 
   function termPrint(text, cls){
@@ -792,7 +867,7 @@
     if (!raw) return;
     var srcId = srcSel.value;
     if (!srcId){ termPrint('ยังไม่มีเครื่อง PC/Server — วางก่อนนะ', 'bad'); return; }
-    termPrint((srcId) + '> ' + raw, 'cmd');
+    termPrint(dn(srcId) + '> ' + raw, 'cmd');
     var p = raw.split(/\s+/);
     if (p.length > 1 && p[0].toLowerCase() === 'sudo') p.shift();   // sudo นำหน้า (แบบ Ubuntu) = ข้ามไป ใช้คำสั่งที่ตามหลัง
     var cmd = p[0].toLowerCase();
@@ -804,6 +879,7 @@
       else ipBlock(E.getNode(srcId));
       return;
     }
+    if (cmd === 'hostname'){ termPrint(dn(srcId)); return; }   // ชื่ออุปกรณ์ที่เด็กตั้ง (ไม่ได้ตั้ง = id)
     if (cmd === 'ip'){ doIp(srcId, p.slice(1)); return; }
     if (cmd === 'dhclient'){ doDhclient(srcId, p.slice(1)); return; }
     if (cmd === 'nslookup'){ doNslookup(srcId, p.slice(1)); return; }
@@ -830,7 +906,7 @@
       doTraceroute(srcId, p[1]);
       return;
     }
-    termPrint("'" + cmd + "' ไม่ใช่คำสั่งที่รองรับ — ใช้ได้: ping, ipconfig, http, tracert, nslookup · แบบ Ubuntu: ip, traceroute, dhclient, dig, cat", 'th');
+    termPrint("'" + cmd + "' ไม่ใช่คำสั่งที่รองรับ — ใช้ได้: ping, ipconfig, hostname, http, tracert, nslookup · แบบ Ubuntu: ip, traceroute, dhclient, dig, cat", 'th');
   }
 
   /* ===== ipconfig (Windows) — ปกติ / /all / /renew / /release ===== */
@@ -842,6 +918,7 @@
   function isLL(ip){ return /^169\.254\./.test(ip || ''); }   // 169.254.x.y = ขอ DHCP ไม่ได้
   function doIpconfigAll(srcId){
     var n = E.getNode(srcId), dh = (n.ipmode === 'dhcp'), L = E.leaseOf(srcId), ll = isLL(n.ip);
+    termPrint('Host Name . . . . . . : ' + dn(srcId));
     termPrint('Ethernet adapter Ethernet:');
     termPrint('Physical Address . . : ' + E.macOf(srcId).toUpperCase().replace(/:/g, '-'));
     termPrint('DHCP Enabled . . . . : ' + (dh ? 'Yes' : 'No'));
@@ -853,8 +930,8 @@
   }
   function dhcpToast(id, r){
     // ไม่บอกว่าใครแจก — ให้เด็กไปดู ipconfig /all (DHCP Server) เองตอนสืบว่าใครตอบ
-    if (r.ok) showToast('ตั้ง IP ' + id + ' = ' + r.ip + ' (DHCP)', 'ok');
-    else showToast('⚠️ ' + id + ' ขอ IP อัตโนมัติไม่ได้ — ได้ ' + r.ip + ' แทน', 'bad');
+    if (r.ok) showToast('ตั้ง IP ' + dn(id) + ' = ' + r.ip + ' (DHCP)', 'ok');
+    else showToast('⚠️ ' + dn(id) + ' ขอ IP อัตโนมัติไม่ได้ — ได้ ' + r.ip + ' แทน', 'bad');
   }
   var NO_ADAPTER = 'The operation failed as no adapter is in the state permissible for this operation.';
   function doRenew(srcId){
@@ -870,7 +947,7 @@
     if (n.ipmode !== 'dhcp' || !E.canDhcpClient(n.type)){ termPrint(NO_ADAPTER, 'bad'); return; }
     E.releaseDhcp(srcId);
     termPrint('Ethernet adapter Ethernet:'); ipBlock(E.getNode(srcId));
-    showToast(srcId + ' คืน IP แล้ว', 'ok');
+    showToast(dn(srcId) + ' คืน IP แล้ว', 'ok');
   }
 
   /* ===== คำสั่งแบบ Ubuntu: ip addr / ip route / ip neigh · dhclient · ping -c · traceroute ===== */
@@ -915,7 +992,7 @@
       var had = E.leaseOf(srcId), oldIp = n.ip;
       E.releaseDhcp(srcId);
       if (had && oldIp) termPrint('DHCPRELEASE of ' + oldIp + ' on eth0 to ' + (had.serverIp || '-') + ' port 67');
-      showToast(srcId + ' คืน IP แล้ว', 'ok');
+      showToast(dn(srcId) + ' คืน IP แล้ว', 'ok');
       return;
     }
     var r = E.requestDhcp(srcId);
@@ -978,7 +1055,7 @@
     r.nodes.forEach(function(id, i){
       if (i === 0) return;
       var n = E.getNode(id) || {};
-      line(n.ip || id, 0.3 + i * 0.35);
+      line(n.ip || dn(id), 0.3 + i * 0.35);
     });
     if (r.kind === 'net' && r.target) line(r.target.ip, r.target.ms);
     termPrint('📋 จดสมุด: ping บอกแค่ "ถึงหรือไม่ถึง" · traceroute บอกว่า "ไปตกที่ hop (ทอด) ไหน"', 'note');
@@ -999,7 +1076,7 @@
       hopNo++;
       var n = E.getNode(id) || {};
       var ms = 1 + Math.round(Math.random() * 4) + hopNo * 2;
-      termPrint('  ' + hopNo + '   ' + ms + ' ms   ' + id + (n.ip ? ' [' + n.ip + ']' : '') + ' — ' + E.typeLabel(n.type || ''), 'ok');
+      termPrint('  ' + hopNo + '   ' + ms + ' ms   ' + dn(id) + (n.ip ? ' [' + n.ip + ']' : '') + ' — ' + E.typeLabel(n.type || ''), 'ok');
     });
     if (r.kind === 'net' && r.target){
       hopNo++;
@@ -1124,7 +1201,7 @@
         } else {
           termPrint('ตอบกลับจาก ' + net.ip + ': เวลา ' + net.ms + 'ms TTL=' + net.ttl + ' (' + net.note + ')', 'ok');
         }
-        termPrint('📋 จดสมุด: ' + srcId + ' ping ' + lab + ' = ได้ — ออกอินเทอร์เน็ตผ่าน Router', 'note');
+        termPrint('📋 จดสมุด: ' + dn(srcId) + ' ping ' + lab + ' = ได้ — ออกอินเทอร์เน็ตผ่าน Router', 'note');
         showToast('✅ ออกเน็ตได้ (' + net.ms + 'ms)', 'ok');
       }, { count: lx || 3 });
     } else {
@@ -1137,15 +1214,15 @@
             termPrint('ตอบกลับจาก ' + ip + ': ไบต์=32 เวลา=' + ms + 'ms TTL=' + (128 - routersOn(r.path)), 'ok');   // TTL ลดเฉพาะตอนผ่าน Router (เหมือนฝั่ง Linux)
           }
         }
-        termPrint('📋 จดสมุด: ' + srcId + ' ping ' + lab + ' = ได้ — ' + (r.sameNet ? 'วงเดียวกัน (subnet เดียวกัน)' : 'คนละวง ต้องผ่าน Router'), 'note');
-        showToast('✅ ' + srcId + ' ส่งถึง ' + lab + ' แล้ว (' + hops + ' hop = ทอด)', 'ok');
+        termPrint('📋 จดสมุด: ' + dn(srcId) + ' ping ' + lab + ' = ได้ — ' + (r.sameNet ? 'วงเดียวกัน (subnet เดียวกัน)' : 'คนละวง ต้องผ่าน Router'), 'note');
+        showToast('✅ ' + dn(srcId) + ' ส่งถึง ' + lab + ' แล้ว (' + hops + ' hop = ทอด)', 'ok');
       }, { count: lx || 3 });
     }
     var tag = (rv.name ? ' [' + rv.ip + ']' : '');   // พิมพ์เป็นชื่อ → โชว์เลข IP ที่แปลงได้ในวงเล็บ (เหมือน Windows)
     if (res.ok){
       if (lx) termPrint('PING ' + lab + ' (' + (net ? net.ip : ip) + ') 56(84) bytes of data.');
       else termPrint('กำลัง ping ' + lab + tag + ' ...');
-      statusEl.textContent = '📦 กำลัง ping ' + lab + ' จาก ' + srcId + ' ...'; lookAtBoard(); return;
+      statusEl.textContent = '📦 กำลัง ping ' + lab + ' จาก ' + dn(srcId) + ' ...'; lookAtBoard(); return;
     }
     var MSG = {
       /* ⚠️ ข้อความพวกนี้บอก "อาการที่ตรวจพบ" เท่านั้น ห้ามบอกวิธีแก้เป็นขั้นตอน
@@ -1197,7 +1274,7 @@
       termPrint('   → ' + HTTP_INFO[200].th, 'note');
       showToast('✅ 200 OK', 'ok');
     }, { http: true, host: lab });
-    if (res.ok){ termPrint('กำลังเปิดเว็บ http://' + lab + ' [' + rv.ip + '] ...'); statusEl.textContent = '🌐 เปิดเว็บ ' + lab + ' จาก ' + srcSel.value + ' ...'; return; }
+    if (res.ok){ termPrint('กำลังเปิดเว็บ http://' + lab + ' [' + rv.ip + '] ...'); statusEl.textContent = '🌐 เปิดเว็บ ' + lab + ' จาก ' + dn(srcSel.value) + ' ...'; return; }
     var nm = TRACE_MSG[res.reason] || 'ส่งไม่ถึง';
     termPrint('✗ เปิดเว็บไม่ได้ — ' + nm, 'bad');
     showToast('⛔ เปิดเว็บไม่ได้: ' + nm, 'bad');
@@ -1213,7 +1290,7 @@
       termPrint('   → ' + info.th, 'note');
       showToast((good ? '✅ ' : '⛔ ') + status + ' ' + info.en, good ? 'ok' : 'bad');
     }, { host: typed });
-    if (res.ok){ termPrint('กำลังเปิดเว็บ http://' + typed + (rv.name ? ' [' + ip + ']' : '') + ' ...'); statusEl.textContent = '🌐 เปิดเว็บ ' + typed + ' จาก ' + srcSel.value + ' ...'; return; }
+    if (res.ok){ termPrint('กำลังเปิดเว็บ http://' + typed + (rv.name ? ' [' + ip + ']' : '') + ' ...'); statusEl.textContent = '🌐 เปิดเว็บ ' + typed + ' จาก ' + dn(srcSel.value) + ' ...'; return; }
     if (res.reason === 'noserver'){
       termPrint('✗ เชื่อมต่อไม่ได้ — ' + ip + ' ไม่ใช่เว็บเซิร์ฟเวอร์ (ต้องเป็น Server ถึงจะ http ได้)', 'bad');
       showToast('⛔ ' + ip + ' ไม่มีเว็บเซิร์ฟเวอร์', 'bad');
@@ -1254,7 +1331,7 @@
     }
     list.forEach(function(s){
       var o = document.createElement('option'); o.value = s.id;
-      o.textContent = s.id + (s.type === 'switch' ? ' 🪞 สวิตช์ (Port Mirror)' : (s.type === 'server' ? ' · เซิร์ฟเวอร์' : ' · พีซี'));
+      o.textContent = s.name + (s.type === 'switch' ? ' 🪞 สวิตช์ (Port Mirror)' : (s.type === 'server' ? ' · เซิร์ฟเวอร์' : ' · พีซี'));
       cpPoint.appendChild(o); if (s.id === prev) ok = true;
     });
     if (ok) cpPoint.value = prev;
