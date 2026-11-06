@@ -51,10 +51,8 @@ fr.addEventListener('load', function(){
   try { fr.contentWindow.eval("document.querySelector('[data-id=\"R1\"] .node-hit')"); openCfgWorks = true; } catch(e){}
   ok('5 มีปุ่มโหมดตั้ง IP', !!w.document.getElementById('m-config'));
 
-  /* --- terminal รองรับ tracert --- */
-  var chips = Array.prototype.map.call(d.querySelectorAll('.term-chips button'), function(b){ return b.getAttribute('data-fill'); });
-  ok('6 ปุ่มลัดมี tracert', chips.indexOf('tracert ') > -1, chips.join('|'));
-  ok('6b ไม่มีปุ่มกดแล้วรันทันที', d.querySelectorAll('.term-chips [data-run]').length === 0);
+  /* --- ไม่มีแถบปุ่มลัดคำสั่ง: เด็กต้องพิมพ์คำสั่งและปลายทางเอง --- */
+  ok('6 ไม่มีแถบปุ่มลัดคำสั่ง', d.querySelectorAll('.term-chips').length === 0);
 
   /* --- เปลี่ยนเลขที่: ต้องมีปุ่มยกเลิก + ข้อความเตือน --- */
   d.getElementById('meBadge').click();
